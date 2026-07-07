@@ -60,9 +60,12 @@ export default function AddMealPage() {
   } | null>(null);
 
   useEffect(() => {
-    // Draft handed over from "log again" on the History screen
+    // Draft handed over from "log again" on the History screen.
+    // Must run post-mount: sessionStorage isn't available during prerender,
+    // and reading it in a state initializer would cause a hydration mismatch.
     const stashed = popDraft();
     if (stashed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDraft({
         name: stashed.name,
         items: stashed.items,

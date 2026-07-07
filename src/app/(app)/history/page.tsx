@@ -75,11 +75,16 @@ export default function HistoryPage() {
   const [range, setRange] = useState<"7" | "30">("7");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<ApiMeal | null>(null);
+  const [today, setToday] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    fetchMealsRange(from, new Date())
-      .then(setMeals)
+    const now = new Date();
+    const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    fetchMealsRange(from, now)
+      .then((rows) => {
+        setMeals(rows);
+        setToday(localDateString(now));
+      })
       .catch(() => setMeals([]));
   }, []);
 
@@ -91,23 +96,21 @@ export default function HistoryPage() {
   const days = useMemo(() => groupByDay(meals ?? []), [meals]);
 
   const chartData = useMemo(() => {
+    if (!today) return [];
+    const anchor = new Date(`${today}T12:00:00`);
     const numDays = Number(range);
     const result: Array<{ day: string; calories: number }> = [];
     for (let i = numDays - 1; i >= 0; i--) {
-      const date = localDateString(
-        new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-      );
-      const group = days.find((d) => d.date === date);
+      const d = new Date(anchor.getTime() - i * 24 * 60 * 60 * 1000);
+      const date = localDateString(d);
+      const group = days.find((g) => g.date === date);
       result.push({
-        day: new Date(`${date}T12:00:00`).toLocaleDateString([], {
-          month: "numeric",
-          day: "numeric",
-        }),
+        day: d.toLocaleDateString([], { month: "numeric", day: "numeric" }),
         calories: group?.calories ?? 0,
       });
     }
     return result;
-  }, [days, range]);
+  }, [days, range, today]);
 
   return (
     <div className="flex flex-col gap-4">

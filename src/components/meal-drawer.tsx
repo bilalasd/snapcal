@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Copy, Star, Trash2 } from "lucide-react";
@@ -39,24 +39,31 @@ function toDraftItems(meal: ApiMeal): DraftItem[] {
 }
 
 export function MealDrawer({ meal, onClose, onChanged }: MealDrawerProps) {
+  if (!meal) return null;
+  // Keyed by meal id so switching meals resets the edit state cleanly.
+  return (
+    <MealDrawerInner
+      key={meal.id}
+      meal={meal}
+      onClose={onClose}
+      onChanged={onChanged}
+    />
+  );
+}
+
+function MealDrawerInner({
+  meal,
+  onClose,
+  onChanged,
+}: MealDrawerProps & { meal: ApiMeal }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [items, setItems] = useState<DraftItem[]>([]);
-  const [favorite, setFavorite] = useState(false);
+  const [name, setName] = useState(meal.name);
+  const [items, setItems] = useState<DraftItem[]>(() => toDraftItems(meal));
+  const [favorite, setFavorite] = useState(meal.isFavorite);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (meal) {
-      setName(meal.name);
-      setItems(toDraftItems(meal));
-      setFavorite(meal.isFavorite);
-    }
-  }, [meal]);
-
-  if (!meal) return null;
-
   async function saveChanges() {
-    if (!meal) return;
+
     const valid = items.filter((i) => i.name.trim());
     if (valid.length === 0) {
       toast.error("A meal needs at least one item");
@@ -84,7 +91,7 @@ export function MealDrawer({ meal, onClose, onChanged }: MealDrawerProps) {
   }
 
   async function deleteMeal() {
-    if (!meal) return;
+
     setBusy(true);
     try {
       await fetchJson(`/api/meals/${meal.id}`, { method: "DELETE" });
@@ -99,7 +106,7 @@ export function MealDrawer({ meal, onClose, onChanged }: MealDrawerProps) {
   }
 
   function logAgain() {
-    if (!meal) return;
+
     stashDraft({
       name: meal.name,
       eaten_at: new Date().toISOString(),
