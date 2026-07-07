@@ -235,3 +235,18 @@ Lightweight, focused on the math and contracts:
   more accurate than device burn estimates.
 - CSV export and push-notification reminders (declined for v1).
 - Offline logging.
+
+---
+
+## Amendment (2026-07-07): Fitbit → Google Health API
+
+Fitbit discontinued new app registrations and is sunsetting the legacy Web
+API in September 2026. §7 is superseded: weight sync now uses the **Google
+Health API** (Fitbit's successor) — standard Google OAuth 2.0 + PKCE, scope
+`googlehealth.health_metrics_and_measurements.readonly`, data from
+`health.googleapis.com` (weight in grams). The OAuth client runs in Google's
+"Testing" mode (personal use, no review), which expires refresh tokens every
+7 days — the Settings card surfaces a one-tap **Reconnect** state, tracked
+via `health_tokens.needs_reconnect`. Routes moved from `/api/fitbit/*` to
+`/api/health/*`; env vars are `GOOGLE_HEALTH_CLIENT_ID` / `_SECRET`.
+Trend math, `weights` storage, and the deficit verdict are unchanged.

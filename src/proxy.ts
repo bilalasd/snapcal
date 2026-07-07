@@ -9,7 +9,7 @@ export async function proxy(request: NextRequest) {
   if (
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/api/cron/") || // cron routes verify CRON_SECRET themselves
-    pathname.startsWith("/api/fitbit/callback") // OAuth redirect; validates state
+    pathname.startsWith("/api/health/callback") // OAuth redirect; validates state
   ) {
     return NextResponse.next();
   }

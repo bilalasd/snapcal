@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { FitbitCard } from "@/components/fitbit-card";
+import { HealthCard } from "@/components/health-card";
 import { fetchJson, type Goals } from "@/lib/client";
 
 const KG_PER_LB = 0.453592;
@@ -177,7 +177,7 @@ export default function SettingsPage() {
             Save
           </Button>
 
-          <FitbitCard />
+          <HealthCard />
 
           <Button variant="outline" onClick={logout}>
             <LogOut data-icon="inline-start" />

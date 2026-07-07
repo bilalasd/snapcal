@@ -1,7 +1,7 @@
 # SnapCal
 
 Personal calorie tracker: snap photos of food (or describe it), Claude estimates
-calories + macros, and Fitbit weight data tells you whether your deficit is
+calories + macros, and your smart-scale weight trend (via Google Health) tells you whether your deficit is
 actually working.
 
 Single-user, passcode-protected, built with Next.js + Neon Postgres + the
@@ -30,15 +30,28 @@ Docs: [design spec](docs/superpowers/specs/2026-07-07-snapcal-design.md) ·
 - `SESSION_SECRET` — `openssl rand -hex 32`
 - `CRON_SECRET` — `openssl rand -hex 32`
 
-### 4. Fitbit app (for weight sync)
+### 4. Google Health API (for Fitbit weight sync)
 
-1. Go to [dev.fitbit.com/apps/new](https://dev.fitbit.com/apps/new) and register:
-   - **Application type:** Personal
-   - **Callback URL:** `https://<your-app>.vercel.app/api/fitbit/callback`
-     (plus `http://localhost:3000/api/fitbit/callback` for local dev)
-   - Everything else can be placeholder text/URLs.
-2. Copy **Client ID** → `FITBIT_CLIENT_ID`, **Client Secret** → `FITBIT_CLIENT_SECRET`.
-3. Set `APP_BASE_URL` to the deployed URL (e.g. `https://snapcal-xyz.vercel.app`).
+The legacy Fitbit Web API is discontinued (sunsets Sept 2026); Fitbit data now
+comes through the [Google Health API](https://developers.google.com/health).
+For a personal app, run the OAuth client in **Testing** mode — no Google
+review needed, but refresh tokens expire weekly (the app shows a one-tap
+**Reconnect** button when that happens).
+
+1. In [Google Cloud Console](https://console.cloud.google.com), create a
+   project and enable the **Google Health API** (APIs & Services → Library).
+2. APIs & Services → OAuth consent screen: user type **External**, publishing
+   status **Testing**, and add your own Google account under **Audience →
+   Test users**.
+3. On the Health API **Data Access** page, add the scope
+   `googlehealth.health_metrics_and_measurements.readonly`.
+4. APIs & Services → Credentials → Create **OAuth client ID** (type: Web
+   application) with authorized redirect URI
+   `https://<your-app>.vercel.app/api/health/callback`
+   (plus `http://localhost:3000/api/health/callback` for local dev).
+5. Copy the client ID → `GOOGLE_HEALTH_CLIENT_ID` and secret →
+   `GOOGLE_HEALTH_CLIENT_SECRET`.
+6. Set `APP_BASE_URL` to the deployed URL (e.g. `https://snapcal-xyz.vercel.app`).
 
 ### 5. Run locally
 
@@ -56,14 +69,14 @@ npx vercel deploy --prod
 
 Then in the Vercel project settings add all env vars from `.env.example`.
 `vercel.json` already schedules two crons (weekly recap Sunday 20:00 UTC,
-daily Fitbit sync 06:30 UTC) — they authenticate with `CRON_SECRET`, which
+daily weight sync 06:30 UTC) — they authenticate with `CRON_SECRET`, which
 Vercel sends automatically once set as an env var.
 
 ### 7. On your phone
 
 Open the deployed URL in Safari/Chrome → Share → **Add to Home Screen**.
 Log in once with your passcode; the session lasts 90 days.
-In **Settings**, tap **Connect Fitbit** once to link weight sync.
+In **Settings**, tap **Connect Google Health** once to link weight sync.
 
 ## How the deficit verdict works
 

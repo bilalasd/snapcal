@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { db, fitbitTokens } from "@/db";
+import { db, healthTokens } from "@/db";
 
 export async function POST() {
-  await db.delete(fitbitTokens);
+  await db.delete(healthTokens);
   return NextResponse.json({ ok: true });
 }

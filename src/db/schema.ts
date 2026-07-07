@@ -52,15 +52,18 @@ export const goals = pgTable("goals", {
 export const weights = pgTable("weights", {
   date: date("date").primaryKey(),
   weightKg: numeric("weight_kg", { precision: 6, scale: 2 }).notNull(),
-  source: text("source").notNull().default("fitbit"),
+  source: text("source").notNull().default("google_health"),
 });
 
-export const fitbitTokens = pgTable("fitbit_tokens", {
+export const healthTokens = pgTable("health_tokens", {
   id: integer("id").primaryKey().default(1), // single row
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  // Google OAuth "Testing" apps expire refresh tokens after 7 days;
+  // when refresh fails we flag it so the UI can prompt a reconnect.
+  needsReconnect: boolean("needs_reconnect").notNull().default(false),
 });
 
 export const weeklyRecaps = pgTable("weekly_recaps", {

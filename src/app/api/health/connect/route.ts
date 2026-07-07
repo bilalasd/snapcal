@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildAuthorizeUrl, OAUTH_COOKIE, randomToken } from "@/lib/fitbit";
+import { buildAuthorizeUrl, OAUTH_COOKIE, randomToken } from "@/lib/google-health";
 
 export async function GET() {
   const verifier = randomToken(48);

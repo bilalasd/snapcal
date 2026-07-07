@@ -72,7 +72,7 @@ export default function TrendsPage() {
     let cancelled = false;
     (async () => {
       // Opportunistic weight sync (server throttles to 1/hour)
-      await fetch("/api/fitbit/sync", { method: "POST" }).catch(() => {});
+      await fetch("/api/health/sync", { method: "POST" }).catch(() => {});
       const trends = await fetchJson<TrendsResponse>(
         `/api/trends?days=${range}&tz_offset=${tzOffsetMinutes()}`,
       );
@@ -136,7 +136,7 @@ export default function TrendsPage() {
               <EmptyHeader>
                 <EmptyTitle>No weight data yet</EmptyTitle>
                 <EmptyDescription>
-                  Connect Fitbit in Settings and log a few weigh-ins to see
+                  Connect Google Health in Settings and log a few weigh-ins to see
                   your trend.
                 </EmptyDescription>
               </EmptyHeader>
