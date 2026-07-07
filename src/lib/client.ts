@@ -29,6 +29,16 @@ export interface Goals {
   daily_fat_g: number;
   target_rate_kg_per_wk: number;
   unit_system: "metric" | "imperial";
+  sex: "male" | "female" | null;
+  age: number | null;
+  height_cm: number | null;
+  activity_level:
+    | "sedentary"
+    | "light"
+    | "moderate"
+    | "active"
+    | "very_active"
+    | null;
 }
 
 /** Editable item shape used by the review card and POST /api/meals. */

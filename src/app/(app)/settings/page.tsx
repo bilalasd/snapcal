@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { CalculatorCard } from "@/components/calculator-card";
 import { HealthCard } from "@/components/health-card";
 import { fetchJson, type Goals } from "@/lib/client";
 
@@ -176,6 +177,12 @@ export default function SettingsPage() {
             {saving ? <Spinner data-icon="inline-start" /> : null}
             Save
           </Button>
+
+          <CalculatorCard
+            key={goals.unit_system}
+            goals={goals}
+            onGoalsSaved={setGoals}
+          />
 
           <HealthCard />
 

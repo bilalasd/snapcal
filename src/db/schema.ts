@@ -47,6 +47,11 @@ export const goals = pgTable("goals", {
     .notNull()
     .default("-0.5"), // negative = lose
   unitSystem: text("unit_system").notNull().default("metric"), // metric | imperial
+  // Profile for the BMR/TDEE calculator (nullable until first use)
+  sex: text("sex"), // male | female
+  age: integer("age"),
+  heightCm: numeric("height_cm", { precision: 5, scale: 1 }),
+  activityLevel: text("activity_level"), // sedentary | light | moderate | active | very_active
 });
 
 export const weights = pgTable("weights", {
