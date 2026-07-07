@@ -17,7 +17,10 @@ export function MealListItem({ meal, onClick, action }: MealListItemProps) {
   });
 
   return (
-    <Card className="py-3" onClick={onClick}>
+    <Card
+      className="cursor-pointer py-3 transition-all active:scale-[0.99] active:bg-accent/40"
+      onClick={onClick}
+    >
       <CardContent className="flex items-center gap-3 px-4">
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{meal.name}</p>

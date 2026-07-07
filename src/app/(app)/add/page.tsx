@@ -202,7 +202,7 @@ export default function AddMealPage() {
   if (draft) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-xl font-semibold">Review</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Review</h1>
         <MealReview
           name={draft.name}
           onNameChange={(name) => setDraft({ ...draft, name })}
@@ -231,7 +231,7 @@ export default function AddMealPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Log a meal</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Log a meal</h1>
 
       {favorites.length > 0 ? (
         <div className="flex flex-wrap gap-2">
@@ -289,14 +289,19 @@ export default function AddMealPage() {
       ) : null}
 
       {photos.length < 3 ? (
-        <Button
-          variant="outline"
-          className="h-24 border-dashed"
+        <button
           onClick={() => fileInputRef.current?.click()}
+          className="border-primary/30 bg-accent/40 text-accent-foreground flex h-32 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-colors active:bg-accent"
         >
-          <Camera data-icon="inline-start" />
-          {photos.length === 0 ? "Take / choose photos" : "Add another photo"}
-        </Button>
+          <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+            <Camera className="size-6" />
+          </span>
+          <span className="text-sm font-medium">
+            {photos.length === 0
+              ? "Snap or choose photos"
+              : "Add another photo"}
+          </span>
+        </button>
       ) : null}
 
       <div className="relative">

@@ -112,7 +112,7 @@ export default function TrendsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Trends</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Trends</h1>
 
       {error ? (
         <Alert variant="destructive">

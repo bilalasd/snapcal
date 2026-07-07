@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Photo-based calorie and macro tracking",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#ffffff",
+    background_color: "#fbfaf6",
+    theme_color: "#fbfaf6",
     icons: [
       {
         src: "/icon.svg",
