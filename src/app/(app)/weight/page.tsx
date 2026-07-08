@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { LogWeightDrawer } from "@/components/log-weight-drawer";
 import { fetchJson, tzOffsetMinutes } from "@/lib/client";
 
 const KG_PER_LB = 0.453592;
@@ -63,10 +64,12 @@ interface TrendsResponse {
   recap: { week_start: string; content: string } | null;
 }
 
-export default function TrendsPage() {
+export default function WeightPage() {
   const [data, setData] = useState<TrendsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<"30" | "90">("30");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -88,7 +91,7 @@ export default function TrendsPage() {
     return () => {
       cancelled = true;
     };
-  }, [range]);
+  }, [range, refreshKey]);
 
   const imperial = data?.unit_system === "imperial";
   const unit = imperial ? "lbs" : "kg";
@@ -110,9 +113,37 @@ export default function TrendsPage() {
       ? Math.round(toUnit(data.rate_kg_per_week) * 100) / 100
       : null;
 
+  // Days since the most recent weigh-in, to nudge when the trend is stale
+  const lastWeighIn =
+    data && data.weights.length > 0
+      ? data.weights[data.weights.length - 1].date
+      : null;
+  const daysSinceWeighIn = lastWeighIn
+    ? Math.floor(
+        (nowMs - new Date(`${lastWeighIn}T12:00:00`).getTime()) / 86_400_000,
+      )
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight">Trends</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Weight</h1>
+        <LogWeightDrawer
+          imperial={imperial}
+          onLogged={() => setRefreshKey((k) => k + 1)}
+        />
+      </div>
+
+      {daysSinceWeighIn !== null && daysSinceWeighIn >= 4 ? (
+        <Alert>
+          <TriangleAlert />
+          <AlertTitle>Time for a weigh-in</AlertTitle>
+          <AlertDescription>
+            Your last weigh-in was {daysSinceWeighIn} days ago. Log one to keep
+            your trend and rate current.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {error ? (
         <Alert variant="destructive">
@@ -136,8 +167,8 @@ export default function TrendsPage() {
               <EmptyHeader>
                 <EmptyTitle>No weight data yet</EmptyTitle>
                 <EmptyDescription>
-                  Connect Google Health in Settings and log a few weigh-ins to see
-                  your trend.
+                  Tap Log weight above to add a weigh-in — or connect Google
+                  Health in Settings to sync automatically.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -185,6 +216,7 @@ export default function TrendsPage() {
                       strokeWidth={2.5}
                       dot={false}
                       type="monotone"
+                      connectNulls
                     />
                   </ComposedChart>
                 </ChartContainer>

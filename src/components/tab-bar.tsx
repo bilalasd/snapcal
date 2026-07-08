@@ -10,7 +10,7 @@ const leftTabs = [
   { href: "/history", label: "History", icon: CalendarDays },
 ];
 const rightTabs = [
-  { href: "/trends", label: "Trends", icon: TrendingUp },
+  { href: "/weight", label: "Weight", icon: TrendingUp },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
