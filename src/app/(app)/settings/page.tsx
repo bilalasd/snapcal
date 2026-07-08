@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogOut } from "lucide-react";
+import { LogOut, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -23,11 +24,9 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { CalculatorCard } from "@/components/calculator-card";
+import { GoalCard } from "@/components/goal-card";
 import { HealthCard } from "@/components/health-card";
 import { fetchJson, type Goals } from "@/lib/client";
-
-const KG_PER_LB = 0.453592;
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -60,18 +59,26 @@ export default function SettingsPage() {
     }
   }
 
+  async function saveUnits(unit_system: Goals["unit_system"]) {
+    if (!goals) return;
+    const next = { ...goals, unit_system };
+    setGoals(next);
+    try {
+      const saved = await fetchJson<Goals>("/api/goals", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      setGoals(saved);
+    } catch {
+      toast.error("Couldn't save units");
+    }
+  }
+
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
     router.replace("/login");
   }
-
-  const imperial = goals?.unit_system === "imperial";
-  // Display rate in the user's units; store in kg/week
-  const displayRate = goals
-    ? imperial
-      ? goals.target_rate_kg_per_wk / KG_PER_LB
-      : goals.target_rate_kg_per_wk
-    : 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -81,9 +88,14 @@ export default function SettingsPage() {
         <Skeleton className="h-72 w-full" />
       ) : (
         <>
+          <GoalCard key={`goal-${goals.unit_system}-${goals.daily_calories}-${goals.target_rate_kg_per_wk}`} goals={goals} onGoalsSaved={setGoals} />
+
           <Card>
             <CardHeader>
-              <CardTitle>Daily goals</CardTitle>
+              <CardTitle>Daily targets</CardTitle>
+              <CardDescription>
+                Set by your plan — tweak them here if you know what you want.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup>
@@ -121,68 +133,52 @@ export default function SettingsPage() {
                     </Field>
                   ))}
                 </div>
+                <Button onClick={save} disabled={saving}>
+                  {saving ? <Spinner data-icon="inline-start" /> : null}
+                  Save targets
+                </Button>
               </FieldGroup>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Weight goal</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Ruler className="size-4" />
+                Units
+              </CardTitle>
+              <CardDescription>
+                Used everywhere — weights, heights, and goal rates.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="units">Units</FieldLabel>
-                  <Select
-                    value={goals.unit_system}
-                    onValueChange={(v) =>
-                      update({ unit_system: v as Goals["unit_system"] })
-                    }
-                  >
-                    <SelectTrigger id="units">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="metric">kg</SelectItem>
-                        <SelectItem value="imperial">lbs</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="rate">
-                    Target rate ({imperial ? "lbs" : "kg"}/week, negative =
-                    lose)
-                  </FieldLabel>
-                  <Input
-                    id="rate"
-                    type="number"
-                    inputMode="decimal"
-                    step={0.1}
-                    value={Math.round(displayRate * 100) / 100}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      update({
-                        target_rate_kg_per_wk: imperial ? v * KG_PER_LB : v,
-                      });
-                    }}
-                  />
-                </Field>
-              </FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="units" className="sr-only">
+                  Units
+                </FieldLabel>
+                <Select
+                  value={goals.unit_system}
+                  onValueChange={(v) =>
+                    saveUnits(v as Goals["unit_system"])
+                  }
+                >
+                  <SelectTrigger id="units">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="metric">
+                        Metric — kg, cm
+                      </SelectItem>
+                      <SelectItem value="imperial">
+                        Imperial — lb, ft/in
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
             </CardContent>
           </Card>
-
-          <Button onClick={save} disabled={saving}>
-            {saving ? <Spinner data-icon="inline-start" /> : null}
-            Save
-          </Button>
-
-          <CalculatorCard
-            key={goals.unit_system}
-            goals={goals}
-            onGoalsSaved={setGoals}
-          />
 
           <HealthCard />
 

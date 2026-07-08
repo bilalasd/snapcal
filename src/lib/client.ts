@@ -39,6 +39,7 @@ export interface Goals {
     | "active"
     | "very_active"
     | null;
+  onboarded: boolean;
 }
 
 /** Editable item shape used by the review card and POST /api/meals. */

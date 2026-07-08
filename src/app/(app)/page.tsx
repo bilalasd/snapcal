@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Flame, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ function greetingFor(hour: number): string {
 }
 
 export default function TodayPage() {
+  const router = useRouter();
   const [meals, setMeals] = useState<ApiMeal[] | null>(null);
   const [goals, setGoals] = useState<Goals | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
@@ -68,8 +70,16 @@ export default function TodayPage() {
 
   useEffect(() => {
     load();
-    fetchJson<Goals>("/api/goals").then(setGoals).catch(() => {});
-  }, [load]);
+    fetchJson<Goals>("/api/goals")
+      .then((g) => {
+        if (!g.onboarded) {
+          router.replace("/onboarding");
+          return;
+        }
+        setGoals(g);
+      })
+      .catch(() => {});
+  }, [load, router]);
 
   const totals = (meals ?? []).reduce(
     (acc, meal) => {

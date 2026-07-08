@@ -91,3 +91,20 @@ export function suggestedIntake(
   if (raw < floor) return { intake: floor, floored: true };
   return { intake: raw, floored: false };
 }
+
+/**
+ * Sensible macro targets for a calorie goal:
+ * protein 1.6 g/kg bodyweight, fat 30% of calories, carbs the remainder.
+ */
+export function suggestedMacros(
+  calories: number,
+  weightKg: number,
+): { protein_g: number; carbs_g: number; fat_g: number } {
+  const protein = Math.round(1.6 * weightKg);
+  const fat = Math.round((calories * 0.3) / 9);
+  const carbs = Math.max(
+    0,
+    Math.round((calories - protein * 4 - fat * 9) / 4),
+  );
+  return { protein_g: protein, carbs_g: carbs, fat_g: fat };
+}

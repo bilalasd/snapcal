@@ -17,6 +17,7 @@ const goalsInput = z.object({
     .enum(["sedentary", "light", "moderate", "active", "very_active"])
     .nullable()
     .optional(),
+  onboarded: z.boolean().optional(),
 });
 
 async function getOrCreateGoals() {
@@ -38,6 +39,7 @@ function serialize(row: Awaited<ReturnType<typeof getOrCreateGoals>>) {
     age: row.age,
     height_cm: row.heightCm === null ? null : Number(row.heightCm),
     activity_level: row.activityLevel,
+    onboarded: row.onboardedAt !== null,
   };
 }
 
@@ -70,6 +72,7 @@ export async function PUT(request: NextRequest) {
       ...(parsed.data.activity_level !== undefined && {
         activityLevel: parsed.data.activity_level,
       }),
+      ...(parsed.data.onboarded && { onboardedAt: new Date() }),
     })
     .where(eq(goals.id, 1))
     .returning();

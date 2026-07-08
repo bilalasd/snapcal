@@ -250,3 +250,16 @@ Health API** (Fitbit's successor) — standard Google OAuth 2.0 + PKCE, scope
 via `health_tokens.needs_reconnect`. Routes moved from `/api/fitbit/*` to
 `/api/health/*`; env vars are `GOOGLE_HEALTH_CLIENT_ID` / `_SECRET`.
 Trend math, `weights` storage, and the deficit verdict are unchanged.
+
+## Amendment 2 (2026-07-07): Guided onboarding replaces the calculator card
+
+First launch now routes to `/onboarding` — a 6-step layman-friendly wizard
+(units → sex/age → height/current weight → activity → goal & pace → plan).
+It computes BMR/TDEE (Mifflin-St Jeor), the deficit for the chosen pace,
+daily calories (safety-floored), and macro targets (protein 1.6 g/kg,
+fat 30% kcal, carbs remainder); the entered weight is saved as the first
+weigh-in (`POST /api/weights`, source `manual`). `goals.onboarded_at` gates
+the redirect. Settings now has a unified **Goal** card — "Change goal" asks
+*set manually* (drawer) or *redo the steps* (back to the wizard, prefilled) —
+plus a dedicated Units card (metric/imperial, applied app-wide). The
+standalone calculator card is removed.

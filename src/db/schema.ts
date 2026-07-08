@@ -52,6 +52,7 @@ export const goals = pgTable("goals", {
   age: integer("age"),
   heightCm: numeric("height_cm", { precision: 5, scale: 1 }),
   activityLevel: text("activity_level"), // sedentary | light | moderate | active | very_active
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
 });
 
 export const weights = pgTable("weights", {
