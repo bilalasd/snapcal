@@ -21,7 +21,8 @@ Rules:
 - Give the meal a short, natural name (e.g. "Chicken biryani lunch").
 - calories must be an integer per item; macros in grams to one decimal.
 - Also estimate per item: saturated fat (g), fiber (g), sugar (g), and sodium (mg). Use typical values for the food; a rough estimate is fine.
-- estimated_grams: your best estimate of the item's total weight in grams. This is used to reconcile the item against a verified nutrition database, so estimate the weight as accurately as you can.`;
+- estimated_grams: your best estimate of the item's total weight in grams. This is used to reconcile the item against a verified nutrition database, so estimate the weight as accurately as you can.
+- question: usually leave this an empty string. Set it to ONE short question ONLY when you are genuinely uncertain about something that would materially change the calorie estimate and you cannot reasonably tell from the photos or text (for example: an unclear meat, a hidden sauce, or an ambiguous portion). Do not ask about minor details. Always give your best estimate in the items regardless; the question just lets the user correct you.`;
 
 const MEDIA_TYPES = new Set([
   "image/jpeg",
@@ -98,6 +99,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       meal_name: response.parsed_output.meal_name,
       items,
+      question: response.parsed_output.question,
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {

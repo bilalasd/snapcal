@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Camera, Mic, MicOff, Search, Star, X } from "lucide-react";
+import { Camera, HelpCircle, Mic, MicOff, Search, Star, X } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -63,11 +64,13 @@ export default function AddMealPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [targetDate, setTargetDate] = useState<string | null>(null); // YYYY-MM-DD, null = today
+  const [refineText, setRefineText] = useState(""); // extra details for re-analysis
   const [draft, setDraft] = useState<{
     name: string;
     items: DraftItem[];
     source: MealDraft["source"];
     photos: DraftPhoto[];
+    question?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -171,33 +174,47 @@ export default function AddMealPage() {
     return uploaded;
   }
 
-  async function analyze() {
+  async function runAnalysis(fullText: string) {
     setAnalyzing(true);
     try {
-      const result = await fetchJson<{ meal_name: string; items: DraftItem[] }>(
-        "/api/analyze",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            images: photos.map((p) => p.encoded),
-            text,
-          }),
-        },
-      );
+      const result = await fetchJson<{
+        meal_name: string;
+        items: DraftItem[];
+        question?: string;
+      }>("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          images: photos.map((p) => p.encoded),
+          text: fullText,
+        }),
+      });
       setDraft({
         name: result.meal_name,
         items: result.items,
         source: photos.length > 0 ? "photo" : "text",
         photos: [],
+        question: result.question || undefined,
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Analysis failed", {
-        action: { label: "Retry", onClick: analyze },
-      });
+      toast.error(err instanceof Error ? err.message : "Analysis failed");
     } finally {
       setAnalyzing(false);
     }
+  }
+
+  function analyze() {
+    runAnalysis(text);
+  }
+
+  // Fold the extra details into the description and analyze the same photos again
+  function reanalyze() {
+    const extra = refineText.trim();
+    if (!extra) return;
+    const combined = [text, extra].filter((s) => s.trim()).join(". ");
+    setText(combined);
+    setRefineText("");
+    runAnalysis(combined);
   }
 
   function logExisting(meal: ApiMeal, source: "favorite" | "copy") {
@@ -253,16 +270,53 @@ export default function AddMealPage() {
       ...draft.photos.map((p) => p.url),
       ...photos.map((p) => p.previewUrl),
     ];
+    const canReanalyze =
+      photos.length > 0 || draft.source === "photo" || draft.source === "text";
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Review</h1>
         <PhotoStrip urls={draftPhotoUrls} />
+
+        {draft.question ? (
+          <Alert>
+            <HelpCircle />
+            <AlertTitle>Quick question</AlertTitle>
+            <AlertDescription>{draft.question}</AlertDescription>
+          </Alert>
+        ) : null}
+
         <MealReview
           name={draft.name}
           onNameChange={(name) => setDraft({ ...draft, name })}
           items={draft.items}
           onItemsChange={(items) => setDraft({ ...draft, items })}
         />
+
+        {canReanalyze ? (
+          <div className="relative">
+            <Textarea
+              placeholder={
+                draft.question
+                  ? "Answer the question, or add any details…"
+                  : "Not quite right? Add details and re-analyze…"
+              }
+              value={refineText}
+              onChange={(e) => setRefineText(e.target.value)}
+              rows={2}
+              disabled={analyzing}
+            />
+            <Button
+              size="sm"
+              className="absolute bottom-2 right-2"
+              onClick={reanalyze}
+              disabled={analyzing || !refineText.trim()}
+            >
+              {analyzing ? <Spinner data-icon="inline-start" /> : null}
+              Re-analyze
+            </Button>
+          </div>
+        ) : null}
+
         <FoodSearchDrawer
           onAdd={(item) =>
             setDraft({ ...draft, items: [...draft.items, item] })

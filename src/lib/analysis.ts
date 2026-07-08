@@ -17,6 +17,8 @@ export const analyzedItemSchema = z.object({
 export const analysisSchema = z.object({
   meal_name: z.string(),
   items: z.array(analyzedItemSchema).min(1),
+  // A single clarifying question, only when genuinely uncertain; "" otherwise.
+  question: z.string(),
 });
 
 export type AnalyzedItem = z.infer<typeof analyzedItemSchema>;

@@ -20,6 +20,7 @@ describe("analysisSchema", () => {
     const result = analysisSchema.safeParse({
       meal_name: "Rice bowl",
       items: [item],
+      question: "",
     });
     expect(result.success).toBe(true);
   });
