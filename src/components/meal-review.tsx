@@ -17,6 +17,9 @@ function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
+const scaleOpt = (v: number | null | undefined, factor: number) =>
+  v == null ? v : round1(v * factor);
+
 export function scaleDraftItem(item: DraftItem, factor: number): DraftItem {
   return {
     ...item,
@@ -24,6 +27,10 @@ export function scaleDraftItem(item: DraftItem, factor: number): DraftItem {
     protein_g: round1(item.protein_g * factor),
     carbs_g: round1(item.carbs_g * factor),
     fat_g: round1(item.fat_g * factor),
+    sat_fat_g: scaleOpt(item.sat_fat_g, factor),
+    fiber_g: scaleOpt(item.fiber_g, factor),
+    sugar_g: scaleOpt(item.sugar_g, factor),
+    sodium_mg: scaleOpt(item.sodium_mg, factor),
   };
 }
 
