@@ -71,14 +71,16 @@ export default function TodayPage() {
 
   const isToday = date === today;
 
-  const load = useCallback((forDate: string) => {
-    setMeals(null);
+  const load = useCallback((forDate: string, showLoading = true) => {
+    if (showLoading) setMeals(null);
     fetchMealsForDate(forDate)
       .then(setMeals)
       .catch(() => setMeals([]));
   }, []);
 
   useEffect(() => {
+    // Reset to a loading skeleton whenever the viewed day changes
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load(date);
   }, [load, date]);
 
@@ -283,7 +285,7 @@ export default function TodayPage() {
       <MealDrawer
         meal={selected}
         onClose={() => setSelected(null)}
-        onChanged={() => load(date)}
+        onChanged={() => load(date, false)}
       />
     </div>
   );
