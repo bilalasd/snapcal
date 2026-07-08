@@ -162,8 +162,9 @@ export default function TodayPage() {
                         }}
                       />
                     </div>
-                    <span className="text-muted-foreground w-20 text-right text-xs tabular-nums">
-                      {Math.round(value)} / {max}g
+                    <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">
+                      {Math.round(value)}/{max}g ·{" "}
+                      {max > 0 ? Math.round((value / max) * 100) : 0}%
                     </span>
                   </div>
                 ))}

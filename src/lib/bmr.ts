@@ -93,8 +93,13 @@ export function suggestedIntake(
 }
 
 /**
- * Sensible macro targets for a calorie goal:
- * protein 1.6 g/kg bodyweight, fat 30% of calories, carbs the remainder.
+ * Sensible macro *targets* for a calorie goal:
+ *   - Protein: 1.6 g per kg of bodyweight (a common evidence-based intake for
+ *     people who are active or losing weight — enough to preserve muscle).
+ *   - Fat: 30% of total calories, at 9 kcal/g.
+ *   - Carbs: whatever calories remain, at 4 kcal/g.
+ * These are the daily *goals*. A logged meal's macros are separate — those come
+ * from Claude's per-item estimate in /api/analyze, not this formula.
  */
 export function suggestedMacros(
   calories: number,
@@ -107,4 +112,34 @@ export function suggestedMacros(
     Math.round((calories - protein * 4 - fat * 9) / 4),
   );
   return { protein_g: protein, carbs_g: carbs, fat_g: fat };
+}
+
+export interface MacroPercents {
+  protein_pct: number;
+  carbs_pct: number;
+  fat_pct: number;
+}
+
+/** Percent of calories each macro target represents (4/4/9 kcal per gram). */
+export function macroPercents(
+  calories: number,
+  grams: { protein_g: number; carbs_g: number; fat_g: number },
+): MacroPercents {
+  if (calories <= 0) return { protein_pct: 0, carbs_pct: 0, fat_pct: 0 };
+  const protein = Math.round(((grams.protein_g * 4) / calories) * 100);
+  const fat = Math.round(((grams.fat_g * 9) / calories) * 100);
+  const carbs = Math.max(0, 100 - protein - fat);
+  return { protein_pct: protein, carbs_pct: carbs, fat_pct: fat };
+}
+
+/** Gram targets from a percent split of a calorie goal. */
+export function gramsFromPercents(
+  calories: number,
+  pcts: MacroPercents,
+): { protein_g: number; carbs_g: number; fat_g: number } {
+  return {
+    protein_g: Math.round((calories * pcts.protein_pct) / 100 / 4),
+    carbs_g: Math.round((calories * pcts.carbs_pct) / 100 / 4),
+    fat_g: Math.round((calories * pcts.fat_pct) / 100 / 9),
+  };
 }

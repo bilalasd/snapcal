@@ -4,6 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Pencil, RotateCcw, Target } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,6 +48,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
   const [open, setOpen] = useState(false);
   const [manual, setManual] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const displayRate = imperial
     ? goals.target_rate_kg_per_wk / KG_PER_LB
@@ -65,7 +76,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
           Math.round(Math.abs(displayRate) * 100) / 100
         } ${unit}/week`;
 
-  async function saveManual() {
+  function pendingPlan() {
     const magnitude = Math.abs(Number(rateInput) || 0);
     const displayValue =
       direction === "maintain"
@@ -75,10 +86,21 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
           : magnitude;
     const rateKg = imperial ? displayValue * KG_PER_LB : displayValue;
     const calories = Math.round(Number(caloriesInput));
+    return { magnitude, rateKg, calories };
+  }
+
+  function requestSave() {
+    const { calories } = pendingPlan();
     if (calories < 500) {
       toast.error("Daily calories look too low");
       return;
     }
+    setConfirming(true);
+  }
+
+  async function saveManual() {
+    const { rateKg, calories } = pendingPlan();
+    setConfirming(false);
     setSaving(true);
     try {
       const saved = await fetchJson<Goals>("/api/goals", {
@@ -196,7 +218,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
           <DrawerFooter>
             {manual ? (
               <>
-                <Button onClick={saveManual} disabled={saving}>
+                <Button onClick={requestSave} disabled={saving}>
                   {saving ? <Spinner data-icon="inline-start" /> : null}
                   Save goal
                 </Button>
@@ -219,6 +241,27 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change your goal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {direction === "maintain"
+                ? "Maintain current weight"
+                : `${direction === "lose" ? "Lose" : "Gain"} ${Math.abs(Number(rateInput) || 0)} ${unit}/week`}
+              {" · "}eating {Math.round(Number(caloriesInput)).toLocaleString()}{" "}
+              kcal/day. This replaces your current plan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={saveManual}>
+              Yes, change it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

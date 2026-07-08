@@ -8,6 +8,10 @@ const item = {
   protein_g: 4.3,
   carbs_g: 44.5,
   fat_g: 0.4,
+  sat_fat_g: 0.1,
+  fiber_g: 0.6,
+  sugar_g: 0.1,
+  sodium_mg: 2,
 };
 
 describe("analysisSchema", () => {

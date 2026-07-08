@@ -7,6 +7,10 @@ export const analyzedItemSchema = z.object({
   protein_g: z.number().min(0),
   carbs_g: z.number().min(0),
   fat_g: z.number().min(0),
+  sat_fat_g: z.number().min(0),
+  fiber_g: z.number().min(0),
+  sugar_g: z.number().min(0),
+  sodium_mg: z.number().min(0),
 });
 
 export const analysisSchema = z.object({

@@ -14,8 +14,11 @@ import {
 } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { MealReview } from "@/components/meal-review";
+import { NutritionFacts } from "@/components/nutrition-facts";
+import { PhotoStrip } from "@/components/photo-strip";
 import {
   fetchJson,
+  itemsToDraft,
   stashDraft,
   type ApiMeal,
   type DraftItem,
@@ -25,17 +28,6 @@ interface MealDrawerProps {
   meal: ApiMeal | null;
   onClose: () => void;
   onChanged: () => void;
-}
-
-function toDraftItems(meal: ApiMeal): DraftItem[] {
-  return meal.items.map((item) => ({
-    name: item.name,
-    portion: item.portion,
-    calories: item.calories,
-    protein_g: Number(item.proteinG),
-    carbs_g: Number(item.carbsG),
-    fat_g: Number(item.fatG),
-  }));
 }
 
 export function MealDrawer({ meal, onClose, onChanged }: MealDrawerProps) {
@@ -58,7 +50,7 @@ function MealDrawerInner({
 }: MealDrawerProps & { meal: ApiMeal }) {
   const router = useRouter();
   const [name, setName] = useState(meal.name);
-  const [items, setItems] = useState<DraftItem[]>(() => toDraftItems(meal));
+  const [items, setItems] = useState<DraftItem[]>(() => itemsToDraft(meal));
   const [favorite, setFavorite] = useState(meal.isFavorite);
   const [busy, setBusy] = useState(false);
 
@@ -111,7 +103,8 @@ function MealDrawerInner({
       name: meal.name,
       eaten_at: new Date().toISOString(),
       source: "copy",
-      items: toDraftItems(meal),
+      items: itemsToDraft(meal),
+      photos: meal.photos.map((p) => ({ url: p.url, pathname: p.pathname })),
     });
     router.push("/add");
   }
@@ -122,13 +115,17 @@ function MealDrawerInner({
         <DrawerHeader>
           <DrawerTitle>Edit meal</DrawerTitle>
         </DrawerHeader>
-        <div className="max-h-[55dvh] overflow-y-auto px-4">
+        <div className="flex max-h-[60dvh] flex-col gap-4 overflow-y-auto px-4">
+          {meal.photos.length > 0 ? (
+            <PhotoStrip urls={meal.photos.map((p) => p.url)} />
+          ) : null}
           <MealReview
             name={name}
             onNameChange={setName}
             items={items}
             onItemsChange={setItems}
           />
+          <NutritionFacts items={items} />
         </div>
         <DrawerFooter>
           <div className="flex gap-2">

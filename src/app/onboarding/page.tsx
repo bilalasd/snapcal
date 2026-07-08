@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
   ACTIVITY_LEVELS,
+  macroPercents,
   bmrMifflinStJeor,
   deficitForRate,
   estimatedTdee,
@@ -31,38 +32,54 @@ const STEPS: Step[] = ["units", "you", "body", "activity", "goal", "result"];
 
 type GoalKind = "lose" | "maintain" | "gain";
 
-// Rates in kg/week; shown to the user in their units with plain language
-const LOSE_RATES = [
-  {
-    rate: -0.25,
-    title: "Gentle",
-    blurb: "Small changes you'll barely notice. Easiest to stick with.",
-  },
-  {
-    rate: -0.5,
-    title: "Steady",
-    blurb: "The sweet spot for most people. Recommended.",
-    recommended: true,
-  },
-  {
-    rate: -0.75,
-    title: "Ambitious",
-    blurb: "Faster results, but you'll feel hungry some days.",
-  },
-];
-const GAIN_RATES = [
-  {
-    rate: 0.125,
-    title: "Lean gain",
-    blurb: "Slow and mostly muscle. Recommended.",
-    recommended: true,
-  },
-  {
-    rate: 0.25,
-    title: "Faster gain",
-    blurb: "Quicker on the scale, some of it will be fat.",
-  },
-];
+// Pace presets: round numbers in the user's own units (stored as kg/week)
+const KG = { gentle: -0.25, steady: -0.5, ambitious: -0.75, leanGain: 0.125, fastGain: 0.25 };
+const LB = {
+  gentle: -0.5 * KG_PER_LB,
+  steady: -1 * KG_PER_LB,
+  ambitious: -1.5 * KG_PER_LB,
+  leanGain: 0.5 * KG_PER_LB,
+  fastGain: 1 * KG_PER_LB,
+};
+
+function ratePresets(imperial: boolean, kind: "lose" | "gain") {
+  const v = imperial ? LB : KG;
+  const label = (n: number) =>
+    imperial ? `${n} lb/week` : `${n} kg/week`;
+  if (kind === "gain") {
+    return [
+      {
+        rate: v.leanGain,
+        title: `Lean gain · ${label(imperial ? 0.5 : 0.125)}`,
+        blurb: "Slow and mostly muscle. Recommended.",
+        recommended: true,
+      },
+      {
+        rate: v.fastGain,
+        title: `Faster gain · ${label(imperial ? 1 : 0.25)}`,
+        blurb: "Quicker on the scale, some of it will be fat.",
+      },
+    ];
+  }
+  return [
+    {
+      rate: v.gentle,
+      title: `Gentle · ${label(imperial ? 0.5 : 0.25)}`,
+      blurb: "Small changes you'll barely notice. Easiest to stick with.",
+    },
+    {
+      rate: v.steady,
+      title: `Steady · ${label(imperial ? 1 : 0.5)}`,
+      blurb: "The sweet spot for most people. Recommended.",
+      recommended: true,
+    },
+    {
+      rate: v.ambitious,
+      title: `Ambitious · ${label(imperial ? 1.5 : 0.75)}`,
+      blurb: "Faster results, but you'll feel hungry some days.",
+    },
+  ];
+}
 
 function kgToDisplay(kg: number, imperial: boolean): string {
   const v = imperial ? kg / KG_PER_LB : kg;
@@ -133,6 +150,10 @@ export default function OnboardingPage() {
       : null;
   const macros =
     plan !== null ? suggestedMacros(plan.intake, weightKg) : null;
+  const splitPcts =
+    plan !== null && macros !== null
+      ? macroPercents(plan.intake, macros)
+      : { protein_pct: 0, carbs_pct: 0, fat_pct: 0 };
 
   const stepIndex = STEPS.indexOf(step);
 
@@ -185,10 +206,10 @@ export default function OnboardingPage() {
     }
   }
 
-  const rates = goalKind === "gain" ? GAIN_RATES : LOSE_RATES;
+  const rates = ratePresets(imperial, goalKind === "gain" ? "gain" : "lose");
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-5 pb-8 pt-6">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
       {/* Progress */}
       <div className="mb-6 flex items-center gap-3">
         {stepIndex > 0 ? (
@@ -379,7 +400,7 @@ export default function OnboardingPage() {
                   key={option.rate}
                   selected={rate === option.rate}
                   onClick={() => setRate(option.rate)}
-                  title={`${option.title} · ${kgToDisplay(Math.abs(option.rate), imperial)}/week`}
+                  title={option.title}
                   blurb={option.blurb}
                   badge={option.recommended ? "Recommended" : undefined}
                 />
@@ -437,14 +458,15 @@ export default function OnboardingPage() {
               <div className="bg-muted grid grid-cols-3 gap-2 rounded-xl p-3 text-center">
                 {(
                   [
-                    ["Protein", macros.protein_g],
-                    ["Carbs", macros.carbs_g],
-                    ["Fat", macros.fat_g],
+                    ["Protein", macros.protein_g, splitPcts.protein_pct],
+                    ["Carbs", macros.carbs_g, splitPcts.carbs_pct],
+                    ["Fat", macros.fat_g, splitPcts.fat_pct],
                   ] as const
-                ).map(([label, grams]) => (
+                ).map(([label, grams, pct]) => (
                   <div key={label}>
                     <p className="text-muted-foreground text-xs">{label}</p>
-                    <p className="font-bold tabular-nums">{grams}g</p>
+                    <p className="font-bold tabular-nums">{pct}%</p>
+                    <p className="text-muted-foreground text-[10px]">{grams}g</p>
                   </div>
                 ))}
               </div>

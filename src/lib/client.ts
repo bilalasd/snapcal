@@ -9,6 +9,17 @@ export interface ApiMealItem {
   proteinG: string; // numeric columns serialize as strings
   carbsG: string;
   fatG: string;
+  satFatG: string | null;
+  fiberG: string | null;
+  sugarG: string | null;
+  sodiumMg: string | null;
+}
+
+export interface ApiMealPhoto {
+  id: string;
+  mealId: string;
+  url: string;
+  pathname: string;
 }
 
 export interface ApiMeal {
@@ -20,6 +31,7 @@ export interface ApiMeal {
   source: string;
   createdAt: string;
   items: ApiMealItem[];
+  photos: ApiMealPhoto[];
 }
 
 export interface Goals {
@@ -50,6 +62,15 @@ export interface DraftItem {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  sat_fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
+}
+
+export interface DraftPhoto {
+  url: string;
+  pathname: string;
 }
 
 export interface MealDraft {
@@ -58,6 +79,23 @@ export interface MealDraft {
   note?: string;
   source: "photo" | "text" | "favorite" | "copy";
   items: DraftItem[];
+  photos?: DraftPhoto[];
+}
+
+/** Convert an ApiMeal's items into editable DraftItems. */
+export function itemsToDraft(meal: ApiMeal): DraftItem[] {
+  return meal.items.map((item) => ({
+    name: item.name,
+    portion: item.portion,
+    calories: item.calories,
+    protein_g: Number(item.proteinG),
+    carbs_g: Number(item.carbsG),
+    fat_g: Number(item.fatG),
+    sat_fat_g: item.satFatG === null ? null : Number(item.satFatG),
+    fiber_g: item.fiberG === null ? null : Number(item.fiberG),
+    sugar_g: item.sugarG === null ? null : Number(item.sugarG),
+    sodium_mg: item.sodiumMg === null ? null : Number(item.sodiumMg),
+  }));
 }
 
 export function mealTotals(meal: ApiMeal) {

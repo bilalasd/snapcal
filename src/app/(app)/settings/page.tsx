@@ -25,6 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { GoalCard } from "@/components/goal-card";
+import { gramsFromPercents, macroPercents } from "@/lib/bmr";
 import { HealthCard } from "@/components/health-card";
 import { fetchJson, type Goals } from "@/lib/client";
 
@@ -39,6 +40,26 @@ export default function SettingsPage() {
 
   function update(patch: Partial<Goals>) {
     setGoals((g) => (g ? { ...g, ...patch } : g));
+  }
+
+  const pcts = goals
+    ? macroPercents(goals.daily_calories, {
+        protein_g: goals.daily_protein_g,
+        carbs_g: goals.daily_carbs_g,
+        fat_g: goals.daily_fat_g,
+      })
+    : { protein_pct: 0, carbs_pct: 0, fat_pct: 0 };
+  const pctTotal = pcts.protein_pct + pcts.carbs_pct + pcts.fat_pct;
+
+  function updatePct(key: keyof typeof pcts, value: number) {
+    if (!goals) return;
+    const next = { ...pcts, [key]: Math.max(0, Math.min(100, value)) };
+    const grams = gramsFromPercents(goals.daily_calories, next);
+    update({
+      daily_protein_g: grams.protein_g,
+      daily_carbs_g: grams.carbs_g,
+      daily_fat_g: grams.fat_g,
+    });
   }
 
   async function save() {
@@ -106,17 +127,24 @@ export default function SettingsPage() {
                     type="number"
                     inputMode="numeric"
                     value={goals.daily_calories}
-                    onChange={(e) =>
-                      update({ daily_calories: Number(e.target.value) })
-                    }
+                    onChange={(e) => {
+                      const calories = Number(e.target.value);
+                      const grams = gramsFromPercents(calories, pcts);
+                      update({
+                        daily_calories: calories,
+                        daily_protein_g: grams.protein_g,
+                        daily_carbs_g: grams.carbs_g,
+                        daily_fat_g: grams.fat_g,
+                      });
+                    }}
                   />
                 </Field>
                 <div className="grid grid-cols-3 gap-3">
                   {(
                     [
-                      ["daily_protein_g", "Protein (g)"],
-                      ["daily_carbs_g", "Carbs (g)"],
-                      ["daily_fat_g", "Fat (g)"],
+                      ["protein_pct", "Protein %"],
+                      ["carbs_pct", "Carbs %"],
+                      ["fat_pct", "Fat %"],
                     ] as const
                   ).map(([key, label]) => (
                     <Field key={key}>
@@ -125,14 +153,25 @@ export default function SettingsPage() {
                         id={key}
                         type="number"
                         inputMode="numeric"
-                        value={goals[key]}
-                        onChange={(e) =>
-                          update({ [key]: Number(e.target.value) })
-                        }
+                        min={0}
+                        max={100}
+                        value={pcts[key]}
+                        onChange={(e) => updatePct(key, Number(e.target.value))}
                       />
                     </Field>
                   ))}
                 </div>
+                <p
+                  className={
+                    pctTotal === 100
+                      ? "text-muted-foreground text-xs"
+                      : "text-destructive text-xs"
+                  }
+                >
+                  {pctTotal === 100
+                    ? `= ${goals.daily_protein_g}g protein · ${goals.daily_carbs_g}g carbs · ${goals.daily_fat_g}g fat`
+                    : `Percentages add up to ${pctTotal}% — they need to total 100%.`}
+                </p>
                 <Button onClick={save} disabled={saving}>
                   {saving ? <Spinner data-icon="inline-start" /> : null}
                   Save targets

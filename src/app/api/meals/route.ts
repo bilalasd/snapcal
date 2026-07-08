@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createMeal, listFavorites, listMeals, mealInput } from "@/lib/meals";
+import {
+  createMeal,
+  listFavorites,
+  listMeals,
+  listRecentMeals,
+  mealInput,
+} from "@/lib/meals";
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
 
   if (params.get("favorites") === "true") {
     return NextResponse.json(await listFavorites());
+  }
+
+  if (params.get("recent") === "true") {
+    const search = params.get("q")?.trim() || undefined;
+    return NextResponse.json(await listRecentMeals(20, search));
   }
 
   // ?date=YYYY-MM-DD (single local day, with tz offset minutes) or ?from=&to= ISO

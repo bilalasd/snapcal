@@ -3,7 +3,10 @@ import {
   bmrMifflinStJeor,
   deficitForRate,
   estimatedTdee,
+  gramsFromPercents,
+  macroPercents,
   suggestedIntake,
+  suggestedMacros,
 } from "./bmr";
 
 describe("bmrMifflinStJeor", () => {
@@ -70,5 +73,45 @@ describe("suggestedIntake", () => {
   it("never suggests below 1200 kcal", () => {
     const { intake } = suggestedIntake(1300, 1250, -1);
     expect(intake).toBeGreaterThanOrEqual(1200);
+  });
+});
+
+describe("suggestedMacros", () => {
+  it("protein is 1.6 g/kg bodyweight", () => {
+    const m = suggestedMacros(2000, 80);
+    expect(m.protein_g).toBe(128);
+  });
+
+  it("macros roughly reconstruct the calorie total", () => {
+    const m = suggestedMacros(2000, 80);
+    const kcal = m.protein_g * 4 + m.carbs_g * 4 + m.fat_g * 9;
+    expect(Math.abs(kcal - 2000)).toBeLessThan(20); // rounding slack
+  });
+});
+
+describe("macroPercents / gramsFromPercents", () => {
+  it("percents sum to 100", () => {
+    const p = macroPercents(2000, { protein_g: 150, carbs_g: 200, fat_g: 67 });
+    expect(p.protein_pct + p.carbs_pct + p.fat_pct).toBe(100);
+  });
+
+  it("round-trips percents to grams and back", () => {
+    const grams = gramsFromPercents(2000, {
+      protein_pct: 30,
+      carbs_pct: 40,
+      fat_pct: 30,
+    });
+    // 30% of 2000 = 600 kcal / 4 = 150g protein; 40%/4 = 200g carbs; 30%/9 ≈ 67g fat
+    expect(grams.protein_g).toBe(150);
+    expect(grams.carbs_g).toBe(200);
+    expect(grams.fat_g).toBe(67);
+  });
+
+  it("handles zero calories without dividing by zero", () => {
+    expect(macroPercents(0, { protein_g: 0, carbs_g: 0, fat_g: 0 })).toEqual({
+      protein_pct: 0,
+      carbs_pct: 0,
+      fat_pct: 0,
+    });
   });
 });

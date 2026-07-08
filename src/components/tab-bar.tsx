@@ -54,7 +54,7 @@ export function TabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/90 backdrop-blur-lg"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="mx-auto flex h-[68px] max-w-lg items-stretch px-2">
+      <div className="mx-auto flex h-[68px] max-w-md items-stretch px-2">
         {leftTabs.map((tab) => (
           <Tab key={tab.href} {...tab} active={isActive(tab.href)} />
         ))}

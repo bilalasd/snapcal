@@ -4,19 +4,25 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Camera, Mic, MicOff, Star, X } from "lucide-react";
+import { Camera, Mic, MicOff, Search, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { MealReview } from "@/components/meal-review";
+import { MealListItem } from "@/components/meal-list-item";
+import { NutritionFacts } from "@/components/nutrition-facts";
+import { PhotoStrip } from "@/components/photo-strip";
 import { resizeImage, type EncodedImage } from "@/lib/resize-image";
 import {
   fetchJson,
+  itemsToDraft,
   mealTotals,
   popDraft,
   type ApiMeal,
   type DraftItem,
+  type DraftPhoto,
   type MealDraft,
 } from "@/lib/client";
 
@@ -51,12 +57,15 @@ export default function AddMealPage() {
   const [listening, setListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [favorites, setFavorites] = useState<ApiMeal[]>([]);
+  const [recent, setRecent] = useState<ApiMeal[]>([]);
+  const [search, setSearch] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<{
     name: string;
     items: DraftItem[];
     source: MealDraft["source"];
+    photos: DraftPhoto[];
   } | null>(null);
 
   useEffect(() => {
@@ -70,16 +79,30 @@ export default function AddMealPage() {
         name: stashed.name,
         items: stashed.items,
         source: stashed.source,
+        photos: stashed.photos ?? [],
       });
     }
     fetchJson<ApiMeal[]>("/api/meals?favorites=true")
       .then(setFavorites)
       .catch(() => {});
+    fetchJson<ApiMeal[]>("/api/meals?recent=true").then(setRecent).catch(() => {});
     const w = window as unknown as Record<string, unknown>;
     setSpeechSupported(
       Boolean(w.SpeechRecognition || w.webkitSpeechRecognition),
     );
   }, []);
+
+  useEffect(() => {
+    const q = search.trim();
+    const handle = setTimeout(() => {
+      fetchJson<ApiMeal[]>(
+        `/api/meals?recent=true${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+      )
+        .then(setRecent)
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [search]);
 
   async function onFilesSelected(files: FileList | null) {
     if (!files) return;
@@ -127,6 +150,23 @@ export default function AddMealPage() {
     rec.start();
   }
 
+  /** Upload the selected photos to Blob, return their stored URLs. */
+  async function uploadPhotos(): Promise<DraftPhoto[]> {
+    const uploaded: DraftPhoto[] = [];
+    for (const photo of photos) {
+      const bytes = Uint8Array.from(atob(photo.encoded.data), (c) =>
+        c.charCodeAt(0),
+      );
+      const res = await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": photo.encoded.media_type },
+        body: bytes,
+      });
+      if (res.ok) uploaded.push(await res.json());
+    }
+    return uploaded;
+  }
+
   async function analyze() {
     setAnalyzing(true);
     try {
@@ -145,6 +185,7 @@ export default function AddMealPage() {
         name: result.meal_name,
         items: result.items,
         source: photos.length > 0 ? "photo" : "text",
+        photos: [],
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Analysis failed", {
@@ -155,18 +196,13 @@ export default function AddMealPage() {
     }
   }
 
-  function logFavorite(meal: ApiMeal) {
+  function logExisting(meal: ApiMeal, source: "favorite" | "copy") {
     setDraft({
       name: meal.name,
-      source: "favorite",
-      items: meal.items.map((item) => ({
-        name: item.name,
-        portion: item.portion,
-        calories: item.calories,
-        protein_g: Number(item.proteinG),
-        carbs_g: Number(item.carbsG),
-        fat_g: Number(item.fatG),
-      })),
+      source,
+      items: itemsToDraft(meal),
+      // Reuse the same stored blob URLs — no re-upload needed
+      photos: meal.photos.map((p) => ({ url: p.url, pathname: p.pathname })),
     });
   }
 
@@ -179,6 +215,9 @@ export default function AddMealPage() {
     }
     setSaving(true);
     try {
+      // Photos captured this session need uploading; reused ones already have URLs
+      const captured = photos.length > 0 ? await uploadPhotos() : [];
+      const mealPhotos = [...draft.photos, ...captured];
       await fetchJson("/api/meals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,6 +227,7 @@ export default function AddMealPage() {
           note: text || undefined,
           source: draft.source,
           items,
+          photos: mealPhotos,
         }),
       });
       toast.success("Meal logged");
@@ -200,15 +240,21 @@ export default function AddMealPage() {
   }
 
   if (draft) {
+    const draftPhotoUrls = [
+      ...draft.photos.map((p) => p.url),
+      ...photos.map((p) => p.previewUrl),
+    ];
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Review</h1>
+        <PhotoStrip urls={draftPhotoUrls} />
         <MealReview
           name={draft.name}
           onNameChange={(name) => setDraft({ ...draft, name })}
           items={draft.items}
           onItemsChange={(items) => setDraft({ ...draft, items })}
         />
+        <NutritionFacts items={draft.items} />
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -238,7 +284,10 @@ export default function AddMealPage() {
           {favorites.map((meal) => {
             const totals = mealTotals(meal);
             return (
-              <button key={meal.id} onClick={() => logFavorite(meal)}>
+              <button
+                key={meal.id}
+                onClick={() => logExisting(meal, "favorite")}
+              >
                 <Badge variant="secondary" className="cursor-pointer py-1.5">
                   <Star data-icon="inline-start" />
                   {meal.name} · {totals.calories} kcal
@@ -329,6 +378,34 @@ export default function AddMealPage() {
         {analyzing ? <Spinner data-icon="inline-start" /> : null}
         {analyzing ? "Analyzing…" : "Analyze"}
       </Button>
+
+      <div className="mt-2 flex flex-col gap-3">
+        <div className="relative">
+          <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+          <Input
+            placeholder="Search your meals"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {recent.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <h2 className="text-muted-foreground text-sm font-medium">
+              {search.trim() ? "Results" : "Recent meals"}
+            </h2>
+            {recent.map((meal) => (
+              <MealListItem
+                key={meal.id}
+                meal={meal}
+                onClick={() => logExisting(meal, "copy")}
+              />
+            ))}
+          </div>
+        ) : search.trim() ? (
+          <p className="text-muted-foreground text-sm">No meals found.</p>
+        ) : null}
+      </div>
     </div>
   );
 }

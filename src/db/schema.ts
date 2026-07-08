@@ -32,6 +32,20 @@ export const mealItems = pgTable("meal_items", {
   proteinG: numeric("protein_g", { precision: 6, scale: 1 }).notNull(),
   carbsG: numeric("carbs_g", { precision: 6, scale: 1 }).notNull(),
   fatG: numeric("fat_g", { precision: 6, scale: 1 }).notNull(),
+  // Extended nutrients for the nutrition-facts view (best-effort estimates)
+  satFatG: numeric("sat_fat_g", { precision: 6, scale: 1 }),
+  fiberG: numeric("fiber_g", { precision: 6, scale: 1 }),
+  sugarG: numeric("sugar_g", { precision: 6, scale: 1 }),
+  sodiumMg: numeric("sodium_mg", { precision: 7, scale: 0 }),
+});
+
+export const mealPhotos = pgTable("meal_photos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mealId: uuid("meal_id")
+    .notNull()
+    .references(() => meals.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  pathname: text("pathname").notNull(), // blob pathname, for deletion
 });
 
 export const goals = pgTable("goals", {

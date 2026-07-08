@@ -5,7 +5,7 @@ export default function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
       <header
         className="bg-background/90 sticky top-0 z-30 flex items-center gap-2 px-4 pb-2 backdrop-blur-lg"
         style={{ paddingTop: "max(env(safe-area-inset-top), 0.75rem)" }}

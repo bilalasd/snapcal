@@ -96,3 +96,18 @@ Trends screen. It needs ~2 weeks of consistent logging (≥10 logged days,
 | `npm test` | Unit tests (trend math, analysis schema) |
 | `npm run db:generate` | Generate migration from schema changes |
 | `npm run db:migrate` | Apply migrations to `DATABASE_URL` |
+
+## How macros are calculated
+
+Two separate things use the word "macros":
+
+- **Your daily targets** (set in onboarding, editable in Settings). Protein is
+  1.6 g per kg of bodyweight (enough to preserve muscle while active or in a
+  deficit); fat is 30% of your calorie goal; carbs fill the remaining calories.
+  Grams are shown as a percentage split of your calories (protein & carbs at
+  4 kcal/g, fat at 9 kcal/g). Editing the percentages re-derives the grams, and
+  changing your calorie goal keeps the same split.
+- **A logged meal's macros** come from Claude's per-item vision/text estimate in
+  `/api/analyze` — not from any formula. Each item also gets estimated saturated
+  fat, fiber, sugar, and sodium for the Nutrition Facts panel. These are AI
+  estimates, not lab-measured values.

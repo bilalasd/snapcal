@@ -14,7 +14,8 @@ Rules:
 - Use typical preparation assumptions (home-cooked with moderate oil) unless stated otherwise.
 - Split combined dishes into their main components only when it helps accuracy; otherwise keep one item per dish.
 - Give the meal a short, natural name (e.g. "Chicken biryani lunch").
-- calories must be an integer per item; macros in grams to one decimal.`;
+- calories must be an integer per item; macros in grams to one decimal.
+- Also estimate per item: saturated fat (g), fiber (g), sugar (g), and sodium (mg). Use typical values for the food; a rough estimate is fine.`;
 
 const MEDIA_TYPES = new Set([
   "image/jpeg",
