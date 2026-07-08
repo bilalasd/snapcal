@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { MealReview } from "@/components/meal-review";
 import { MealListItem } from "@/components/meal-list-item";
+import { FoodSearchDrawer } from "@/components/food-search-drawer";
 import { NutritionFacts } from "@/components/nutrition-facts";
 import { PhotoStrip } from "@/components/photo-strip";
 import { resizeImage, type EncodedImage } from "@/lib/resize-image";
@@ -262,6 +263,11 @@ export default function AddMealPage() {
           items={draft.items}
           onItemsChange={(items) => setDraft({ ...draft, items })}
         />
+        <FoodSearchDrawer
+          onAdd={(item) =>
+            setDraft({ ...draft, items: [...draft.items, item] })
+          }
+        />
         <NutritionFacts items={draft.items} />
         <div className="flex gap-2">
           <Button
@@ -398,6 +404,17 @@ export default function AddMealPage() {
         {analyzing ? <Spinner data-icon="inline-start" /> : null}
         {analyzing ? "Analyzing…" : "Analyze"}
       </Button>
+
+      <FoodSearchDrawer
+        onAdd={(item) =>
+          setDraft({
+            name: item.name,
+            items: [item],
+            source: "text",
+            photos: [],
+          })
+        }
+      />
 
       <div className="mt-2 flex flex-col gap-3">
         <div className="relative">

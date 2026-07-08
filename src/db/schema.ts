@@ -39,6 +39,23 @@ export const mealItems = pgTable("meal_items", {
   sodiumMg: numeric("sodium_mg", { precision: 7, scale: 0 }),
 });
 
+// USDA (FoodData Central) whole-ingredient reference, per 100 g.
+export const foods = pgTable("foods", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fdcId: integer("fdc_id").notNull().unique(),
+  description: text("description").notNull(),
+  category: text("category"),
+  // per 100 g
+  calories: numeric("calories", { precision: 7, scale: 1 }).notNull(),
+  proteinG: numeric("protein_g", { precision: 6, scale: 2 }).notNull(),
+  carbsG: numeric("carbs_g", { precision: 6, scale: 2 }).notNull(),
+  fatG: numeric("fat_g", { precision: 6, scale: 2 }).notNull(),
+  satFatG: numeric("sat_fat_g", { precision: 6, scale: 2 }),
+  fiberG: numeric("fiber_g", { precision: 6, scale: 2 }),
+  sugarG: numeric("sugar_g", { precision: 6, scale: 2 }),
+  sodiumMg: numeric("sodium_mg", { precision: 8, scale: 1 }),
+});
+
 export const mealPhotos = pgTable("meal_photos", {
   id: uuid("id").primaryKey().defaultRandom(),
   mealId: uuid("meal_id")

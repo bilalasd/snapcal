@@ -111,3 +111,18 @@ Two separate things use the word "macros":
   `/api/analyze` — not from any formula. Each item also gets estimated saturated
   fat, fiber, sugar, and sodium for the Nutrition Facts panel. These are AI
   estimates, not lab-measured values.
+
+## Loading the USDA food database
+
+The app ships with a **foods** table (USDA FoodData Central whole ingredients,
+per 100 g) powering the "Add from food database" search. To populate it:
+
+- **Starter set (immediate):** once logged in, `POST /api/foods/seed` seeds ~150
+  common staples via USDA's DEMO_KEY. Idempotent.
+- **Full catalog:** get a free key at
+  [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup),
+  then run `DATABASE_URL=... FDC_API_KEY=... npm run import-foods` to pull the
+  full SR Legacy + Foundation datasets (~8,000 ingredients).
+
+When you log a meal, matching your item name against this table lets you snap to
+lab-measured nutrition instead of an AI estimate.
