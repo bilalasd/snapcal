@@ -3,6 +3,7 @@ import { z } from "zod";
 export const analyzedItemSchema = z.object({
   name: z.string(),
   portion: z.string(),
+  estimated_grams: z.number().min(0),
   calories: z.number().int().min(0),
   protein_g: z.number().min(0),
   carbs_g: z.number().min(0),

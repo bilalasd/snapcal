@@ -4,6 +4,7 @@ import { analysisSchema, scaleItem, sumItems } from "./analysis";
 const item = {
   name: "Cooked rice",
   portion: "1 cup",
+  estimated_grams: 158,
   calories: 205,
   protein_g: 4.3,
   carbs_g: 44.5,

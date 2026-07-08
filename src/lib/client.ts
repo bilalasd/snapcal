@@ -67,6 +67,9 @@ export interface DraftItem {
   fiber_g?: number | null;
   sugar_g?: number | null;
   sodium_mg?: number | null;
+  // Set when the item was reconciled against the USDA database (the matched
+  // food's description); display-only, not persisted.
+  usda_match?: string | null;
 }
 
 export interface DraftPhoto {

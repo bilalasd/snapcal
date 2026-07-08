@@ -1,5 +1,7 @@
 "use client";
 
+import { BadgeCheck, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,7 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2 } from "lucide-react";
 import type { DraftItem } from "@/lib/client";
 
 function round1(n: number) {
@@ -103,6 +104,12 @@ export function MealReview({
                 <Trash2 />
               </Button>
             </div>
+            {item.usda_match ? (
+              <Badge variant="secondary" className="w-fit gap-1">
+                <BadgeCheck data-icon="inline-start" />
+                USDA verified · {item.usda_match}
+              </Badge>
+            ) : null}
             <div className="flex items-center gap-2">
               <Input
                 aria-label="Portion"

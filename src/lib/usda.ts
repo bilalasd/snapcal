@@ -106,5 +106,6 @@ export function foodToItem(
     fiber_g: opt(food.fiberG),
     sugar_g: opt(food.sugarG),
     sodium_mg: opt(food.sodiumMg),
+    usda_match: food.description,
   };
 }

@@ -1,0 +1,94 @@
+<style>
+  .direction-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:start; }
+  .direction { border:1px solid #d8d6cb; border-radius:22px; overflow:hidden; background:#fff; cursor:pointer; transition:.2s ease; }
+  .direction:hover { transform:translateY(-3px); box-shadow:0 18px 45px rgba(30,40,30,.12); }
+  .direction.selected { outline:3px solid #4e9867; outline-offset:3px; }
+  .phone { min-height:490px; padding:20px 16px; position:relative; overflow:hidden; }
+  .eyebrow { font:700 10px/1.2 ui-sans-serif; text-transform:uppercase; letter-spacing:.16em; opacity:.58; }
+  .headline { margin:10px 0 2px; font:800 28px/1.02 ui-rounded, sans-serif; letter-spacing:-.045em; }
+  .date { font-size:12px; opacity:.58; }
+  .photo { height:160px; border-radius:20px; margin:22px 0 12px; background:linear-gradient(135deg,#b65f32,#e4b15d 34%,#5b813c 35%,#8aaa5a 58%,#f2e7c9 59%); box-shadow:0 16px 30px rgba(50,45,30,.17); position:relative; }
+  .photo:after { content:'Lunch · 540 kcal'; position:absolute; left:12px; bottom:12px; color:white; background:rgba(18,24,18,.65); backdrop-filter:blur(8px); padding:7px 10px; border-radius:99px; font-size:11px; }
+  .metric-row { display:flex; gap:8px; margin-top:12px; }
+  .metric { flex:1; border-radius:14px; padding:12px 9px; font-size:11px; }
+  .metric b { display:block; font-size:18px; margin-bottom:2px; }
+  .progress { height:7px; border-radius:9px; margin-top:8px; overflow:hidden; background:rgba(120,120,100,.14); }
+  .progress span { display:block; width:67%; height:100%; border-radius:inherit; }
+  .journal { background:#f7f2e7; color:#24352a; }
+  .journal .metric { background:rgba(255,255,255,.62); border:1px solid rgba(37,62,43,.08); }
+  .journal .progress span { background:#4d9566; }
+  .journal:before { content:''; position:absolute; width:220px; height:220px; border-radius:50%; right:-120px; top:-100px; background:#e4b15d33; filter:blur(2px); }
+  .precision { background:#f8faf7; color:#14251b; }
+  .precision .hero-number { font:800 64px/1 ui-rounded; letter-spacing:-.07em; color:#39885a; margin:48px 0 0; }
+  .precision .hero-label { font-size:12px; opacity:.55; }
+  .precision .metric { border-top:1px solid #dfe7df; border-radius:0; padding-left:0; }
+  .precision .progress span { background:#39885a; }
+  .precision .photo { height:96px; border-radius:12px; margin-top:25px; }
+  .bold { background:#10241a; color:#f2f0df; }
+  .bold .headline { font-size:32px; }
+  .bold .photo { height:210px; border-radius:4px 28px 4px 28px; transform:rotate(-2deg); box-shadow:12px 12px 0 #e0b755; }
+  .bold .metric { background:#1b3728; }
+  .bold .progress { background:#294b39; }
+  .bold .progress span { background:#e0b755; }
+  .card-copy { padding:16px 17px 18px; border-top:1px solid #e5e2d9; }
+  .card-copy h3 { margin:0 0 6px; font-size:17px; }
+  .card-copy p { margin:0; font-size:13px; line-height:1.45; color:#65665f; }
+  .recommended { display:inline-block; margin-bottom:10px; padding:4px 8px; border-radius:99px; background:#e3f2e7; color:#33704b; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+  @media(max-width:900px){ .direction-grid{grid-template-columns:1fr;} .phone{min-height:420px;} }
+</style>
+
+<h2>How bold should SnapCal become?</h2>
+<p class="subtitle">All three preserve the current workflows. Choose the visual character that should govern every screen.</p>
+
+<div class="direction-grid">
+  <div class="direction" data-choice="quiet-journal" onclick="toggleSelect(this)">
+    <div class="phone journal">
+      <div class="eyebrow">Today · 3 meals</div>
+      <div class="headline">Good afternoon,<br>you’re doing fine.</div>
+      <div class="date">Tuesday, July 8</div>
+      <div class="photo"></div>
+      <div class="metric-row">
+        <div class="metric"><b>720</b>kcal left<div class="progress"><span></span></div></div>
+        <div class="metric"><b>91g</b>protein<div class="progress"><span style="width:74%"></span></div></div>
+      </div>
+    </div>
+    <div class="card-copy">
+      <span class="recommended">Recommended</span>
+      <h3>A · Quiet photographic journal</h3>
+      <p>Warm paper, generous photography, open layouts, gentle editorial rhythm. Calm enough for daily use, distinct enough to remember.</p>
+    </div>
+  </div>
+
+  <div class="direction" data-choice="precision-coach" onclick="toggleSelect(this)">
+    <div class="phone precision">
+      <div class="eyebrow">Daily balance</div>
+      <div class="hero-number">720</div>
+      <div class="hero-label">kilocalories remaining</div>
+      <div class="metric-row">
+        <div class="metric"><b>91g</b>Protein<div class="progress"><span style="width:74%"></span></div></div>
+        <div class="metric"><b>162g</b>Carbs<div class="progress"><span style="width:61%"></span></div></div>
+      </div>
+      <div class="photo"></div>
+    </div>
+    <div class="card-copy">
+      <h3>B · Precision coach</h3>
+      <p>Stripped-back numerical hierarchy, crisp charts, fewer surfaces. The most efficient and analytical, but less emotionally ownable.</p>
+    </div>
+  </div>
+
+  <div class="direction" data-choice="bold-editorial" onclick="toggleSelect(this)">
+    <div class="phone bold">
+      <div class="eyebrow">SnapCal / Tuesday</div>
+      <div class="headline">Eat real.<br>Watch the trend.</div>
+      <div class="photo"></div>
+      <div class="metric-row">
+        <div class="metric"><b>720</b>left<div class="progress"><span></span></div></div>
+        <div class="metric"><b>6/7</b>days<div class="progress"><span style="width:86%"></span></div></div>
+      </div>
+    </div>
+    <div class="card-copy">
+      <h3>C · Bold editorial</h3>
+      <p>Dark canvas, angled imagery, sharp yellow accents, assertive copy. Highly memorable, with more visual energy during everyday tracking.</p>
+    </div>
+  </div>
+</div>

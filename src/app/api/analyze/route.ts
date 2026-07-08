@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { analysisSchema } from "@/lib/analysis";
+import { groundWithUsda } from "@/lib/food-match";
 
 export const maxDuration = 60;
 
@@ -15,7 +16,8 @@ Rules:
 - Split combined dishes into their main components only when it helps accuracy; otherwise keep one item per dish.
 - Give the meal a short, natural name (e.g. "Chicken biryani lunch").
 - calories must be an integer per item; macros in grams to one decimal.
-- Also estimate per item: saturated fat (g), fiber (g), sugar (g), and sodium (mg). Use typical values for the food; a rough estimate is fine.`;
+- Also estimate per item: saturated fat (g), fiber (g), sugar (g), and sodium (mg). Use typical values for the food; a rough estimate is fine.
+- estimated_grams: your best estimate of the item's total weight in grams. This is used to reconcile the item against a verified nutrition database, so estimate the weight as accurately as you can.`;
 
 const MEDIA_TYPES = new Set([
   "image/jpeg",
@@ -87,7 +89,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(response.parsed_output);
+    // Ground each item against the USDA reference database where confident
+    const items = await groundWithUsda(response.parsed_output.items);
+    return NextResponse.json({
+      meal_name: response.parsed_output.meal_name,
+      items,
+    });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {
       return NextResponse.json(

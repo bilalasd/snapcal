@@ -44,10 +44,10 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
     if (!open) return;
     const q = query.trim();
     if (q.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const handle = setTimeout(() => {
       fetchJson<FoodResult[]>(`/api/foods?q=${encodeURIComponent(q)}`)
