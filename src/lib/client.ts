@@ -98,6 +98,19 @@ export function itemsToDraft(meal: ApiMeal): DraftItem[] {
   }));
 }
 
+// One macro color language, used on every screen (bars, charts, legends).
+export const MACRO_COLORS = {
+  protein: "var(--chart-5)", // berry/rose
+  carbs: "var(--chart-3)", // amber
+  fat: "var(--chart-2)", // blue
+} as const;
+
+export const MACRO_BG = {
+  protein: "bg-chart-5",
+  carbs: "bg-chart-3",
+  fat: "bg-chart-2",
+} as const;
+
 export function mealTotals(meal: ApiMeal) {
   return meal.items.reduce(
     (acc, item) => ({

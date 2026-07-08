@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { Utensils } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { mealTotals, type ApiMeal } from "@/lib/client";
 
@@ -22,6 +24,20 @@ export function MealListItem({ meal, onClick, action }: MealListItemProps) {
       onClick={onClick}
     >
       <CardContent className="flex items-center gap-3 px-4">
+        {meal.photos.length > 0 ? (
+          <Image
+            src={meal.photos[0].url}
+            alt=""
+            width={44}
+            height={44}
+            unoptimized
+            className="size-11 shrink-0 rounded-lg object-cover"
+          />
+        ) : (
+          <span className="bg-muted text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-lg">
+            <Utensils className="size-5" />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{meal.name}</p>
           <p className="text-muted-foreground text-xs">

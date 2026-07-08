@@ -12,6 +12,8 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { MealReview } from "@/components/meal-review";
 import { NutritionFacts } from "@/components/nutrition-facts";
@@ -52,15 +54,24 @@ function MealDrawerInner({
   const [name, setName] = useState(meal.name);
   const [items, setItems] = useState<DraftItem[]>(() => itemsToDraft(meal));
   const [favorite, setFavorite] = useState(meal.isFavorite);
+  // Local YYYY-MM-DD of the meal, for the date editor
+  const [dateStr, setDateStr] = useState(() => {
+    const d = new Date(meal.eatenAt);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
   const [busy, setBusy] = useState(false);
 
   async function saveChanges() {
-
     const valid = items.filter((i) => i.name.trim());
     if (valid.length === 0) {
       toast.error("A meal needs at least one item");
       return;
     }
+    // Preserve time-of-day, change only the calendar date
+    const orig = new Date(meal.eatenAt);
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const eaten = new Date(orig);
+    eaten.setFullYear(y, m - 1, d);
     setBusy(true);
     try {
       await fetchJson(`/api/meals/${meal.id}`, {
@@ -69,6 +80,7 @@ function MealDrawerInner({
         body: JSON.stringify({
           name,
           is_favorite: favorite,
+          eaten_at: eaten.toISOString(),
           items: valid,
         }),
       });
@@ -125,6 +137,16 @@ function MealDrawerInner({
             items={items}
             onItemsChange={setItems}
           />
+          <Field>
+            <FieldLabel htmlFor="meal-date">Date</FieldLabel>
+            <Input
+              id="meal-date"
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
+              value={dateStr}
+              onChange={(e) => setDateStr(e.target.value)}
+            />
+          </Field>
           <NutritionFacts items={items} />
         </div>
         <DrawerFooter>

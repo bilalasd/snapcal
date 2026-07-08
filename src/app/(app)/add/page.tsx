@@ -61,6 +61,7 @@ export default function AddMealPage() {
   const [search, setSearch] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [targetDate, setTargetDate] = useState<string | null>(null); // YYYY-MM-DD, null = today
   const [draft, setDraft] = useState<{
     name: string;
     items: DraftItem[];
@@ -86,6 +87,8 @@ export default function AddMealPage() {
       .then(setFavorites)
       .catch(() => {});
     fetchJson<ApiMeal[]>("/api/meals?recent=true").then(setRecent).catch(() => {});
+    const urlDate = new URLSearchParams(window.location.search).get("date");
+    if (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)) setTargetDate(urlDate);
     const w = window as unknown as Record<string, unknown>;
     setSpeechSupported(
       Boolean(w.SpeechRecognition || w.webkitSpeechRecognition),
@@ -218,20 +221,25 @@ export default function AddMealPage() {
       // Photos captured this session need uploading; reused ones already have URLs
       const captured = photos.length > 0 ? await uploadPhotos() : [];
       const mealPhotos = [...draft.photos, ...captured];
+      // Past days log at local noon so they land on the right calendar date;
+      // today logs at the current time.
+      const eatenAt = targetDate
+        ? new Date(`${targetDate}T12:00:00`).toISOString()
+        : new Date().toISOString();
       await fetchJson("/api/meals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: draft.name || "Meal",
-          eaten_at: new Date().toISOString(),
+          eaten_at: eatenAt,
           note: text || undefined,
           source: draft.source,
           items,
           photos: mealPhotos,
         }),
       });
-      toast.success("Meal logged");
-      router.push("/");
+      toast.success(targetDate ? "Meal added" : "Meal logged");
+      router.push(targetDate ? "/" : "/");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");
@@ -278,6 +286,18 @@ export default function AddMealPage() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold tracking-tight">Log a meal</h1>
+      {targetDate ? (
+        <p className="bg-accent/60 text-accent-foreground -mt-2 rounded-lg px-3 py-2 text-sm">
+          Adding to{" "}
+          <span className="font-semibold">
+            {new Date(`${targetDate}T12:00:00`).toLocaleDateString([], {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </span>
+        </p>
+      ) : null}
 
       {favorites.length > 0 ? (
         <div className="flex flex-wrap gap-2">

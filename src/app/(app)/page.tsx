@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Flame, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,20 +18,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MealDrawer } from "@/components/meal-drawer";
 import { MealListItem } from "@/components/meal-list-item";
 import { ProgressRing } from "@/components/progress-ring";
+import { useSwipe } from "@/lib/use-swipe";
+import { cn } from "@/lib/utils";
 import {
   fetchJson,
   fetchMealsForDate,
   fetchMealsRange,
   localDateString,
+  MACRO_BG,
   mealTotals,
   type ApiMeal,
   type Goals,
 } from "@/lib/client";
 
-const macroColors: Record<string, string> = {
-  Protein: "bg-chart-5",
-  Carbs: "bg-chart-3",
-  Fat: "bg-chart-2",
+const MACRO_BG_BY_LABEL: Record<string, string> = {
+  Protein: MACRO_BG.protein,
+  Carbs: MACRO_BG.carbs,
+  Fat: MACRO_BG.fat,
 };
 
 function greetingFor(hour: number): string {
@@ -41,35 +44,45 @@ function greetingFor(hour: number): string {
   return "Good evening";
 }
 
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return localDateString(d);
+}
+
+function dayHeading(date: string, today: string): string {
+  if (date === today) return "Today";
+  if (date === addDays(today, -1)) return "Yesterday";
+  return new Date(`${date}T12:00:00`).toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export default function TodayPage() {
   const router = useRouter();
+  const [today] = useState(() => localDateString());
+  const [date, setDate] = useState(today);
   const [meals, setMeals] = useState<ApiMeal[] | null>(null);
   const [goals, setGoals] = useState<Goals | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
   const [selected, setSelected] = useState<ApiMeal | null>(null);
-  const [now, setNow] = useState<Date | null>(null);
 
-  const load = useCallback(() => {
-    const current = new Date();
-    fetchMealsForDate(localDateString(current))
-      .then((rows) => {
-        setMeals(rows);
-        setNow(current);
-      })
+  const isToday = date === today;
+
+  const load = useCallback((forDate: string) => {
+    setMeals(null);
+    fetchMealsForDate(forDate)
+      .then(setMeals)
       .catch(() => setMeals([]));
-    const weekAgo = new Date(current.getTime() - 7 * 24 * 60 * 60 * 1000);
-    fetchMealsRange(weekAgo, current)
-      .then((weekMeals) => {
-        const days = new Set(
-          weekMeals.map((m) => localDateString(new Date(m.eatenAt))),
-        );
-        setStreak(days.size);
-      })
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    load();
+    load(date);
+  }, [load, date]);
+
+  useEffect(() => {
     fetchJson<Goals>("/api/goals")
       .then((g) => {
         if (!g.onboarded) {
@@ -79,7 +92,24 @@ export default function TodayPage() {
         setGoals(g);
       })
       .catch(() => {});
-  }, [load, router]);
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    fetchMealsRange(weekAgo, new Date())
+      .then((weekMeals) => {
+        const days = new Set(
+          weekMeals.map((m) => localDateString(new Date(m.eatenAt))),
+        );
+        setStreak(days.size);
+      })
+      .catch(() => {});
+  }, [router]);
+
+  function goPrev() {
+    setDate((d) => addDays(d, -1));
+  }
+  function goNext() {
+    setDate((d) => (d < today ? addDays(d, 1) : d));
+  }
+  const swipe = useSwipe(goNext, goPrev);
 
   const totals = (meals ?? []).reduce(
     (acc, meal) => {
@@ -103,30 +133,53 @@ export default function TodayPage() {
     : [];
 
   const remaining = goals ? goals.daily_calories - totals.calories : 0;
+  const now = new Date();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" {...swipe}>
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {now ? greetingFor(now.getHours()) : "Today"}
+            {isToday ? greetingFor(now.getHours()) : dayHeading(date, today)}
           </h1>
           <p className="text-muted-foreground text-sm">
-            {now
-              ? now.toLocaleDateString([], {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })
-              : " "}
+            {new Date(`${date}T12:00:00`).toLocaleDateString([], {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
           </p>
         </div>
-        {streak !== null && streak > 0 ? (
+        {isToday && streak !== null && streak > 0 ? (
           <Badge variant="secondary" className="gap-1">
             <Flame data-icon="inline-start" />
             {streak}/7 days
           </Badge>
         ) : null}
+      </div>
+
+      {/* Day navigation */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={goPrev}
+          aria-label="Previous day"
+        >
+          <ChevronLeft />
+        </Button>
+        <span className="text-muted-foreground text-sm">
+          {isToday ? "Swipe to see past days" : dayHeading(date, today)}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={goNext}
+          disabled={isToday}
+          aria-label="Next day"
+        >
+          <ChevronRight />
+        </Button>
       </div>
 
       {meals === null || !goals ? (
@@ -156,7 +209,10 @@ export default function TodayPage() {
                     <span className="w-16 text-sm font-medium">{label}</span>
                     <div className="bg-muted h-2.5 flex-1 overflow-hidden rounded-full">
                       <div
-                        className={`h-full rounded-full transition-[width] duration-500 ${macroColors[label]}`}
+                        className={cn(
+                          "h-full rounded-full transition-[width] duration-500",
+                          MACRO_BG_BY_LABEL[label],
+                        )}
                         style={{
                           width: `${max > 0 ? Math.min((value / max) * 100, 100) : 0}%`,
                         }}
@@ -178,18 +234,40 @@ export default function TodayPage() {
                 <EmptyMedia variant="icon">
                   <Plus />
                 </EmptyMedia>
-                <EmptyTitle>Nothing logged yet</EmptyTitle>
+                <EmptyTitle>
+                  {isToday ? "Nothing logged yet" : "No meals this day"}
+                </EmptyTitle>
                 <EmptyDescription>
-                  Snap a photo of your next meal to get started.
+                  {isToday
+                    ? "Snap a photo of your next meal to get started."
+                    : "Add a meal to log it for this day."}
                 </EmptyDescription>
               </EmptyHeader>
-              <Button render={<Link href="/add" />}>Log a meal</Button>
+              <Button
+                render={
+                  <Link href={isToday ? "/add" : `/add?date=${date}`} />
+                }
+              >
+                Log a meal
+              </Button>
             </Empty>
           ) : (
             <div className="flex flex-col gap-2">
-              <h2 className="text-muted-foreground mt-1 text-sm font-medium">
-                Meals
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-muted-foreground text-sm font-medium">
+                  Meals
+                </h2>
+                {!isToday ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    render={<Link href={`/add?date=${date}`} />}
+                  >
+                    <Plus data-icon="inline-start" />
+                    Add to this day
+                  </Button>
+                ) : null}
+              </div>
               {meals.map((meal) => (
                 <MealListItem
                   key={meal.id}
@@ -205,7 +283,7 @@ export default function TodayPage() {
       <MealDrawer
         meal={selected}
         onClose={() => setSelected(null)}
-        onChanged={load}
+        onChanged={() => load(date)}
       />
     </div>
   );
