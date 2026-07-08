@@ -83,6 +83,8 @@ export async function GET(request: NextRequest) {
     balance,
     verdict,
     target_rate_kg_per_wk: targetRate,
+    goal_weight_kg:
+      goalsRow?.goalWeightKg == null ? null : Number(goalsRow.goalWeightKg),
     unit_system: goalsRow?.unitSystem ?? "metric",
     recap: latestRecap
       ? { week_start: latestRecap.weekStart, content: latestRecap.content }

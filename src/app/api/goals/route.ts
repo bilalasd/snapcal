@@ -18,6 +18,7 @@ const goalsInput = z.object({
     .nullable()
     .optional(),
   onboarded: z.boolean().optional(),
+  goal_weight_kg: z.number().min(25).max(400).nullable().optional(),
 });
 
 async function getOrCreateGoals() {
@@ -40,6 +41,7 @@ function serialize(row: Awaited<ReturnType<typeof getOrCreateGoals>>) {
     height_cm: row.heightCm === null ? null : Number(row.heightCm),
     activity_level: row.activityLevel,
     onboarded: row.onboardedAt !== null,
+    goal_weight_kg: row.goalWeightKg === null ? null : Number(row.goalWeightKg),
   };
 }
 
@@ -73,6 +75,12 @@ export async function PUT(request: NextRequest) {
         activityLevel: parsed.data.activity_level,
       }),
       ...(parsed.data.onboarded && { onboardedAt: new Date() }),
+      ...(parsed.data.goal_weight_kg !== undefined && {
+        goalWeightKg:
+          parsed.data.goal_weight_kg === null
+            ? null
+            : String(parsed.data.goal_weight_kg),
+      }),
     })
     .where(eq(goals.id, 1))
     .returning();

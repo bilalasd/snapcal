@@ -35,16 +35,20 @@ export const viewport: Viewport = {
   ],
 };
 
-// Runs before hydration so there's no light-mode flash; follows the system
-// setting live via matchMedia.
+// Runs before hydration so there's no light-mode flash. Honors a saved
+// preference ("light" | "dark" | "system"); "system" follows the OS live.
 const darkModeScript = `
 (function () {
   var mql = window.matchMedia("(prefers-color-scheme: dark)");
   function apply() {
-    document.documentElement.classList.toggle("dark", mql.matches);
+    var pref = null;
+    try { pref = localStorage.getItem("snapcal-theme"); } catch (e) {}
+    var dark = pref === "dark" || ((pref === null || pref === "system") && mql.matches);
+    document.documentElement.classList.toggle("dark", dark);
   }
   apply();
   mql.addEventListener("change", apply);
+  window.__snapcalApplyTheme = apply;
 })();
 `;
 

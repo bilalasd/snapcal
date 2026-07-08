@@ -52,6 +52,7 @@ export interface Goals {
     | "very_active"
     | null;
   onboarded: boolean;
+  goal_weight_kg: number | null;
 }
 
 /** Editable item shape used by the review card and POST /api/meals. */

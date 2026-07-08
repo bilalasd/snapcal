@@ -25,6 +25,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { GoalCard } from "@/components/goal-card";
+import { ProfileCard } from "@/components/profile-card";
+import { ThemeCard } from "@/components/theme-card";
 import { gramsFromPercents, macroPercents } from "@/lib/bmr";
 import { HealthCard } from "@/components/health-card";
 import { fetchJson, type Goals } from "@/lib/client";
@@ -218,6 +220,10 @@ export default function SettingsPage() {
               </Field>
             </CardContent>
           </Card>
+
+          <ProfileCard goals={goals} onGoalsSaved={setGoals} />
+
+          <ThemeCard />
 
           <HealthCard />
 

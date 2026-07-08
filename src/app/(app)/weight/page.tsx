@@ -60,6 +60,7 @@ interface TrendsResponse {
     missing: string[];
   };
   target_rate_kg_per_wk: number;
+  goal_weight_kg: number | null;
   unit_system: "metric" | "imperial";
   recap: { week_start: string; content: string } | null;
 }
@@ -223,6 +224,59 @@ export default function WeightPage() {
               </CardContent>
             </Card>
           )}
+
+          {(() => {
+            if (
+              !data.goal_weight_kg ||
+              data.weights.length === 0 ||
+              rate === null
+            )
+              return null;
+            const currentKg = data.weights[data.weights.length - 1].trendKg;
+            const toGoKg = currentKg - data.goal_weight_kg;
+            const toGo = Math.abs(toUnit(toGoKg));
+            const reached = Math.abs(toGoKg) < 0.2;
+            // Weeks to goal from the trend rate (only if moving the right way)
+            const rateKgPerWk = data.rate_kg_per_week ?? 0;
+            const movingToward =
+              (toGoKg > 0 && rateKgPerWk < 0) ||
+              (toGoKg < 0 && rateKgPerWk > 0);
+            const weeks =
+              movingToward && rateKgPerWk !== 0
+                ? Math.abs(toGoKg / rateKgPerWk)
+                : null;
+            const eta =
+              weeks !== null
+                ? new Date(nowMs + weeks * 7 * 86_400_000).toLocaleDateString(
+                    [],
+                    { month: "long", year: "numeric" },
+                  )
+                : null;
+            return (
+              <Card>
+                <CardContent className="flex items-center justify-between px-4">
+                  <div>
+                    <p className="text-muted-foreground text-xs">
+                      {reached ? "Goal reached" : "To go"}
+                    </p>
+                    <p className="text-lg font-bold tabular-nums">
+                      {reached
+                        ? "🎉 You're there"
+                        : `${Math.round(toGo * 10) / 10} ${unit}`}
+                    </p>
+                  </div>
+                  {eta && !reached ? (
+                    <div className="text-right">
+                      <p className="text-muted-foreground text-xs">
+                        On track for
+                      </p>
+                      <p className="font-semibold">{eta}</p>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           <div className="grid grid-cols-2 gap-3">
             <Card className="py-4">

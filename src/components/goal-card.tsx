@@ -68,6 +68,16 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
   const [caloriesInput, setCaloriesInput] = useState(
     String(goals.daily_calories),
   );
+  const [goalWeightInput, setGoalWeightInput] = useState(
+    goals.goal_weight_kg == null
+      ? ""
+      : String(
+          Math.round(
+            (imperial ? goals.goal_weight_kg / KG_PER_LB : goals.goal_weight_kg) *
+              10,
+          ) / 10,
+        ),
+  );
 
   const summary =
     goals.target_rate_kg_per_wk === 0
@@ -102,6 +112,11 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
     const { rateKg, calories } = pendingPlan();
     setConfirming(false);
     setSaving(true);
+    const gwNum = Number(goalWeightInput);
+    const goalWeightKg =
+      goalWeightInput.trim() === "" || gwNum <= 0
+        ? null
+        : Math.round((imperial ? gwNum * KG_PER_LB : gwNum) * 100) / 100;
     try {
       const saved = await fetchJson<Goals>("/api/goals", {
         method: "PUT",
@@ -110,6 +125,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
           ...goals,
           daily_calories: calories,
           target_rate_kg_per_wk: Math.round(rateKg * 100) / 100,
+          goal_weight_kg: goalWeightKg,
         }),
       });
       onGoalsSaved(saved);
@@ -209,6 +225,19 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
                     inputMode="numeric"
                     value={caloriesInput}
                     onChange={(e) => setCaloriesInput(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="goal-weight">
+                    Goal weight ({unit}, optional)
+                  </FieldLabel>
+                  <Input
+                    id="goal-weight"
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="Target to reach"
+                    value={goalWeightInput}
+                    onChange={(e) => setGoalWeightInput(e.target.value)}
                   />
                 </Field>
               </FieldGroup>
