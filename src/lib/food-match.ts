@@ -1,21 +1,7 @@
-import { ilike } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db, foods } from "@/db";
 import { foodToItem } from "@/lib/usda";
 import type { Analysis } from "@/lib/analysis";
-
-// Words that don't help identify a food when matching against USDA descriptions.
-const STOPWORDS = new Set([
-  "and", "with", "the", "of", "in", "on", "a", "an", "plain", "fresh",
-  "homemade", "small", "medium", "large", "serving", "piece", "slice",
-]);
-
-function tokens(name: string): string[] {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
-}
 
 type AnalyzedItem = Analysis["items"][number];
 export type GroundedItem = AnalyzedItem & { usda_match?: string };
@@ -24,6 +10,13 @@ export type GroundedItem = AnalyzedItem & { usda_match?: string };
  * For each analyzed item, look for a confident USDA match by name and, when
  * found, replace its nutrition with lab-measured values scaled to the AI's
  * estimated gram weight. Unmatched items keep the AI estimate.
+ *
+ * Matching uses Postgres full-text search: plainto_tsquery requires every word
+ * of the food name to appear in the USDA description (AND semantics), so
+ * near-misses like "cooked white rice" → "Rice noodles" are excluded rather
+ * than mis-matched. A calorie-density sanity check is a second backstop. This
+ * deliberately favors false negatives (fall back to the AI estimate) over false
+ * positives (a wrong "verified" value).
  */
 export async function groundWithUsda(
   items: AnalyzedItem[],
@@ -31,43 +24,29 @@ export async function groundWithUsda(
   return Promise.all(
     items.map(async (item) => {
       if (!item.estimated_grams || item.estimated_grams <= 0) return item;
-      const queryTokens = tokens(item.name);
-      if (queryTokens.length === 0) return item;
 
-      // Anchor the DB scan on the longest (usually most specific) token
-      const anchor = [...queryTokens].sort((a, b) => b.length - a.length)[0];
-      const candidates = await db
+      const tsv = sql`to_tsvector('english', ${foods.description})`;
+      const tsq = sql`plainto_tsquery('english', ${item.name})`;
+      const [best] = await db
         .select()
         .from(foods)
-        .where(ilike(foods.description, `%${anchor}%`))
-        .limit(40);
-      if (candidates.length === 0) return item;
+        .where(sql`${tsq} @@ ${tsv}`)
+        .orderBy(sql`ts_rank(${tsv}, ${tsq}) desc`)
+        .limit(1);
+      if (!best) return item;
 
-      let best: (typeof candidates)[number] | null = null;
-      let bestScore = 0;
-      for (const c of candidates) {
-        const desc = c.description.toLowerCase();
-        const score = queryTokens.filter((t) => desc.includes(t)).length;
-        if (
-          score > bestScore ||
-          (score === bestScore &&
-            best &&
-            c.description.length < best.description.length)
-        ) {
-          best = c;
-          bestScore = score;
-        }
+      // Sanity: the USDA food's calorie density should be in the ballpark of
+      // the AI's implied density, or we've matched the wrong thing.
+      const aiPer100 = (item.calories / item.estimated_grams) * 100;
+      const usdaPer100 = Number(best.calories);
+      if (aiPer100 > 0 && Math.abs(usdaPer100 - aiPer100) / aiPer100 > 0.4) {
+        return item;
       }
-
-      // Require a real overlap: 2+ shared tokens, or the only token for
-      // single-word foods (e.g. "egg", "banana").
-      const threshold = queryTokens.length === 1 ? 1 : 2;
-      if (!best || bestScore < threshold) return item;
 
       const grounded = foodToItem(
         {
-          description: item.name, // keep the user-facing name from the photo
-          calories: Number(best.calories),
+          description: item.name, // keep the user-facing name
+          calories: usdaPer100,
           proteinG: Number(best.proteinG),
           carbsG: Number(best.carbsG),
           fatG: Number(best.fatG),
@@ -82,9 +61,7 @@ export async function groundWithUsda(
       return {
         ...item,
         ...grounded,
-        // Keep the natural portion label rather than "N g"
-        portion: item.portion,
-        // Nulls from USDA gaps → keep the AI's estimate for those fields
+        portion: item.portion, // keep the natural portion label
         sat_fat_g: grounded.sat_fat_g ?? item.sat_fat_g,
         fiber_g: grounded.fiber_g ?? item.fiber_g,
         sugar_g: grounded.sugar_g ?? item.sugar_g,
