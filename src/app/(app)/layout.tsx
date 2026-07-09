@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Image from "next/image";
 import { TabBar } from "@/components/tab-bar";
 
@@ -32,7 +33,9 @@ export default function AppLayout({
         </span>
       </header>
       <main className="editorial-grain flex-1 px-4 pt-4 pb-32">{children}</main>
-      <TabBar />
+      <Suspense fallback={null}>
+        <TabBar />
+      </Suspense>
     </div>
   );
 }

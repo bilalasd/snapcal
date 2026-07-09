@@ -22,7 +22,8 @@ Rules:
 - calories must be an integer per item; macros in grams to one decimal.
 - Also estimate per item: saturated fat (g), fiber (g), sugar (g), and sodium (mg). Use typical values for the food; a rough estimate is fine.
 - estimated_grams: your best estimate of the item's total weight in grams. This is used to reconcile the item against a verified nutrition database, so estimate the weight as accurately as you can.
-- question: usually leave this an empty string. Set it to ONE short question ONLY when you are genuinely uncertain about something that would materially change the calorie estimate and you cannot reasonably tell from the photos or text (for example: an unclear meat, a hidden sauce, or an ambiguous portion). Do not ask about minor details. Always give your best estimate in the items regardless; the question just lets the user correct you.`;
+- question: usually leave this an empty string. Set it to ONE short question ONLY when you are genuinely uncertain about something that would materially change the calorie estimate and you cannot reasonably tell from the photos or text (for example: an unclear meat, a hidden sauce, or an ambiguous portion). Do not ask about minor details. Always give your best estimate in the items regardless; the question just lets the user correct you.
+- choices: when you ask a question AND it has a small set of likely answers, list 2 to 4 short tappable options (e.g. question "Was the chicken fried or grilled?" -> choices ["Fried","Grilled"]). Keep each choice to one or two words. Leave choices as an empty array when there is no question, or when the answer is open-ended (like an exact portion) with no obvious short options.`;
 
 const MEDIA_TYPES = new Set([
   "image/jpeg",
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
       meal_name: response.parsed_output.meal_name,
       items,
       question: response.parsed_output.question,
+      choices: response.parsed_output.choices,
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {

@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Camera, HelpCircle, Mic, MicOff, Search, Star, X } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { AnalyzingOverlay } from "@/components/analyzing-overlay";
 import { MealReview } from "@/components/meal-review";
 import { MealListItem } from "@/components/meal-list-item";
 import { FoodSearchDrawer } from "@/components/food-search-drawer";
@@ -72,6 +72,7 @@ export default function AddMealPage() {
     source: MealDraft["source"];
     photos: DraftPhoto[];
     question?: string;
+    choices?: string[];
   } | null>(null);
 
   useEffect(() => {
@@ -182,6 +183,7 @@ export default function AddMealPage() {
         meal_name: string;
         items: DraftItem[];
         question?: string;
+        choices?: string[];
       }>("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -196,6 +198,7 @@ export default function AddMealPage() {
         source: photos.length > 0 ? "photo" : "text",
         photos: [],
         question: result.question || undefined,
+        choices: result.choices?.length ? result.choices : undefined,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Analysis failed");
@@ -208,14 +211,19 @@ export default function AddMealPage() {
     runAnalysis(text);
   }
 
-  // Fold the extra details into the description and analyze the same photos again
-  function reanalyze() {
-    const extra = refineText.trim();
-    if (!extra) return;
-    const combined = [text, extra].filter((s) => s.trim()).join(". ");
+  // Fold extra details into the description and analyze the same photos again.
+  // Used by both the free-text correction note and the tappable answer chips.
+  function applyRefinement(extra: string) {
+    const trimmed = extra.trim();
+    if (!trimmed) return;
+    const combined = [text, trimmed].filter((s) => s.trim()).join(". ");
     setText(combined);
     setRefineText("");
     runAnalysis(combined);
+  }
+
+  function reanalyze() {
+    applyRefinement(refineText);
   }
 
   function logExisting(meal: ApiMeal, source: "favorite" | "copy") {
@@ -275,6 +283,7 @@ export default function AddMealPage() {
       photos.length > 0 || draft.source === "photo" || draft.source === "text";
     return (
       <div className="flex flex-col gap-5">
+        {analyzing ? <AnalyzingOverlay photoUrl={draftPhotoUrls[0]} /> : null}
         <section>
           <p className="editorial-kicker">AI readback</p>
           <h1 className="editorial-headline mt-1">Review the plate</h1>
@@ -284,11 +293,32 @@ export default function AddMealPage() {
         </div>
 
         {draft.question ? (
-          <Alert className="editorial-card border-primary/40">
-            <HelpCircle />
-            <AlertTitle>One detail would sharpen this</AlertTitle>
-            <AlertDescription>{draft.question}</AlertDescription>
-          </Alert>
+          <div className="editorial-card editorial-cut border-2 border-primary/60 bg-primary/5 p-4">
+            <p className="editorial-kicker flex items-center gap-1.5 text-primary">
+              <HelpCircle className="size-4" /> Quick question
+            </p>
+            <p className="mt-1.5 text-lg font-black tracking-[-0.03em]">
+              {draft.question}
+            </p>
+            {draft.choices?.length ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {draft.choices.map((choice) => (
+                  <Button
+                    key={choice}
+                    variant="outline"
+                    disabled={analyzing}
+                    onClick={() => applyRefinement(choice)}
+                  >
+                    {choice}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+            <p className="text-muted-foreground mt-3 text-xs">
+              Tap an answer to refine, or add details in the correction note
+              below.
+            </p>
+          </div>
         ) : null}
 
         <MealReview
@@ -352,6 +382,9 @@ export default function AddMealPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {analyzing ? (
+        <AnalyzingOverlay photoUrl={photos[0]?.previewUrl} />
+      ) : null}
       <section>
         <p className="editorial-kicker">Camera first</p>
         <h1 className="editorial-headline mt-1">Log a meal</h1>

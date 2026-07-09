@@ -3,3 +3,11 @@ node_modules
 .env*
 !.env.example
 .vercel
+.claude
+tsconfig.tsbuildinfo
+
+# Screenshot loop
+/preview
+/e2e/.clerk
+/test-results
+/playwright-report

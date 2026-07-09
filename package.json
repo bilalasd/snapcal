@@ -12,7 +12,9 @@
     "db:push": "drizzle-kit push",
     "test": "vitest run",
     "vercel-build": "drizzle-kit migrate && next build",
-    "import-foods": "tsx scripts/import-foods.ts"
+    "import-foods": "tsx scripts/import-foods.ts",
+    "seed:preview": "tsx --env-file=.env.local scripts/seed-preview.ts",
+    "shots": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
@@ -36,6 +38,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.5",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

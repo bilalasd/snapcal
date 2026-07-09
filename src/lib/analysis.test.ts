@@ -21,6 +21,17 @@ describe("analysisSchema", () => {
       meal_name: "Rice bowl",
       items: [item],
       question: "",
+      choices: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a question with tappable choices", () => {
+    const result = analysisSchema.safeParse({
+      meal_name: "Chicken bowl",
+      items: [item],
+      question: "Was the chicken fried or grilled?",
+      choices: ["Fried", "Grilled"],
     });
     expect(result.success).toBe(true);
   });

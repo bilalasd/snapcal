@@ -85,6 +85,25 @@ export default function TodayPage() {
   }, [load, date]);
 
   useEffect(() => {
+    // Restore the viewed day from the URL (?date=YYYY-MM-DD) on load/refresh, so
+    // a linked or refreshed past day stays put. Read post-mount to match the
+    // pattern used elsewhere and avoid a Suspense boundary on this page.
+    const urlDate = new URLSearchParams(window.location.search).get("date");
+    if (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate) && urlDate < today) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDate(urlDate);
+    }
+  }, [today]);
+
+  useEffect(() => {
+    // Mirror the viewed day into the URL so the tab-bar "+" logs to this day.
+    // router.replace (not history.replaceState) keeps useSearchParams in the
+    // tab-bar reactive to the change.
+    const url = date === today ? "/" : `/?date=${date}`;
+    router.replace(url, { scroll: false });
+  }, [date, today, router]);
+
+  useEffect(() => {
     fetchJson<Goals>("/api/goals")
       .then((g) => {
         if (!g.onboarded) {

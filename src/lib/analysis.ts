@@ -19,6 +19,9 @@ export const analysisSchema = z.object({
   items: z.array(analyzedItemSchema).min(1),
   // A single clarifying question, only when genuinely uncertain; "" otherwise.
   question: z.string(),
+  // 2–4 short tappable answers for the question (e.g. ["Fried","Grilled"]);
+  // empty when there's no question or no obvious set of answers.
+  choices: z.array(z.string()),
 });
 
 export type AnalyzedItem = z.infer<typeof analyzedItemSchema>;

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CalendarDays, Home, Plus, Settings, TrendingUp } from "lucide-react";
+import { addMealHref } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 const leftTabs = [
@@ -45,6 +46,8 @@ function Tab({
 
 export function TabBar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const addHref = addMealHref(pathname, searchParams.get("date"));
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -61,7 +64,7 @@ export function TabBar() {
 
         <div className="flex flex-1 items-center justify-center">
           <Link
-            href="/add"
+            href={addHref}
             aria-label="Log a meal"
             className="editorial-cut -mt-8 flex size-16 items-center justify-center bg-primary text-primary-foreground shadow-[0_16px_40px_color-mix(in_oklch,var(--primary),transparent_55%)] ring-4 ring-background transition-transform active:scale-95"
           >
