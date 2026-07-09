@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 import { db, mealItems, meals } from "@/db";
 
 type Params = { params: Promise<{ id: string }> };
@@ -9,8 +10,15 @@ type Params = { params: Promise<{ id: string }> };
  * to review and save via POST /api/meals. Nothing is written here.
  */
 export async function POST(_request: NextRequest, { params }: Params) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
-  const [meal] = await db.select().from(meals).where(eq(meals.id, id));
+  const [meal] = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.id, id), eq(meals.userId, userId)));
   if (!meal) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

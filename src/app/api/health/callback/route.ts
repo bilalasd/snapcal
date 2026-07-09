@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { exchangeCode, OAUTH_COOKIE, syncWeights } from "@/lib/google-health";
 
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.redirect(new URL("/sign-in", request.url));
+  }
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const cookie = request.cookies.get(OAUTH_COOKIE)?.value;
@@ -22,9 +27,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await exchangeCode(code, verifier);
+    await exchangeCode(userId, code, verifier);
     // Initial backfill: one year of weight logs
-    await syncWeights(365);
+    await syncWeights(userId, 365);
   } catch (err) {
     console.error("Google Health connect failed", err);
     settingsUrl.searchParams.set("health_error", "exchange_failed");

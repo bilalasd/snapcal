@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { db, goals } from "@/db";
 
@@ -21,10 +22,10 @@ const goalsInput = z.object({
   goal_weight_kg: z.number().min(25).max(400).nullable().optional(),
 });
 
-async function getOrCreateGoals() {
-  const [row] = await db.select().from(goals).where(eq(goals.id, 1));
+async function getOrCreateGoals(userId: string) {
+  const [row] = await db.select().from(goals).where(eq(goals.userId, userId));
   if (row) return row;
-  const [created] = await db.insert(goals).values({ id: 1 }).returning();
+  const [created] = await db.insert(goals).values({ userId }).returning();
   return created;
 }
 
@@ -46,16 +47,24 @@ function serialize(row: Awaited<ReturnType<typeof getOrCreateGoals>>) {
 }
 
 export async function GET() {
-  return NextResponse.json(serialize(await getOrCreateGoals()));
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json(serialize(await getOrCreateGoals(userId)));
 }
 
 export async function PUT(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = await request.json().catch(() => null);
   const parsed = goalsInput.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid goals" }, { status: 400 });
   }
-  await getOrCreateGoals();
+  await getOrCreateGoals(userId);
   const [updated] = await db
     .update(goals)
     .set({
@@ -82,7 +91,7 @@ export async function PUT(request: NextRequest) {
             : String(parsed.data.goal_weight_kg),
       }),
     })
-    .where(eq(goals.id, 1))
+    .where(eq(goals.userId, userId))
     .returning();
   return NextResponse.json(serialize(updated));
 }

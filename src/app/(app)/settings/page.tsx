@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { LogOut, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ import { HealthCard } from "@/components/health-card";
 import { fetchJson, type Goals } from "@/lib/client";
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const { signOut } = useClerk();
   const [goals, setGoals] = useState<Goals | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -99,8 +99,7 @@ export default function SettingsPage() {
   }
 
   async function logout() {
-    await fetch("/api/logout", { method: "POST" });
-    router.replace("/login");
+    await signOut({ redirectUrl: "/sign-in" });
   }
 
   return (

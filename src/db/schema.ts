@@ -4,6 +4,7 @@ import {
   integer,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -11,6 +12,7 @@ import {
 
 export const meals = pgTable("meals", {
   id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(), // Clerk user id
   eatenAt: timestamp("eaten_at", { withTimezone: true }).notNull(),
   name: text("name").notNull(),
   note: text("note"),
@@ -66,7 +68,7 @@ export const mealPhotos = pgTable("meal_photos", {
 });
 
 export const goals = pgTable("goals", {
-  id: integer("id").primaryKey().default(1), // single row
+  userId: text("user_id").primaryKey(), // one row per Clerk user
   dailyCalories: integer("daily_calories").notNull().default(2000),
   dailyProteinG: integer("daily_protein_g").notNull().default(120),
   dailyCarbsG: integer("daily_carbs_g").notNull().default(220),
@@ -87,14 +89,19 @@ export const goals = pgTable("goals", {
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
 });
 
-export const weights = pgTable("weights", {
-  date: date("date").primaryKey(),
-  weightKg: numeric("weight_kg", { precision: 6, scale: 2 }).notNull(),
-  source: text("source").notNull().default("google_health"),
-});
+export const weights = pgTable(
+  "weights",
+  {
+    userId: text("user_id").notNull(),
+    date: date("date").notNull(),
+    weightKg: numeric("weight_kg", { precision: 6, scale: 2 }).notNull(),
+    source: text("source").notNull().default("google_health"),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.date] })],
+);
 
 export const healthTokens = pgTable("health_tokens", {
-  id: integer("id").primaryKey().default(1), // single row
+  userId: text("user_id").primaryKey(), // one row per Clerk user
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -104,10 +111,15 @@ export const healthTokens = pgTable("health_tokens", {
   needsReconnect: boolean("needs_reconnect").notNull().default(false),
 });
 
-export const weeklyRecaps = pgTable("weekly_recaps", {
-  weekStart: date("week_start").primaryKey(),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const weeklyRecaps = pgTable(
+  "weekly_recaps",
+  {
+    userId: text("user_id").notNull(),
+    weekStart: date("week_start").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.weekStart] })],
+);

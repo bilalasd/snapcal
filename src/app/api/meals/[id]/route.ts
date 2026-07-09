@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 import { del } from "@vercel/blob";
 import { z } from "zod";
 import { db, mealItems, mealPhotos, meals } from "@/db";
@@ -19,6 +20,10 @@ const numOrNull = (v: number | null | undefined) =>
   v === null || v === undefined ? null : String(v);
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const parsed = patchInput.safeParse(body);
@@ -27,7 +32,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
   const input = parsed.data;
 
-  const [existing] = await db.select().from(meals).where(eq(meals.id, id));
+  const [existing] = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.id, id), eq(meals.userId, userId)));
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -70,7 +78,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
+
+  // Ownership check before any deletion
+  const [existing] = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.id, id), eq(meals.userId, userId)));
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   // Clean up blobs before the cascade delete removes the rows
   const photos = await db
@@ -83,9 +104,6 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     );
   }
 
-  const deleted = await db.delete(meals).where(eq(meals.id, id)).returning();
-  if (deleted.length === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  await db.delete(meals).where(eq(meals.id, id));
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 import { db, goals, meals, mealItems, weights, weeklyRecaps } from "@/db";
 import {
   computeEnergyBalance,
@@ -20,6 +21,10 @@ function localDateOf(d: Date, tzOffsetMin: number): string {
 }
 
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const daysParam = Number(request.nextUrl.searchParams.get("days") ?? "90");
   const chartDays = daysParam === 30 ? 30 : 90;
   const tzOffset = Number(request.nextUrl.searchParams.get("tz_offset") ?? "0");
@@ -31,7 +36,12 @@ export async function GET(request: NextRequest) {
   const weightRows = await db
     .select()
     .from(weights)
-    .where(gte(weights.date, historyStart.toISOString().slice(0, 10)))
+    .where(
+      and(
+        eq(weights.userId, userId),
+        gte(weights.date, historyStart.toISOString().slice(0, 10)),
+      ),
+    )
     .orderBy(weights.date);
 
   const points: WeightPoint[] = weightRows.map((w) => ({
@@ -49,7 +59,7 @@ export async function GET(request: NextRequest) {
     })
     .from(meals)
     .innerJoin(mealItems, eq(mealItems.mealId, meals.id))
-    .where(gte(meals.eatenAt, intakeStart));
+    .where(and(eq(meals.userId, userId), gte(meals.eatenAt, intakeStart)));
 
   const intakeByDay = new Map<string, number>();
   for (const row of mealRows) {
@@ -60,7 +70,10 @@ export async function GET(request: NextRequest) {
     ([date, calories]) => ({ date, calories }),
   );
 
-  const [goalsRow] = await db.select().from(goals);
+  const [goalsRow] = await db
+    .select()
+    .from(goals)
+    .where(eq(goals.userId, userId));
   const targetRate = goalsRow ? Number(goalsRow.targetRateKgPerWk) : -0.5;
 
   const rate = computeRateKgPerWeek(trend);
@@ -70,6 +83,7 @@ export async function GET(request: NextRequest) {
   const [latestRecap] = await db
     .select()
     .from(weeklyRecaps)
+    .where(eq(weeklyRecaps.userId, userId))
     .orderBy(desc(weeklyRecaps.weekStart))
     .limit(1);
 

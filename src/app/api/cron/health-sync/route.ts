@@ -1,24 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { backfillDays, getHealthStatus, syncWeights } from "@/lib/google-health";
+import { db, healthTokens } from "@/db";
+import { backfillDays, syncWeights } from "@/lib/google-health";
 
 export const maxDuration = 60;
 
+// Daily: sync weight for every connected user.
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const status = await getHealthStatus();
-  if (!status.connected) {
-    return NextResponse.json({ skipped: true, reason: "not connected" });
-  }
+  const connected = await db
+    .select({ userId: healthTokens.userId })
+    .from(healthTokens);
 
-  try {
-    const synced = await syncWeights(await backfillDays());
-    return NextResponse.json({ ok: true, synced });
-  } catch (err) {
-    console.error("Cron Google Health sync failed", err);
-    return NextResponse.json({ error: "Sync failed" }, { status: 502 });
+  let synced = 0;
+  for (const { userId } of connected) {
+    try {
+      synced += await syncWeights(userId, await backfillDays(userId));
+    } catch (err) {
+      console.error(`Cron health sync failed for ${userId}`, err);
+    }
   }
+  return NextResponse.json({ ok: true, users: connected.length, synced });
 }

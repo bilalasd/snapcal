@@ -50,10 +50,11 @@ function itemValues(mealId: string, item: z.infer<typeof mealItemInput>) {
   };
 }
 
-export async function createMeal(input: MealInput) {
+export async function createMeal(userId: string, input: MealInput) {
   const [meal] = await db
     .insert(meals)
     .values({
+      userId,
       name: input.name,
       eatenAt: new Date(input.eaten_at),
       note: input.note ?? null,
@@ -97,33 +98,43 @@ async function attachChildren<T extends { id: string }>(rows: T[]) {
   }));
 }
 
-export async function listMeals(from: Date, to: Date) {
+export async function listMeals(userId: string, from: Date, to: Date) {
   const rows = await db
     .select()
     .from(meals)
-    .where(and(gte(meals.eatenAt, from), lte(meals.eatenAt, to)))
+    .where(
+      and(
+        eq(meals.userId, userId),
+        gte(meals.eatenAt, from),
+        lte(meals.eatenAt, to),
+      ),
+    )
     .orderBy(desc(meals.eatenAt));
   return attachChildren(rows);
 }
 
-export async function listFavorites() {
+export async function listFavorites(userId: string) {
   const rows = await db
     .select()
     .from(meals)
-    .where(eq(meals.isFavorite, true))
+    .where(and(eq(meals.userId, userId), eq(meals.isFavorite, true)))
     .orderBy(desc(meals.createdAt));
   return attachChildren(rows);
 }
 
-export async function listRecentMeals(limit: number, search?: string) {
-  const base = db.select().from(meals).orderBy(desc(meals.eatenAt));
-  const rows = search
-    ? await db
-        .select()
-        .from(meals)
-        .where(ilike(meals.name, `%${search}%`))
-        .orderBy(desc(meals.eatenAt))
-        .limit(limit)
-    : await base.limit(limit);
+export async function listRecentMeals(
+  userId: string,
+  limit: number,
+  search?: string,
+) {
+  const where = search
+    ? and(eq(meals.userId, userId), ilike(meals.name, `%${search}%`))
+    : eq(meals.userId, userId);
+  const rows = await db
+    .select()
+    .from(meals)
+    .where(where)
+    .orderBy(desc(meals.eatenAt))
+    .limit(limit);
   return attachChildren(rows);
 }

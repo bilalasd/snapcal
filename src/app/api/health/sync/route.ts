@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { backfillDays, getHealthStatus, syncWeights } from "@/lib/google-health";
 
 export const maxDuration = 60;
@@ -6,7 +7,11 @@ export const maxDuration = 60;
 const THROTTLE_MS = 60 * 60 * 1000; // at most once per hour unless forced
 
 export async function POST(request: NextRequest) {
-  const status = await getHealthStatus();
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const status = await getHealthStatus(userId);
   if (!status.connected) {
     return NextResponse.json({ error: "Google Health not connected" }, { status: 400 });
   }
@@ -21,7 +26,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const synced = await syncWeights(await backfillDays());
+    const synced = await syncWeights(userId, await backfillDays(userId));
     return NextResponse.json({ synced, throttled: false });
   } catch (err) {
     console.error("Google Health sync failed", err);

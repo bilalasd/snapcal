@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { db, weights } from "@/db";
 
@@ -12,6 +13,10 @@ const weightInput = z.object({
 
 /** Manual weigh-in (used by onboarding; Google Health sync also upserts here). */
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = await request.json().catch(() => null);
   const parsed = weightInput.safeParse(body);
   if (!parsed.success) {
@@ -21,9 +26,9 @@ export async function POST(request: NextRequest) {
   const kg = parsed.data.weight_kg.toFixed(2);
   await db
     .insert(weights)
-    .values({ date, weightKg: kg, source: "manual" })
+    .values({ userId, date, weightKg: kg, source: "manual" })
     .onConflictDoUpdate({
-      target: weights.date,
+      target: [weights.userId, weights.date],
       set: { weightKg: kg, source: "manual" },
     });
   return NextResponse.json({ date, weight_kg: Number(kg) }, { status: 201 });

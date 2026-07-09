@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import {
   createMeal,
   listFavorites,
@@ -8,15 +9,19 @@ import {
 } from "@/lib/meals";
 
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const params = request.nextUrl.searchParams;
 
   if (params.get("favorites") === "true") {
-    return NextResponse.json(await listFavorites());
+    return NextResponse.json(await listFavorites(userId));
   }
 
   if (params.get("recent") === "true") {
     const search = params.get("q")?.trim() || undefined;
-    return NextResponse.json(await listRecentMeals(20, search));
+    return NextResponse.json(await listRecentMeals(userId, 20, search));
   }
 
   // ?date=YYYY-MM-DD (single local day, with tz offset minutes) or ?from=&to= ISO
@@ -46,10 +51,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid date range" }, { status: 400 });
   }
 
-  return NextResponse.json(await listMeals(from, to));
+  return NextResponse.json(await listMeals(userId, from, to));
 }
 
 export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = await request.json().catch(() => null);
   const parsed = mealInput.safeParse(body);
   if (!parsed.success) {
@@ -58,6 +67,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const meal = await createMeal(parsed.data);
+  const meal = await createMeal(userId, parsed.data);
   return NextResponse.json(meal, { status: 201 });
 }

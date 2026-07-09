@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Geist_Mono, Nunito } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -58,16 +59,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${nunito.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="flex min-h-full flex-col bg-background">
-        <script dangerouslySetInnerHTML={{ __html: darkModeScript }} />
-        {children}
-        <Toaster position="top-center" />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html
+        lang="en"
+        suppressHydrationWarning
+        className={`${nunito.variable} ${geistMono.variable} h-full antialiased`}
+      >
+        <body className="flex min-h-full flex-col bg-background">
+          <script dangerouslySetInnerHTML={{ __html: darkModeScript }} />
+          {children}
+          <Toaster position="top-center" />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
