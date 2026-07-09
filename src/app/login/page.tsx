@@ -33,18 +33,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4">
-      <div className="flex flex-col items-center gap-2">
+    <div className="editorial-grain flex min-h-dvh flex-col justify-between px-5 py-8">
+      <div className="pt-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icon.svg" alt="SnapCal" className="size-16 rounded-2xl shadow-lg shadow-primary/20" />
-        <h1 className="text-2xl font-bold tracking-tight">SnapCal</h1>
-        <p className="text-muted-foreground text-sm">
+        <img
+          src="/icon.svg"
+          alt="SnapCal"
+          className="size-16 rounded-sm shadow-[8px_8px_0_var(--primary)] ring-1 ring-foreground/15"
+        />
+        <p className="editorial-kicker mt-8">Private nutrition desk</p>
+        <h1 className="mt-2 max-w-sm text-6xl font-black leading-[0.86] tracking-[-0.09em]">
           Snap it. Track it. Trust the trend.
+        </h1>
+        <p className="mt-5 max-w-xs text-sm font-semibold text-muted-foreground">
+          A food log with receipts: photos, macros, weight trend, and fewer
+          “wait, what did I eat?” moments.
         </p>
       </div>
-      <Card className="w-full max-w-sm">
+      <Card className="editorial-card editorial-cut w-full">
         <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-black tracking-[-0.06em]">
+            Unlock SnapCal
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit}>

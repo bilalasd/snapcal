@@ -113,8 +113,11 @@ export default function HistoryPage() {
   }, [days, range, today]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight">History</h1>
+    <div className="flex flex-col gap-5">
+      <section>
+        <p className="editorial-kicker">Archive</p>
+        <h1 className="editorial-headline mt-1">History</h1>
+      </section>
 
       {meals === null ? (
         <div className="flex flex-col gap-3">
@@ -123,9 +126,14 @@ export default function HistoryPage() {
         </div>
       ) : (
         <>
-          <Card>
+          <Card className="editorial-card editorial-cut">
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Calories</CardTitle>
+              <div>
+                <p className="editorial-kicker">Plate index</p>
+                <CardTitle className="mt-1 text-2xl font-black tracking-[-0.06em]">
+                  Calories
+                </CardTitle>
+              </div>
               <ToggleGroup
                 variant="outline"
                 size="sm"
@@ -176,19 +184,19 @@ export default function HistoryPage() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               {days.map((day) => {
                 const isOpen = expanded === day.date;
                 const overGoal =
                   goals !== null && day.calories > goals.daily_calories;
                 return (
-                  <Card key={day.date} className="py-3">
+                  <Card key={day.date} className="editorial-card py-3">
                     <CardContent className="flex flex-col gap-2 px-4">
                       <button
                         className="flex w-full items-center gap-2"
                         onClick={() => setExpanded(isOpen ? null : day.date)}
                       >
-                        <span className="flex-1 text-left font-medium">
+                        <span className="flex-1 text-left text-lg font-black tracking-[-0.04em]">
                           {day.label}
                         </span>
                         <span

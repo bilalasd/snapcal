@@ -30,12 +30,12 @@ function Tab({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[11px] transition-colors",
-        active ? "text-primary font-semibold" : "text-muted-foreground",
+        "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-sm py-1 text-[10px] font-extrabold uppercase tracking-[0.1em] transition-colors",
+        active ? "bg-primary text-primary-foreground" : "text-muted-foreground",
       )}
     >
       <Icon
-        className={cn("size-[22px]", active && "drop-shadow-sm")}
+        className={cn("size-[21px]", active && "drop-shadow-sm")}
         strokeWidth={active ? 2.4 : 1.8}
       />
       {label}
@@ -51,10 +51,10 @@ export function TabBar() {
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/90 backdrop-blur-lg"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-foreground/15 bg-card/92 backdrop-blur-xl"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="mx-auto flex h-[68px] max-w-md items-stretch px-2">
+      <div className="mx-auto flex h-[72px] max-w-md items-stretch gap-1 px-2 pt-2">
         {leftTabs.map((tab) => (
           <Tab key={tab.href} {...tab} active={isActive(tab.href)} />
         ))}
@@ -63,7 +63,7 @@ export function TabBar() {
           <Link
             href="/add"
             aria-label="Log a meal"
-            className="bg-primary text-primary-foreground -mt-7 flex size-14 items-center justify-center rounded-full shadow-lg shadow-primary/30 ring-4 ring-background transition-transform active:scale-95"
+            className="editorial-cut -mt-8 flex size-16 items-center justify-center bg-primary text-primary-foreground shadow-[0_16px_40px_color-mix(in_oklch,var(--primary),transparent_55%)] ring-4 ring-background transition-transform active:scale-95"
           >
             <Plus className="size-7" strokeWidth={2.4} />
           </Link>

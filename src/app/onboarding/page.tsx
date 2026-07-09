@@ -209,7 +209,7 @@ export default function OnboardingPage() {
   const rates = ratePresets(imperial, goalKind === "gain" ? "gain" : "lose");
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
+    <div className="editorial-grain mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
       {/* Progress */}
       <div className="mb-6 flex items-center gap-3">
         {stepIndex > 0 ? (
@@ -228,7 +228,7 @@ export default function OnboardingPage() {
             <div
               key={s}
               className={cn(
-                "h-1.5 flex-1 rounded-full transition-colors",
+                "h-1.5 flex-1 rounded-none transition-colors",
                 i <= stepIndex ? "bg-primary" : "bg-muted",
               )}
             />
@@ -415,19 +415,19 @@ export default function OnboardingPage() {
           title="Your plan is ready 🎉"
           subtitle="Here's what the numbers say. Log your meals and SnapCal will check this against your real results."
         >
-          <Card>
+          <Card className="editorial-card editorial-cut">
             <CardContent className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <span className="bg-accent text-accent-foreground flex size-10 items-center justify-center rounded-full">
                   <Flame className="size-5" />
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">Your body burns about</p>
+                    <p className="text-sm font-bold">Your body burns about</p>
                   <p className="text-muted-foreground text-xs">
                     resting + daily activity
                   </p>
                 </div>
-                <span className="text-lg font-bold tabular-nums">
+                <span className="text-2xl font-black tracking-[-0.06em] tabular-nums">
                   {tdee.toLocaleString()} kcal
                 </span>
               </div>
@@ -436,7 +436,7 @@ export default function OnboardingPage() {
                   <Target className="size-5" />
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">So you should eat</p>
+                  <p className="text-sm font-bold">So you should eat</p>
                   <p className="text-muted-foreground text-xs">
                     {goalKind === "maintain"
                       ? "to hold steady"
@@ -445,7 +445,7 @@ export default function OnboardingPage() {
                         } to ${goalKind} ${kgToDisplay(Math.abs(effectiveRate), imperial)}/week`}
                   </p>
                 </div>
-                <span className="text-primary text-lg font-bold tabular-nums">
+                <span className="text-primary text-2xl font-black tracking-[-0.06em] tabular-nums">
                   {plan.intake.toLocaleString()} kcal
                 </span>
               </div>
@@ -455,7 +455,7 @@ export default function OnboardingPage() {
                   isn&apos;t sustainable or healthy.
                 </p>
               ) : null}
-              <div className="bg-muted grid grid-cols-3 gap-2 rounded-xl p-3 text-center">
+              <div className="grid grid-cols-3 gap-2 bg-muted p-3 text-center">
                 {(
                   [
                     ["Protein", macros.protein_g, splitPcts.protein_pct],
@@ -512,10 +512,13 @@ function StepShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="snap-in flex flex-col gap-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
+        <p className="editorial-kicker">Plan builder</p>
+        <h1 className="editorial-headline mt-1">{title}</h1>
+        <p className="mt-4 text-sm font-semibold text-muted-foreground">
+          {subtitle}
+        </p>
       </div>
       {children}
     </div>
@@ -540,22 +543,27 @@ function ChoiceCard({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "rounded-xl border-2 p-3 text-left transition-colors",
+        "editorial-cut border-2 p-3 text-left transition-colors",
         selected
-          ? "border-primary bg-accent/60"
+          ? "border-primary bg-primary text-primary-foreground"
           : "border-border bg-card active:bg-accent/30",
       )}
     >
       <span className="flex items-center gap-2">
-        <span className="font-semibold">{title}</span>
+        <span className="font-black tracking-[-0.03em]">{title}</span>
         {badge ? (
-          <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold">
+          <span className="rounded-full bg-background px-2 py-0.5 text-[10px] font-extrabold text-foreground">
             {badge}
           </span>
         ) : null}
       </span>
       {blurb ? (
-        <span className="text-muted-foreground mt-0.5 block text-xs">
+        <span
+          className={cn(
+            "mt-0.5 block text-xs font-semibold",
+            selected ? "text-primary-foreground/80" : "text-muted-foreground",
+          )}
+        >
           {blurb}
         </span>
       ) : null}

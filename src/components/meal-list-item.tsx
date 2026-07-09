@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { Utensils } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { mealTotals, type ApiMeal } from "@/lib/client";
 
 interface MealListItemProps {
@@ -19,38 +18,47 @@ export function MealListItem({ meal, onClick, action }: MealListItemProps) {
   });
 
   return (
-    <Card
-      className="cursor-pointer py-3 transition-all active:scale-[0.99] active:bg-accent/40"
+    <article
+      className="editorial-card editorial-cut cursor-pointer transition-all active:translate-y-px active:bg-accent/40"
       onClick={onClick}
     >
-      <CardContent className="flex items-center gap-3 px-4">
+      <div className="flex items-stretch gap-3 p-3">
         {meal.photos.length > 0 ? (
-          <Image
-            src={meal.photos[0].url}
-            alt=""
-            width={44}
-            height={44}
-            unoptimized
-            className="size-11 shrink-0 rounded-lg object-cover"
-          />
+          <div className="photo-frame h-20 w-16 shrink-0 -rotate-1">
+            <Image
+              src={meal.photos[0].url}
+              alt=""
+              width={80}
+              height={104}
+              unoptimized
+              className="size-full object-cover"
+            />
+          </div>
         ) : (
-          <span className="bg-muted text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-lg">
-            <Utensils className="size-5" />
+          <span className="flex h-20 w-16 shrink-0 items-center justify-center bg-muted text-muted-foreground ring-1 ring-foreground/15">
+            <Utensils className="size-6" />
           </span>
         )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{meal.name}</p>
-          <p className="text-muted-foreground text-xs">
-            {time} · P {Math.round(totals.protein)}g · C{" "}
-            {Math.round(totals.carbs)}g · F {Math.round(totals.fat)}g
+        <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+          <div>
+            <p className="editorial-kicker">{time}</p>
+            <p className="truncate text-lg font-black tracking-[-0.04em]">
+              {meal.name}
+            </p>
+          </div>
+          <p className="text-muted-foreground text-xs font-semibold">
+            P {Math.round(totals.protein)}g · C {Math.round(totals.carbs)}g · F{" "}
+            {Math.round(totals.fat)}g
           </p>
         </div>
-        <span className="font-semibold tabular-nums">
+        <span className="flex min-w-16 flex-col items-end justify-center border-l border-foreground/15 pl-3 text-right text-2xl font-black tabular-nums tracking-[-0.06em]">
           {totals.calories}
-          <span className="text-muted-foreground text-xs font-normal"> kcal</span>
+          <span className="text-[0.62rem] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">
+            kcal
+          </span>
         </span>
         {action}
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }

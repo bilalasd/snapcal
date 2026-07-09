@@ -104,8 +104,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+    <div className="flex flex-col gap-5">
+      <section>
+        <p className="editorial-kicker">Control room</p>
+        <h1 className="editorial-headline mt-1">Settings</h1>
+      </section>
 
       {!goals ? (
         <Skeleton className="h-72 w-full" />
@@ -113,9 +116,11 @@ export default function SettingsPage() {
         <>
           <GoalCard key={`goal-${goals.unit_system}-${goals.daily_calories}-${goals.target_rate_kg_per_wk}`} goals={goals} onGoalsSaved={setGoals} />
 
-          <Card>
+          <Card className="editorial-card editorial-cut">
             <CardHeader>
-              <CardTitle>Daily targets</CardTitle>
+              <CardTitle className="text-2xl font-black tracking-[-0.06em]">
+                Daily targets
+              </CardTitle>
               <CardDescription>
                 Set by your plan — tweak them here if you know what you want.
               </CardDescription>
@@ -182,9 +187,9 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="editorial-card">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-2xl font-black tracking-[-0.06em]">
                 <Ruler className="size-4" />
                 Units
               </CardTitle>

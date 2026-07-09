@@ -136,32 +136,32 @@ export default function TodayPage() {
 
   const remaining = goals ? goals.daily_calories - totals.calories : 0;
   const now = new Date();
+  const headline = isToday
+    ? greetingFor(now.getHours())
+    : dayHeading(date, today);
+  const dateLabel = new Date(`${date}T12:00:00`).toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
-    <div className="flex flex-col gap-4" {...swipe}>
-      <div className="flex items-end justify-between">
+    <div className="flex flex-col gap-5" {...swipe}>
+      <section className="snap-in flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {isToday ? greetingFor(now.getHours()) : dayHeading(date, today)}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {new Date(`${date}T12:00:00`).toLocaleDateString([], {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
+          <p className="editorial-kicker">{dateLabel}</p>
+          <h1 className="editorial-headline mt-1 max-w-64">{headline}</h1>
         </div>
         {isToday && streak !== null && streak > 0 ? (
-          <Badge variant="secondary" className="gap-1">
+          <Badge variant="secondary" className="gap-1 rounded-sm">
             <Flame data-icon="inline-start" />
             {streak}/7 days
           </Badge>
         ) : null}
-      </div>
+      </section>
 
       {/* Day navigation */}
-      <div className="flex items-center justify-between">
+      <div className="editorial-rule flex items-center justify-between pt-3">
         <Button
           variant="outline"
           size="sm"
@@ -170,7 +170,7 @@ export default function TodayPage() {
         >
           <ChevronLeft />
         </Button>
-        <span className="text-muted-foreground text-sm">
+        <span className="text-muted-foreground text-xs font-extrabold uppercase tracking-[0.16em]">
           {isToday ? "Swipe to see past days" : dayHeading(date, today)}
         </span>
         <Button
@@ -191,28 +191,51 @@ export default function TodayPage() {
         </div>
       ) : (
         <>
-          <Card>
-            <CardContent className="flex flex-col gap-4">
+          <Card className="editorial-card editorial-cut">
+            <CardContent className="grid grid-cols-[1fr_auto] gap-4 px-4">
+              <div className="flex flex-col justify-between">
+                <div>
+                  <p className="editorial-kicker">
+                    {remaining >= 0 ? "Still available" : "Over target"}
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-1 text-6xl font-black tracking-[-0.09em] tabular-nums",
+                      remaining < 0 && "text-destructive",
+                    )}
+                  >
+                    {Math.abs(remaining).toLocaleString()}
+                  </p>
+                  <p className="text-sm font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    kcal {remaining >= 0 ? "left" : "over"}
+                  </p>
+                </div>
+                <p className="mt-4 text-xs font-semibold text-muted-foreground">
+                  {totals.calories.toLocaleString()} of{" "}
+                  {goals.daily_calories.toLocaleString()} eaten
+                </p>
+              </div>
               <ProgressRing
                 value={totals.calories}
                 max={goals.daily_calories}
-                label={
-                  remaining >= 0
-                    ? remaining.toLocaleString()
-                    : Math.abs(remaining).toLocaleString()
-                }
-                sublabel={remaining >= 0 ? "kcal left" : "kcal over"}
-                caption={`${totals.calories.toLocaleString()} of ${goals.daily_calories.toLocaleString()} eaten`}
+                label={`${Math.min(
+                  Math.round((totals.calories / goals.daily_calories) * 100),
+                  999,
+                )}%`}
+                sublabel="logged"
+                size="compact"
               />
 
-              <div className="flex flex-col gap-3">
+              <div className="col-span-2 flex flex-col gap-3 border-t border-foreground/15 pt-4">
                 {macros.map(({ label, value, max }) => (
                   <div key={label} className="flex items-center gap-3">
-                    <span className="w-16 text-sm font-medium">{label}</span>
-                    <div className="bg-muted h-2.5 flex-1 overflow-hidden rounded-full">
+                    <span className="w-16 text-xs font-extrabold uppercase tracking-[0.14em]">
+                      {label}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-none bg-muted">
                       <div
                         className={cn(
-                          "h-full rounded-full transition-[width] duration-500",
+                          "h-full transition-[width] duration-500",
                           MACRO_BG_BY_LABEL[label],
                         )}
                         style={{
@@ -220,7 +243,7 @@ export default function TodayPage() {
                         }}
                       />
                     </div>
-                    <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">
+                    <span className="w-24 text-right text-xs font-bold tabular-nums text-muted-foreground">
                       {Math.round(value)}/{max}g ·{" "}
                       {max > 0 ? Math.round((value / max) * 100) : 0}%
                     </span>
@@ -254,10 +277,10 @@ export default function TodayPage() {
               </Button>
             </Empty>
           ) : (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-muted-foreground text-sm font-medium">
-                  Meals
+            <div className="flex flex-col gap-3">
+              <div className="editorial-rule flex items-center justify-between pt-3">
+                <h2 className="editorial-kicker">
+                  Meal journal
                 </h2>
                 {!isToday ? (
                   <Button

@@ -8,6 +8,7 @@ interface ProgressRingProps {
   label: string;
   sublabel: string;
   caption?: string;
+  size?: "default" | "compact";
 }
 
 export function ProgressRing({
@@ -16,6 +17,7 @@ export function ProgressRing({
   label,
   sublabel,
   caption,
+  size = "default",
 }: ProgressRingProps) {
   const radius = 84;
   const stroke = 16;
@@ -25,7 +27,7 @@ export function ProgressRing({
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="relative size-52">
+      <div className={cn("relative", size === "compact" ? "size-32" : "size-52")}>
         <svg viewBox="0 0 200 200" className="size-full -rotate-90">
           <circle
             cx="100"
@@ -53,13 +55,16 @@ export function ProgressRing({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
             className={cn(
-              "text-4xl font-bold tabular-nums tracking-tight",
+              "font-black tabular-nums tracking-[-0.08em]",
+              size === "compact" ? "text-2xl" : "text-4xl",
               over && "text-destructive",
             )}
           >
             {label}
           </span>
-          <span className="text-muted-foreground text-sm">{sublabel}</span>
+          <span className="text-muted-foreground text-xs font-bold uppercase tracking-[0.12em]">
+            {sublabel}
+          </span>
         </div>
       </div>
       {caption ? (

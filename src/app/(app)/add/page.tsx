@@ -17,6 +17,7 @@ import { FoodSearchDrawer } from "@/components/food-search-drawer";
 import { NutritionFacts } from "@/components/nutrition-facts";
 import { PhotoStrip } from "@/components/photo-strip";
 import { resizeImage, type EncodedImage } from "@/lib/resize-image";
+import { cn } from "@/lib/utils";
 import {
   fetchJson,
   itemsToDraft,
@@ -273,14 +274,19 @@ export default function AddMealPage() {
     const canReanalyze =
       photos.length > 0 || draft.source === "photo" || draft.source === "text";
     return (
-      <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Review</h1>
-        <PhotoStrip urls={draftPhotoUrls} />
+      <div className="flex flex-col gap-5">
+        <section>
+          <p className="editorial-kicker">AI readback</p>
+          <h1 className="editorial-headline mt-1">Review the plate</h1>
+        </section>
+        <div className="editorial-card editorial-cut p-3">
+          <PhotoStrip urls={draftPhotoUrls} />
+        </div>
 
         {draft.question ? (
-          <Alert>
+          <Alert className="editorial-card border-primary/40">
             <HelpCircle />
-            <AlertTitle>Quick question</AlertTitle>
+            <AlertTitle>One detail would sharpen this</AlertTitle>
             <AlertDescription>{draft.question}</AlertDescription>
           </Alert>
         ) : null}
@@ -293,7 +299,8 @@ export default function AddMealPage() {
         />
 
         {canReanalyze ? (
-          <div className="relative">
+          <div className="editorial-card editorial-cut relative p-3">
+            <p className="editorial-kicker mb-2">Correction note</p>
             <Textarea
               placeholder={
                 draft.question
@@ -345,9 +352,12 @@ export default function AddMealPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight">Log a meal</h1>
+      <section>
+        <p className="editorial-kicker">Camera first</p>
+        <h1 className="editorial-headline mt-1">Log a meal</h1>
+      </section>
       {targetDate ? (
-        <p className="bg-accent/60 text-accent-foreground -mt-2 rounded-lg px-3 py-2 text-sm">
+        <p className="editorial-card -mt-2 rounded-sm px-3 py-2 text-sm">
           Adding to{" "}
           <span className="font-semibold">
             {new Date(`${targetDate}T12:00:00`).toLocaleDateString([], {
@@ -360,7 +370,7 @@ export default function AddMealPage() {
       ) : null}
 
       {favorites.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 border-y border-foreground/15 py-3">
           {favorites.map((meal) => {
             const totals = mealTotals(meal);
             return (
@@ -368,7 +378,7 @@ export default function AddMealPage() {
                 key={meal.id}
                 onClick={() => logExisting(meal, "favorite")}
               >
-                <Badge variant="secondary" className="cursor-pointer py-1.5">
+                <Badge variant="secondary" className="cursor-pointer rounded-sm py-1.5">
                   <Star data-icon="inline-start" />
                   {meal.name} · {totals.calories} kcal
                 </Badge>
@@ -391,16 +401,22 @@ export default function AddMealPage() {
       />
 
       {photos.length > 0 ? (
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {photos.map((photo, index) => (
-            <div key={index} className="relative">
+            <div
+              key={index}
+              className={cn(
+                "photo-frame relative h-28 w-24",
+                index % 2 === 0 ? "-rotate-2" : "rotate-2",
+              )}
+            >
               <Image
                 src={photo.previewUrl}
                 alt={`Photo ${index + 1}`}
-                width={96}
-                height={96}
+                width={112}
+                height={132}
                 unoptimized
-                className="size-24 rounded-lg object-cover"
+                className="size-full object-cover"
               />
               <button
                 aria-label="Remove photo"
@@ -420,20 +436,22 @@ export default function AddMealPage() {
       {photos.length < 3 ? (
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="border-primary/30 bg-accent/40 text-accent-foreground flex h-32 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-colors active:bg-accent"
+          className="editorial-card editorial-cut flex h-44 flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/45 text-accent-foreground transition-colors active:bg-accent"
         >
-          <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+          <span className="flex size-16 items-center justify-center rounded-none bg-primary text-primary-foreground">
             <Camera className="size-6" />
           </span>
-          <span className="text-sm font-medium">
+          <span className="text-center text-xl font-black tracking-[-0.05em]">
             {photos.length === 0
               ? "Snap or choose photos"
               : "Add another photo"}
           </span>
+          <span className="editorial-kicker">Up to 3 angles</span>
         </button>
       ) : null}
 
-      <div className="relative">
+      <div className="editorial-card editorial-cut relative p-3">
+        <p className="editorial-kicker mb-2">Context note</p>
         <Textarea
           placeholder='Optional details, e.g. "2 rotis, dal, no butter"'
           value={text}
@@ -470,7 +488,7 @@ export default function AddMealPage() {
         }
       />
 
-      <div className="mt-2 flex flex-col gap-3">
+      <div className="mt-2 flex flex-col gap-3 border-t border-foreground/15 pt-4">
         <div className="relative">
           <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
           <Input

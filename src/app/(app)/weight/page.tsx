@@ -126,9 +126,12 @@ export default function WeightPage() {
     : null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Weight</h1>
+    <div className="flex flex-col gap-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="editorial-kicker">Trend desk</p>
+          <h1 className="editorial-headline mt-1">Weight</h1>
+        </div>
         <LogWeightDrawer
           imperial={imperial}
           onLogged={() => setRefreshKey((k) => k + 1)}
@@ -174,9 +177,14 @@ export default function WeightPage() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <Card>
+            <Card className="editorial-card editorial-cut">
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Weight ({unit})</CardTitle>
+                <div>
+                  <p className="editorial-kicker">Measured line</p>
+                  <CardTitle className="mt-1 text-2xl font-black tracking-[-0.06em]">
+                    Weight ({unit})
+                  </CardTitle>
+                </div>
                 <ToggleGroup
                   variant="outline"
                   size="sm"
@@ -253,13 +261,13 @@ export default function WeightPage() {
                   )
                 : null;
             return (
-              <Card>
+              <Card className="editorial-card">
                 <CardContent className="flex items-center justify-between px-4">
                   <div>
                     <p className="text-muted-foreground text-xs">
                       {reached ? "Goal reached" : "To go"}
                     </p>
-                    <p className="text-lg font-bold tabular-nums">
+                    <p className="text-2xl font-black tracking-[-0.06em] tabular-nums">
                       {reached
                         ? "🎉 You're there"
                         : `${Math.round(toGo * 10) / 10} ${unit}`}
@@ -279,22 +287,22 @@ export default function WeightPage() {
           })()}
 
           <div className="grid grid-cols-2 gap-3">
-            <Card className="py-4">
+            <Card className="editorial-card py-4">
               <CardContent className="px-4">
                 <p className="text-muted-foreground text-xs">Current rate</p>
-                <p className="text-lg font-semibold tabular-nums">
+                <p className="text-2xl font-black tracking-[-0.06em] tabular-nums">
                   {rate === null
                     ? "—"
                     : `${rate > 0 ? "+" : ""}${rate} ${unit}/wk`}
                 </p>
               </CardContent>
             </Card>
-            <Card className="py-4">
+            <Card className="editorial-card py-4">
               <CardContent className="px-4">
                 <p className="text-muted-foreground text-xs">
                   Maintenance (measured)
                 </p>
-                <p className="text-lg font-semibold tabular-nums">
+                <p className="text-2xl font-black tracking-[-0.06em] tabular-nums">
                   {data.balance ? `${data.balance.tdeeKcal} kcal` : "—"}
                 </p>
               </CardContent>
@@ -346,9 +354,11 @@ export default function WeightPage() {
           ) : null}
 
           {data.recap ? (
-            <Card>
+            <Card className="editorial-card editorial-cut">
               <CardHeader>
-                <CardTitle>Weekly recap</CardTitle>
+                <CardTitle className="text-2xl font-black tracking-[-0.06em]">
+                  Weekly recap
+                </CardTitle>
                 <CardDescription>
                   Week of{" "}
                   {new Date(
