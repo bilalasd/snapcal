@@ -20,4 +20,21 @@ for (const p of PAGES) {
     await page.addStyleTag({ content: `nextjs-portal{display:none !important}` });
     await page.screenshot({ path: `${OUT}/${p.name}.png`, fullPage: true });
   });
+
+  // Dark variant — must stay in this no-auth project, or /sign-in redirects to
+  // the app. Force dark before first paint (no reload). Clerk's card is themed
+  // via CSS-var appearance, so it follows the .dark class.
+  test(`shot ${p.name}-dark`, async ({ page }) => {
+    await setupClerkTestingToken({ page });
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem("snapcal-theme", "dark");
+      } catch {}
+    });
+    await page.goto(p.path, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(1200);
+    await page.addStyleTag({ content: `nextjs-portal{display:none !important}` });
+    await page.screenshot({ path: `${OUT}/${p.name}-dark.png`, fullPage: true });
+  });
 }

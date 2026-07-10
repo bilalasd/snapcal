@@ -1,8 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { Utensils } from "lucide-react";
+import { Moon, Sun, Sunrise, Sunset } from "lucide-react";
 import { mealTotals, type ApiMeal } from "@/lib/client";
+
+// A time-of-day glyph + tint so a list of photo-less meals isn't a wall of
+// identical icons — breakfast/lunch/dinner/night read at a glance.
+function mealGlyph(hour: number) {
+  if (hour < 11) return { Icon: Sunrise, tint: "text-chart-4" }; // morning
+  if (hour < 16) return { Icon: Sun, tint: "text-primary-strong" }; // midday
+  if (hour < 21) return { Icon: Sunset, tint: "text-chart-4" }; // evening
+  return { Icon: Moon, tint: "text-chart-2" }; // night
+}
 
 interface MealListItemProps {
   meal: ApiMeal;
@@ -12,10 +21,12 @@ interface MealListItemProps {
 
 export function MealListItem({ meal, onClick, action }: MealListItemProps) {
   const totals = mealTotals(meal);
-  const time = new Date(meal.eatenAt).toLocaleTimeString([], {
+  const eaten = new Date(meal.eatenAt);
+  const time = eaten.toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
   });
+  const { Icon: TimeIcon, tint } = mealGlyph(eaten.getHours());
 
   return (
     <article
@@ -35,8 +46,10 @@ export function MealListItem({ meal, onClick, action }: MealListItemProps) {
             />
           </div>
         ) : (
-          <span className="flex h-20 w-16 shrink-0 items-center justify-center bg-muted text-muted-foreground ring-1 ring-foreground/15">
-            <Utensils className="size-6" />
+          <span
+            className={`flex h-20 w-16 shrink-0 items-center justify-center bg-muted ring-1 ring-foreground/15 ${tint}`}
+          >
+            <TimeIcon className="size-6" />
           </span>
         )}
         <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">

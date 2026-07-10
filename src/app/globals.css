@@ -186,7 +186,8 @@
       linear-gradient(90deg, color-mix(in oklch, var(--foreground), transparent 92%) 1px, transparent 1px),
       linear-gradient(color-mix(in oklch, var(--foreground), transparent 94%) 1px, transparent 1px);
     background-size: 22px 22px;
-    mask-image: linear-gradient(to bottom, black, transparent 72%);
+    /* Uniform grain — no height-relative fade, which produced a visible
+       horizontal "seam" partway down long pages where the texture cut off. */
   }
 
   .photo-frame {

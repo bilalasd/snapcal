@@ -16,6 +16,10 @@ export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
+  // A retry covers the occasional cold-compile stall on the single Next dev
+  // server; a generous per-test budget lets slow route compiles finish.
+  retries: 1,
+  timeout: 90_000,
   reporter: "list",
   use: {
     baseURL: "http://localhost:3100",

@@ -113,15 +113,37 @@ test("shot today-empty", async ({ page }) => {
   await shootFull(page, "today-empty");
 });
 
+// Force dark theme on first paint via an init script (runs before the app's
+// inline theme script), so no reload is needed. Reloads were flaky under
+// parallel dev-server load. Call BEFORE goto.
+async function forceDark(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("snapcal-theme", "dark");
+    } catch {}
+  });
+}
+
+// Like shootFull but does not wait on networkidle (for the dark reload path).
+async function shootSoft(page: import("@playwright/test").Page, name: string) {
+  await page.waitForTimeout(700);
+  await page.addStyleTag({ content: flattenTabBar });
+  await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
+}
+
 // Onboarding is a 6-step flow; a plain goto only shows step 1. The seeded user
 // is already onboarded so most fields prefill — walk through and shoot each step.
-test("shot onboarding-steps", async ({ page }) => {
-  await page.goto("/onboarding");
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(700);
+// `suffix` is "" for light and "-dark" for the dark pass.
+async function walkOnboarding(
+  page: import("@playwright/test").Page,
+  suffix: string,
+) {
   const cont = () => page.getByRole("button", { name: "Continue" });
   const shot = (n: string) =>
-    page.screenshot({ path: `${OUT}/onboarding-${n}.png`, fullPage: true });
+    page.screenshot({
+      path: `${OUT}/onboarding-${n}${suffix}.png`,
+      fullPage: true,
+    });
 
   await cont().click(); // units -> you
   await page.waitForTimeout(400);
@@ -146,6 +168,20 @@ test("shot onboarding-steps", async ({ page }) => {
   await cont().click(); // goal -> result
   await page.waitForTimeout(700);
   await shot("result");
+}
+
+test("shot onboarding-steps", async ({ page }) => {
+  await page.goto("/onboarding");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(700);
+  await walkOnboarding(page, "");
+});
+
+test("shot onboarding-steps-dark", async ({ page }) => {
+  await forceDark(page);
+  await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(700);
+  await walkOnboarding(page, "-dark");
 });
 
 // Dark-mode variants of the token-heavy screens.
@@ -158,21 +194,75 @@ const DARK_SCREENS = [
 ];
 for (const s of DARK_SCREENS) {
   test(`shot ${s.name}`, async ({ page }) => {
-    await page.goto(s.path);
-    await page.evaluate(() => localStorage.setItem("snapcal-theme", "dark"));
-    await page.reload();
-    await shootFull(page, s.name);
+    await forceDark(page);
+    await page.goto(s.path, { waitUntil: "domcontentloaded" });
+    await shootSoft(page, s.name);
   });
 }
 
-// Dark review — draft + dark theme together.
+// Dark review — draft + dark theme, both seeded before first paint.
 test("shot review-dark", async ({ page }) => {
-  await page.goto("/add");
-  await page.waitForLoadState("networkidle");
-  await page.evaluate((d) => {
-    localStorage.setItem("snapcal-theme", "dark");
-    sessionStorage.setItem("snapcal_draft", JSON.stringify(d));
+  await page.addInitScript((d) => {
+    try {
+      localStorage.setItem("snapcal-theme", "dark");
+      sessionStorage.setItem("snapcal_draft", JSON.stringify(d));
+    } catch {}
   }, REVIEW_DRAFT);
-  await page.reload();
-  await shootFull(page, "review-dark");
+  await page.goto("/add", { waitUntil: "domcontentloaded" });
+  await shootSoft(page, "review-dark");
+});
+
+// Onboarding step 1 (dark) and the empty day (dark).
+test("shot onboarding-dark", async ({ page }) => {
+  await forceDark(page);
+  await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+  await shootSoft(page, "onboarding-dark");
+});
+
+test("shot today-empty-dark", async ({ page }) => {
+  await forceDark(page);
+  await page.goto("/?date=2020-01-01", { waitUntil: "domcontentloaded" });
+  await shootSoft(page, "today-empty-dark");
+});
+
+// (Auth dark variants live in public.spec.ts — this project is authenticated,
+// so /sign-in would redirect to the app.)
+
+// Drawers + analyzing overlay in dark.
+test("shot meal-drawer-dark", async ({ page }) => {
+  await forceDark(page);
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle");
+  await page.getByText("Salmon & greens").first().click();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/meal-drawer-dark.png` });
+});
+
+test("shot food-search-dark", async ({ page }) => {
+  await forceDark(page);
+  await page.goto("/add", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Add from food database" }).click();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/food-search-dark.png` });
+});
+
+test("shot log-weight-dark", async ({ page }) => {
+  await forceDark(page);
+  await page.goto("/weight", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Log weight" }).click();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/log-weight-dark.png` });
+});
+
+test("shot analyzing-dark", async ({ page }) => {
+  await forceDark(page);
+  await page.goto("/add", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Add a note" }).click();
+  await page.getByPlaceholder(/Optional details/i).fill("grilled chicken");
+  await page.getByRole("button", { name: "Analyze", exact: true }).click();
+  await page.getByText("Reading your plate…").waitFor();
+  await page.screenshot({ path: `${OUT}/analyzing-dark.png` });
 });
