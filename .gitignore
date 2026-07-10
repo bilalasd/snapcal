@@ -11,3 +11,10 @@ tsconfig.tsbuildinfo
 /e2e/.clerk
 /test-results
 /playwright-report
+
+# Model benchmark: keep the harness, ignore inputs (photos) and outputs (results)
+.DS_Store
+/IMG_*.PNG
+/bench/images/*
+!/bench/images/.gitkeep
+/bench/results-*.json

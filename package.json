@@ -14,7 +14,8 @@
     "vercel-build": "drizzle-kit migrate && next build",
     "import-foods": "tsx scripts/import-foods.ts",
     "seed:preview": "tsx --env-file=.env.local scripts/seed-preview.ts",
-    "shots": "playwright test"
+    "shots": "playwright test",
+    "bench": "tsx --env-file=.env.local scripts/bench-models.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
@@ -44,6 +45,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "ai": "^7.0.22",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",

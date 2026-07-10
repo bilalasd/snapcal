@@ -32,6 +32,7 @@ import {
   mealTotals,
   popDraft,
   type ApiMeal,
+  type ClarifyOption,
   type DraftItem,
   type DraftPhoto,
   type MealDraft,
@@ -81,7 +82,7 @@ export default function AddMealPage() {
     source: MealDraft["source"];
     photos: DraftPhoto[];
     question?: string;
-    choices?: string[];
+    options?: ClarifyOption[];
   } | null>(null);
 
   useEffect(() => {
@@ -97,7 +98,7 @@ export default function AddMealPage() {
         source: stashed.source,
         photos: stashed.photos ?? [],
         question: stashed.question || undefined,
-        choices: stashed.choices?.length ? stashed.choices : undefined,
+        options: stashed.options?.length ? stashed.options : undefined,
       });
     }
     fetchJson<ApiMeal[]>("/api/meals?favorites=true")
@@ -194,7 +195,7 @@ export default function AddMealPage() {
         meal_name: string;
         items: DraftItem[];
         question?: string;
-        choices?: string[];
+        options?: ClarifyOption[];
       }>("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,7 +210,7 @@ export default function AddMealPage() {
         source: photos.length > 0 ? "photo" : "text",
         photos: [],
         question: result.question || undefined,
-        choices: result.choices?.length ? result.choices : undefined,
+        options: result.options?.length ? result.options : undefined,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Analysis failed");
@@ -235,6 +236,13 @@ export default function AddMealPage() {
 
   function reanalyze() {
     applyRefinement(refineText);
+  }
+
+  // Tapping a clarifying answer: the option already carries its full item list,
+  // so apply it in place and dismiss the question — no re-analysis round-trip.
+  function chooseOption(option: ClarifyOption) {
+    if (!draft) return;
+    setDraft({ ...draft, items: option.items, question: undefined, options: undefined });
   }
 
   function logExisting(meal: ApiMeal, source: "favorite" | "copy") {
@@ -340,16 +348,16 @@ export default function AddMealPage() {
             <p className="mt-1.5 text-lg font-black tracking-[-0.03em]">
               {draft.question}
             </p>
-            {draft.choices?.length ? (
+            {draft.options?.length ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                {draft.choices.map((choice) => (
+                {draft.options.map((option) => (
                   <Button
-                    key={choice}
+                    key={option.label}
                     variant="outline"
                     disabled={analyzing}
-                    onClick={() => applyRefinement(choice)}
+                    onClick={() => chooseOption(option)}
                   >
-                    {choice}
+                    {option.label}
                   </Button>
                 ))}
               </div>
@@ -357,7 +365,7 @@ export default function AddMealPage() {
             <div className="relative mt-3">
               <Textarea
                 placeholder={
-                  draft.choices?.length
+                  draft.options?.length
                     ? "…or type your own answer"
                     : "Type your answer…"
                 }
