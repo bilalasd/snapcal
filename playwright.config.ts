@@ -15,11 +15,12 @@ const mobile = {
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
-  fullyParallel: false,
-  // A retry covers the occasional cold-compile stall on the single Next dev
-  // server; a generous per-test budget lets slow route compiles finish.
+  // A production build serves pre-compiled pages instantly, so tests can run
+  // fully parallel without the dev server's on-demand-compile stalls that made
+  // a full run take 15+ min. Fast + stable ⇒ modest retry, tight timeout.
+  fullyParallel: true,
   retries: 1,
-  timeout: 90_000,
+  timeout: 45_000,
   reporter: "list",
   use: {
     baseURL: "http://localhost:3100",
@@ -39,11 +40,13 @@ export default defineConfig({
     // Signed-out shots (sign-in / sign-up) — no stored session.
     { name: "public", testMatch: /public\.spec\.ts/ },
   ],
-  // Dedicated port so we never latch onto another project's dev server on :3000.
+  // Build once, then serve the production output — no HMR, no per-route compile.
+  // reuseExistingServer:false so every run rebuilds and can't serve stale code
+  // (the .next cache keeps rebuilds incremental, ~30–60s).
   webServer: {
-    command: "npm run dev -- -p 3100",
+    command: "npm run build && npm run start -- -p 3100",
     url: "http://localhost:3100",
-    reuseExistingServer: true,
-    timeout: 120_000,
+    reuseExistingServer: false,
+    timeout: 300_000,
   },
 });

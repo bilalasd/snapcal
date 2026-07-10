@@ -97,6 +97,9 @@ test("shot log-weight", async ({ page }) => {
 test("shot analyzing", async ({ page }) => {
   await page.goto("/add");
   await page.waitForLoadState("networkidle");
+  // Hold the analyze response open so the overlay stays put long enough to
+  // capture deterministically (in prod the keyless API errors near-instantly).
+  await page.route("**/api/analyze", () => {});
   // The note is collapsed by default; reveal it, then a note enables Analyze.
   await page.getByRole("button", { name: "Add a note" }).click();
   await page
@@ -264,6 +267,7 @@ test("shot analyzing-dark", async ({ page }) => {
   await forceDark(page);
   await page.goto("/add", { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle");
+  await page.route("**/api/analyze", () => {}); // hold the overlay open
   await page.getByRole("button", { name: "Add a note" }).click();
   await page.getByPlaceholder(/Optional details/i).fill("grilled chicken");
   await page.getByRole("button", { name: "Analyze", exact: true }).click();
