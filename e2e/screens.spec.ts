@@ -124,9 +124,13 @@ async function forceDark(page: import("@playwright/test").Page) {
   });
 }
 
-// Like shootFull but does not wait on networkidle (for the dark reload path).
+// Dark path: wait for content to paint but bound the networkidle wait so a
+// degraded dev server can't hang the test (and can't produce a blank capture).
 async function shootSoft(page: import("@playwright/test").Page, name: string) {
-  await page.waitForTimeout(700);
+  await page
+    .waitForLoadState("networkidle", { timeout: 8000 })
+    .catch(() => {});
+  await page.waitForTimeout(900);
   await page.addStyleTag({ content: flattenTabBar });
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
 }
