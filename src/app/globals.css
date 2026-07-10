@@ -35,9 +35,16 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
-  /* Amber that stays legible as text on light surfaces (WCAG AA); on dark it
-     resolves to the bright amber. Use for amber TEXT, never as a fill. */
   --color-primary-strong: var(--primary-strong);
+  /* Figma pastel color-block surfaces + single-shot accent */
+  --color-block-lime: var(--block-lime);
+  --color-block-lilac: var(--block-lilac);
+  --color-block-cream: var(--block-cream);
+  --color-block-mint: var(--block-mint);
+  --color-block-coral: var(--block-coral);
+  --color-block-navy: var(--block-navy);
+  --color-block-ink: var(--block-ink);
+  --color-magenta: var(--magenta);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -51,75 +58,99 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Figma marketing design system: monochrome core + pastel color blocks.
+   figmaSans -> system stack; figmaMono -> Geist Mono (both per the spec). */
 :root {
-  --background: oklch(0.965 0.018 85);
-  --foreground: oklch(0.18 0.025 105);
-  --card: oklch(0.995 0.012 84);
-  --card-foreground: oklch(0.18 0.025 105);
-  --popover: oklch(0.995 0.012 84);
-  --popover-foreground: oklch(0.18 0.025 105);
-  --primary: oklch(0.82 0.16 82);
-  --primary-foreground: oklch(0.17 0.025 105);
-  --primary-strong: oklch(0.52 0.14 72);
-  --secondary: oklch(0.89 0.038 88);
-  --secondary-foreground: oklch(0.22 0.03 105);
-  --muted: oklch(0.91 0.026 87);
-  --muted-foreground: oklch(0.45 0.025 95);
-  --accent: oklch(0.86 0.12 82);
-  --accent-foreground: oklch(0.18 0.025 105);
-  --destructive: oklch(0.55 0.18 30);
-  --border: oklch(0.78 0.035 85);
-  --input: oklch(0.82 0.03 85);
-  --ring: oklch(0.76 0.15 82);
-  --chart-1: oklch(0.6 0.15 80);
-  --chart-2: oklch(0.52 0.08 190);
-  --chart-3: oklch(0.48 0.08 130);
-  --chart-4: oklch(0.58 0.12 25);
-  --chart-5: oklch(0.34 0.04 105);
-  --radius: 0.45rem;
-  --sidebar: oklch(0.94 0.02 85);
-  --sidebar-foreground: oklch(0.18 0.025 105);
-  --sidebar-primary: oklch(0.82 0.16 82);
-  --sidebar-primary-foreground: oklch(0.17 0.025 105);
-  --sidebar-accent: oklch(0.86 0.12 82);
-  --sidebar-accent-foreground: oklch(0.18 0.025 105);
-  --sidebar-border: oklch(0.78 0.035 85);
-  --sidebar-ring: oklch(0.76 0.15 82);
+  --font-sans: "SF Pro Display", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --primary-strong: #000000;
+  --secondary: #f7f7f5;
+  --secondary-foreground: #000000;
+  --muted: #f7f7f5;
+  --muted-foreground: #565656;
+  --accent: #f1f1f1;
+  --accent-foreground: #000000;
+  --destructive: #d92d20;
+  --border: #e6e6e6;
+  --input: #e6e6e6;
+  --ring: #000000;
+  /* monochrome data — Figma charts carry no hue */
+  --chart-1: #000000;
+  --chart-2: #6b6b6b;
+  --chart-3: #3d3d3d;
+  --chart-4: #9a9a9a;
+  --chart-5: #1f1f1f;
+  --radius: 0.5rem;
+  /* signature pastel blocks (black ink on all) + single-shot accent */
+  --block-lime: #dceeb1;
+  --block-lilac: #c5b0f4;
+  --block-cream: #f4ecd6;
+  --block-mint: #c8e6cd;
+  --block-coral: #f3c9b6;
+  --block-navy: #1f1d3d;
+  --block-ink: #000000;
+  --magenta: #ff3d8b;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #000000;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f1f1;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #e6e6e6;
+  --sidebar-ring: #000000;
 }
 
+/* Dark isn't in the Figma marketing spec; designed here from its inverse-canvas
+   / navy cues — near-black chrome, white ink, pastel blocks kept (they pop on
+   dark and always carry black ink). */
 .dark {
-  --background: oklch(0.145 0.018 110);
-  --foreground: oklch(0.94 0.018 86);
-  --card: oklch(0.205 0.022 105);
-  --card-foreground: oklch(0.94 0.018 86);
-  --popover: oklch(0.205 0.022 105);
-  --popover-foreground: oklch(0.94 0.018 86);
-  --primary: oklch(0.83 0.16 82);
-  --primary-foreground: oklch(0.16 0.022 105);
-  --primary-strong: oklch(0.83 0.16 82);
-  --secondary: oklch(0.26 0.024 105);
-  --secondary-foreground: oklch(0.94 0.018 86);
-  --muted: oklch(0.27 0.024 105);
-  --muted-foreground: oklch(0.72 0.025 86);
-  --accent: oklch(0.38 0.065 88);
-  --accent-foreground: oklch(0.96 0.018 86);
-  --destructive: oklch(0.68 0.16 30);
-  --border: oklch(1 0 0 / 13%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.82 0.16 82);
-  --chart-1: oklch(0.83 0.16 82);
-  --chart-2: oklch(0.7 0.09 190);
-  --chart-3: oklch(0.74 0.1 135);
-  --chart-4: oklch(0.72 0.13 30);
-  --chart-5: oklch(0.88 0.025 86);
-  --sidebar: oklch(0.19 0.02 105);
-  --sidebar-foreground: oklch(0.94 0.018 86);
-  --sidebar-primary: oklch(0.83 0.16 82);
-  --sidebar-primary-foreground: oklch(0.16 0.022 105);
-  --sidebar-accent: oklch(0.38 0.065 88);
-  --sidebar-accent-foreground: oklch(0.96 0.018 86);
-  --sidebar-border: oklch(1 0 0 / 13%);
-  --sidebar-ring: oklch(0.82 0.16 82);
+  --background: #0e0e13;
+  --foreground: #ffffff;
+  --card: #17171e;
+  --card-foreground: #ffffff;
+  --popover: #17171e;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --primary-strong: #ffffff;
+  --secondary: #20202a;
+  --secondary-foreground: #ffffff;
+  --muted: #20202a;
+  --muted-foreground: #a2a2ad;
+  --accent: #262631;
+  --accent-foreground: #ffffff;
+  --destructive: #ff6b5c;
+  --border: rgba(255, 255, 255, 0.13);
+  --input: rgba(255, 255, 255, 0.16);
+  --ring: #ffffff;
+  --chart-1: #ffffff;
+  --chart-2: #9a9aa5;
+  --chart-3: #c8c8d0;
+  --chart-4: #74747f;
+  --chart-5: #e4e4ea;
+  --block-lime: #dceeb1;
+  --block-lilac: #c5b0f4;
+  --block-cream: #f4ecd6;
+  --block-mint: #c8e6cd;
+  --block-coral: #f3c9b6;
+  --block-navy: #1f1d3d;
+  --block-ink: #000000;
+  --magenta: #ff5b9e;
+  --sidebar: #17171e;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #262631;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.13);
+  --sidebar-ring: #ffffff;
 }
 
 @layer base {
@@ -128,21 +159,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(circle at 8% 0%, color-mix(in oklch, var(--primary), transparent 76%), transparent 28rem),
-      radial-gradient(circle at 95% 12%, color-mix(in oklch, var(--accent), transparent 82%), transparent 22rem),
-      linear-gradient(135deg, color-mix(in oklch, var(--foreground), transparent 97%) 25%, transparent 25%),
-      linear-gradient(225deg, color-mix(in oklch, var(--foreground), transparent 97%) 25%, transparent 25%);
-    background-position:
-      0 0,
-      0 0,
-      0 0,
-      8px 8px;
-    background-size:
-      auto,
-      auto,
-      16px 16px,
-      16px 16px;
   }
   html {
     @apply font-sans;
@@ -150,48 +166,61 @@
 }
 
 @layer utilities {
+  /* eyebrow — figmaMono, uppercase, positive tracking (taxonomy label) */
   .editorial-kicker {
-    @apply text-muted-foreground text-[0.68rem] font-extrabold tracking-[0.24em] uppercase;
+    @apply text-muted-foreground text-xs uppercase tracking-[0.06em];
+    font-family: var(--font-mono);
+    font-weight: 400;
   }
 
+  /* display — figmaSans at a light weight with tight negative tracking */
   .editorial-headline {
-    @apply font-heading text-4xl leading-[0.9] font-black tracking-[-0.075em] text-balance;
+    @apply text-4xl leading-[0.98] tracking-[-0.035em] text-balance;
+    font-weight: 380;
   }
 
   .editorial-rule {
-    @apply border-t border-foreground/25;
+    @apply border-t border-border;
   }
 
+  /* flat white card with hairline border, rounded-lg (24px) — no shadow, the
+     Figma system is shadow-light and uses color blocks for depth */
   .editorial-card {
-    @apply bg-card/90 text-card-foreground ring-1 ring-foreground/15 shadow-[0_20px_70px_color-mix(in_oklch,var(--foreground),transparent_88%)];
+    @apply bg-card text-card-foreground border border-border;
+    border-radius: 24px;
   }
 
+  /* notch removed — Figma uses rounded corners, not torn-paper cuts */
   .editorial-cut {
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 22px) 100%, 0 100%);
+    border-radius: 24px;
   }
 
+  /* grain removed — Figma canvas is clean white */
   .editorial-grain {
     position: relative;
-    isolation: isolate;
   }
-
   .editorial-grain::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: -1;
-    opacity: 0.18;
-    background-image:
-      linear-gradient(90deg, color-mix(in oklch, var(--foreground), transparent 92%) 1px, transparent 1px),
-      linear-gradient(color-mix(in oklch, var(--foreground), transparent 94%) 1px, transparent 1px);
-    background-size: 22px 22px;
-    /* Uniform grain — no height-relative fade, which produced a visible
-       horizontal "seam" partway down long pages where the texture cut off. */
+    content: none;
   }
 
   .photo-frame {
-    @apply overflow-hidden rounded-sm ring-1 ring-foreground/20 shadow-[8px_8px_0_var(--primary)];
+    @apply overflow-hidden border border-border;
+    border-radius: 8px;
+  }
+
+  /* A pastel color block always carries black ink, in light AND dark, so pair it
+     with a bg-block-* class. Re-declares the theme tokens locally so children
+     (rings, bars, kickers) render correctly on the light panel either way. */
+  .block-surface {
+    --foreground: #000000;
+    --card-foreground: #000000;
+    --muted-foreground: #4a4a4a;
+    --primary: #000000;
+    --primary-foreground: #ffffff;
+    --muted: rgba(0, 0, 0, 0.08);
+    --border: rgba(0, 0, 0, 0.14);
+    color: #000000;
+    border-color: transparent;
   }
 
   .snap-in {

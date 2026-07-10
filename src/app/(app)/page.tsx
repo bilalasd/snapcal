@@ -175,7 +175,7 @@ export default function TodayPage() {
           <h1 className="editorial-headline mt-1 max-w-64">{headline}</h1>
         </div>
         {isToday && streak !== null && streak > 0 ? (
-          <Badge variant="secondary" className="gap-1 rounded-sm">
+          <Badge className="bg-magenta gap-1 rounded-full border-transparent px-3 py-1.5 font-mono text-[0.7rem] uppercase tracking-[0.05em] text-white">
             <Flame data-icon="inline-start" />
             {streak}/7 days
           </Badge>
@@ -213,7 +213,7 @@ export default function TodayPage() {
         </div>
       ) : (
         <>
-          <Card className="editorial-card editorial-cut">
+          <Card className="block-surface bg-block-lime editorial-cut border-transparent">
             <CardContent className="grid grid-cols-[1fr_auto] gap-4 px-4">
               <div className="flex flex-col justify-between">
                 <div>

@@ -1,15 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Geist_Mono, Nunito } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const nunito = Nunito({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
+// figmaSans -> system stack (set on --font-sans in globals.css). Only the mono
+// (figmaMono -> Geist Mono) needs loading.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -63,7 +59,7 @@ export default function RootLayout({
       <html
         lang="en"
         suppressHydrationWarning
-        className={`${nunito.variable} ${geistMono.variable} h-full antialiased`}
+        className={`${geistMono.variable} h-full antialiased`}
       >
         <body className="flex min-h-full flex-col bg-background">
           <script dangerouslySetInnerHTML={{ __html: darkModeScript }} />

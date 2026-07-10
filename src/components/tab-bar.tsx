@@ -66,7 +66,7 @@ export function TabBar() {
           <Link
             href={addHref}
             aria-label="Log a meal"
-            className="editorial-cut -mt-8 flex size-16 items-center justify-center bg-primary text-primary-foreground shadow-[0_16px_40px_color-mix(in_oklch,var(--primary),transparent_55%)] ring-4 ring-background transition-transform active:scale-95"
+            className="-mt-8 flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-background transition-transform active:scale-95"
           >
             <Plus className="size-7" strokeWidth={2.4} />
           </Link>
