@@ -176,6 +176,8 @@ export function MealReview({
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label="Halve portion"
+                      title="Halve portion"
                       onClick={() => scale(index, 0.5)}
                     >
                       ×½
@@ -183,6 +185,8 @@ export function MealReview({
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label="Double portion"
+                      title="Double portion"
                       onClick={() => scale(index, 2)}
                     >
                       ×2

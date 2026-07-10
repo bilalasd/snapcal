@@ -95,11 +95,37 @@ function MealDrawerInner({
   }
 
   async function deleteMeal() {
-
     setBusy(true);
     try {
       await fetchJson(`/api/meals/${meal.id}`, { method: "DELETE" });
-      toast.success("Deleted");
+      // Undo re-creates the meal from its data (it comes back with a new id,
+      // which is fine — the point is not losing the entry to a mis-tap).
+      toast.success("Deleted", {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            fetchJson("/api/meals", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: meal.name || "Meal",
+                eaten_at: meal.eatenAt,
+                note: meal.note || undefined,
+                source: "copy",
+                items: itemsToDraft(meal).filter((i) => i.name.trim()),
+                photos: meal.photos.map((p) => ({
+                  url: p.url,
+                  pathname: p.pathname,
+                })),
+              }),
+            })
+              .then(() => {
+                toast.success("Restored");
+                onChanged();
+              })
+              .catch(() => toast.error("Couldn't undo")),
+        },
+      });
       onChanged();
       onClose();
     } catch (err) {

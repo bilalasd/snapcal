@@ -633,7 +633,7 @@ export default function AddMealPage() {
         <div className="relative">
           <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
           <Input
-            placeholder="Search your meals"
+            placeholder="Search your past meals"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"

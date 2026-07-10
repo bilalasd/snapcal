@@ -208,6 +208,17 @@ export default function OnboardingPage() {
 
   const rates = ratePresets(imperial, goalKind === "gain" ? "gain" : "lose");
 
+  // Shown under the disabled "Continue" button so the user knows what's missing,
+  // instead of staring at a greyed-out button with no explanation.
+  const stepHint: Record<Step, string> = {
+    units: "",
+    you: "Pick your sex and enter an age between 10 and 120.",
+    body: "Enter your height and current weight to continue.",
+    activity: "Choose the option that best matches your week.",
+    goal: "Pick a goal — and a pace if you're losing or gaining.",
+    result: "",
+  };
+
   return (
     <div className="editorial-grain mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
       {/* Progress */}
@@ -216,7 +227,7 @@ export default function OnboardingPage() {
           <button
             aria-label="Back"
             onClick={() => setStep(STEPS[stepIndex - 1])}
-            className="text-muted-foreground"
+            className="text-muted-foreground -ml-2.5 flex size-11 items-center justify-center"
           >
             <ArrowLeft className="size-5" />
           </button>
@@ -488,14 +499,21 @@ export default function OnboardingPage() {
             Start tracking
           </Button>
         ) : (
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={next}
-            disabled={!canContinue[step]}
-          >
-            Continue
-          </Button>
+          <>
+            {!canContinue[step] && stepHint[step] ? (
+              <p className="text-muted-foreground mb-2 text-center text-xs font-medium">
+                {stepHint[step]}
+              </p>
+            ) : null}
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={next}
+              disabled={!canContinue[step]}
+            >
+              Continue
+            </Button>
+          </>
         )}
       </div>
     </div>

@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, TrendingUp } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -131,6 +131,16 @@ export default function HistoryPage() {
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-16 w-full" />
         </div>
+      ) : days.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No meals yet</EmptyTitle>
+            <EmptyDescription>
+              Your logged days — and a calorie chart — will show up here once you
+              log a meal.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <>
           <Card className="block-surface bg-block-lilac editorial-cut border-transparent">
@@ -193,63 +203,56 @@ export default function HistoryPage() {
             </CardContent>
           </Card>
 
-          {days.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>No meals yet</EmptyTitle>
-                <EmptyDescription>
-                  Your logged days will show up here.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {days.map((day) => {
-                const isOpen = expanded === day.date;
-                const overGoal =
-                  goals !== null && day.calories > goals.daily_calories;
-                return (
-                  <Card key={day.date} className="editorial-card py-3">
-                    <CardContent className="flex flex-col gap-2 px-4">
-                      <button
-                        className="flex w-full items-center gap-2"
-                        onClick={() => setExpanded(isOpen ? null : day.date)}
+          <div className="flex flex-col gap-3">
+            {days.map((day) => {
+              const isOpen = expanded === day.date;
+              const overGoal =
+                goals !== null && day.calories > goals.daily_calories;
+              return (
+                <Card key={day.date} className="editorial-card py-3">
+                  <CardContent className="flex flex-col gap-2 px-4">
+                    <button
+                      aria-expanded={isOpen}
+                      className="flex min-h-11 w-full items-center gap-2"
+                      onClick={() => setExpanded(isOpen ? null : day.date)}
+                    >
+                      <span className="flex-1 text-left text-lg font-black tracking-[-0.04em]">
+                        {day.label}
+                      </span>
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 tabular-nums text-sm font-semibold",
+                          overGoal ? "text-destructive" : "text-primary-strong",
+                        )}
                       >
-                        <span className="flex-1 text-left text-lg font-black tracking-[-0.04em]">
-                          {day.label}
-                        </span>
-                        <span
-                          className={cn(
-                            "tabular-nums text-sm font-semibold",
-                            overGoal ? "text-destructive" : "text-primary-strong",
-                          )}
-                        >
-                          {day.calories} kcal
-                        </span>
-                        <ChevronDown
-                          className={cn(
-                            "text-muted-foreground size-4 transition-transform",
-                            isOpen && "rotate-180",
-                          )}
-                        />
-                      </button>
-                      {isOpen ? (
-                        <div className="flex flex-col gap-2">
-                          {day.meals.map((meal) => (
-                            <MealListItem
-                              key={meal.id}
-                              meal={meal}
-                              onClick={() => setSelected(meal)}
-                            />
-                          ))}
-                        </div>
-                      ) : null}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                        {overGoal ? (
+                          <TrendingUp className="size-3.5" aria-label="over goal" />
+                        ) : null}
+                        {day.calories} kcal
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "text-muted-foreground size-4 transition-transform",
+                          isOpen && "rotate-180",
+                        )}
+                      />
+                    </button>
+                    {isOpen ? (
+                      <div className="flex flex-col gap-2">
+                        {day.meals.map((meal) => (
+                          <MealListItem
+                            key={meal.id}
+                            meal={meal}
+                            onClick={() => setSelected(meal)}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </>
       )}
 

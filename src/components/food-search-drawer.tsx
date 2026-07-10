@@ -38,7 +38,10 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
   const [results, setResults] = useState<FoodResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [picked, setPicked] = useState<FoodResult | null>(null);
-  const [grams, setGrams] = useState("100");
+  const [amount, setAmount] = useState("100"); // in the selected unit
+  const [unit, setUnit] = useState<"g" | "oz">("g");
+
+  const grams = unit === "oz" ? Number(amount || 0) * 28.3495 : Number(amount || 0);
 
   useEffect(() => {
     if (!open) return;
@@ -60,16 +63,15 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
 
   function reset() {
     setPicked(null);
-    setGrams("100");
+    setAmount("100");
+    setUnit("g");
     setQuery("");
     setResults([]);
   }
 
   function add() {
-    if (!picked) return;
-    const g = Number(grams);
-    if (!g || g <= 0) return;
-    onAdd(foodToItem(picked, g) as DraftItem);
+    if (!picked || !grams || grams <= 0) return;
+    onAdd(foodToItem(picked, grams) as DraftItem);
     setOpen(false);
     reset();
   }
@@ -82,7 +84,7 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
         onClick={() => setOpen(true)}
       >
         <Database data-icon="inline-start" />
-        Add from food database
+        Add a single ingredient
       </Button>
 
       <Drawer
@@ -116,36 +118,58 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
               <p className="font-medium">{picked.description}</p>
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <label htmlFor="fs-grams" className="text-sm font-medium">
-                    Amount (grams)
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="fs-grams" className="text-sm font-medium">
+                      Amount
+                    </label>
+                    {/* Self-contained unit toggle — grams for people who weigh
+                        food, oz for everyone else. Converted to grams on add. */}
+                    <div className="flex gap-1">
+                      {(["g", "oz"] as const).map((u) => (
+                        <Button
+                          key={u}
+                          variant={unit === u ? "default" : "outline"}
+                          size="sm"
+                          aria-pressed={unit === u}
+                          onClick={() => {
+                            setUnit(u);
+                            setAmount(u === "oz" ? "4" : "100");
+                          }}
+                        >
+                          {u}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                   <Input
                     id="fs-grams"
                     type="number"
-                    inputMode="numeric"
+                    inputMode="decimal"
                     autoFocus
-                    value={grams}
-                    onChange={(e) => setGrams(e.target.value)}
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
                   />
                 </div>
                 <div className="flex gap-1">
-                  {[50, 100, 150, 200].map((g) => (
-                    <Button
-                      key={g}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setGrams(String(g))}
-                    >
-                      {g}
-                    </Button>
-                  ))}
+                  {(unit === "oz" ? [1, 2, 4, 8] : [50, 100, 150, 200]).map(
+                    (a) => (
+                      <Button
+                        key={a}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAmount(String(a))}
+                      >
+                        {a}
+                      </Button>
+                    ),
+                  )}
                 </div>
               </div>
               <p className="text-muted-foreground text-sm">
-                {Math.round((picked.calories * Number(grams || 0)) / 100)} kcal ·
-                P {Math.round((picked.proteinG * Number(grams || 0)) / 100)}g · C{" "}
-                {Math.round((picked.carbsG * Number(grams || 0)) / 100)}g · F{" "}
-                {Math.round((picked.fatG * Number(grams || 0)) / 100)}g
+                {Math.round((picked.calories * grams) / 100)} kcal · P{" "}
+                {Math.round((picked.proteinG * grams) / 100)}g · C{" "}
+                {Math.round((picked.carbsG * grams) / 100)}g · F{" "}
+                {Math.round((picked.fatG * grams) / 100)}g
               </p>
               <div className="flex gap-2">
                 <Button

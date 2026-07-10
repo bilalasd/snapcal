@@ -93,6 +93,7 @@ export default function SettingsPage() {
         body: JSON.stringify(next),
       });
       setGoals(saved);
+      toast.success("Units updated");
     } catch {
       toast.error("Couldn't save units");
     }

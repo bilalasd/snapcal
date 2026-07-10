@@ -270,10 +270,15 @@ export default function WeightPage() {
                     <p className="text-muted-foreground text-xs">
                       {reached ? "Goal reached" : "To go"}
                     </p>
-                    <p className="text-2xl font-black tracking-[-0.06em] tabular-nums">
-                      {reached
-                        ? "🎉 You're there"
-                        : `${Math.round(toGo * 10) / 10} ${unit}`}
+                    <p className="flex items-center gap-1.5 text-2xl font-black tracking-[-0.06em] tabular-nums">
+                      {reached ? (
+                        <>
+                          <CheckCircle2 className="size-6 shrink-0" />
+                          You&apos;re there
+                        </>
+                      ) : (
+                        `${Math.round(toGo * 10) / 10} ${unit}`
+                      )}
                     </p>
                   </div>
                   {eta && !reached ? (
