@@ -97,6 +97,8 @@ test("shot log-weight", async ({ page }) => {
 test("shot analyzing", async ({ page }) => {
   await page.goto("/add");
   await page.waitForLoadState("networkidle");
+  // The note is collapsed by default; reveal it, then a note enables Analyze.
+  await page.getByRole("button", { name: "Add a note" }).click();
   await page
     .getByPlaceholder(/Optional details/i)
     .fill("grilled chicken and rice");

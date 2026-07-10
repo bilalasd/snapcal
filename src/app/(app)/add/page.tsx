@@ -4,9 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Camera, HelpCircle, Mic, MicOff, Search, Star, X } from "lucide-react";
+import {
+  Camera,
+  HelpCircle,
+  Mic,
+  MicOff,
+  Plus,
+  Search,
+  Star,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,6 +72,7 @@ export default function AddMealPage() {
   const [search, setSearch] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showNote, setShowNote] = useState(false);
   const [targetDate, setTargetDate] = useState<string | null>(null); // YYYY-MM-DD, null = today
   const [refineText, setRefineText] = useState(""); // extra details for re-analysis
   const [draft, setDraft] = useState<{
@@ -238,6 +247,33 @@ export default function AddMealPage() {
     });
   }
 
+  // One-tap re-log of a known meal — skips the review step entirely. Nutrition
+  // is already known, so this is the lowest-friction path for habitual meals.
+  async function quickLog(meal: ApiMeal) {
+    const items = itemsToDraft(meal).filter((i) => i.name.trim());
+    if (items.length === 0) return;
+    const eatenAt = targetDate
+      ? new Date(`${targetDate}T12:00:00`).toISOString()
+      : new Date().toISOString();
+    try {
+      await fetchJson("/api/meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: meal.name || "Meal",
+          eaten_at: eatenAt,
+          source: "copy",
+          items,
+          photos: meal.photos.map((p) => ({ url: p.url, pathname: p.pathname })),
+        }),
+      });
+      toast.success(`Logged ${meal.name}`);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't log that");
+    }
+  }
+
   async function save() {
     if (!draft) return;
     const items = draft.items.filter((i) => i.name.trim());
@@ -410,6 +446,13 @@ export default function AddMealPage() {
     new Map(recent.map((m) => [m.name.toLowerCase(), m])).values(),
   ).slice(0, 12);
 
+  // Fast re-log row: favorites first, then distinct recents not already shown.
+  const favNames = new Set(favorites.map((m) => m.name.toLowerCase()));
+  const quickAdd = [
+    ...favorites,
+    ...recentUnique.filter((m) => !favNames.has(m.name.toLowerCase())),
+  ].slice(0, 8);
+
   return (
     <div className="flex flex-col gap-4">
       {analyzing ? (
@@ -432,22 +475,32 @@ export default function AddMealPage() {
         </p>
       ) : null}
 
-      {favorites.length > 0 ? (
-        <div className="flex flex-wrap gap-2 border-y border-foreground/15 py-3">
-          {favorites.map((meal) => {
-            const totals = mealTotals(meal);
-            return (
-              <button
-                key={meal.id}
-                onClick={() => logExisting(meal, "favorite")}
-              >
-                <Badge variant="secondary" className="cursor-pointer rounded-sm py-1.5">
-                  <Star data-icon="inline-start" />
-                  {meal.name} · {totals.calories} kcal
-                </Badge>
-              </button>
-            );
-          })}
+      {quickAdd.length > 0 ? (
+        <div className="border-y border-foreground/15 py-3">
+          <p className="editorial-kicker mb-2">Quick add · tap to log</p>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            {quickAdd.map((meal) => {
+              const totals = mealTotals(meal);
+              const fav = favNames.has(meal.name.toLowerCase());
+              return (
+                <button
+                  key={meal.id}
+                  onClick={() => quickLog(meal)}
+                  className="editorial-card shrink-0 rounded-sm px-3 py-2 text-left transition-transform active:scale-95"
+                >
+                  <span className="flex items-center gap-1 text-sm font-semibold">
+                    {fav ? (
+                      <Star className="text-primary-strong size-3.5" />
+                    ) : null}
+                    {meal.name}
+                  </span>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {totals.calories} kcal
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
@@ -513,32 +566,49 @@ export default function AddMealPage() {
         </button>
       ) : null}
 
-      <div className="editorial-card editorial-cut relative p-3">
-        <p className="editorial-kicker mb-2">Context note</p>
-        <Textarea
-          placeholder='Optional details, e.g. "2 rotis, dal, no butter"'
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={3}
-        />
-        {speechSupported ? (
-          <Button
-            type="button"
-            variant={listening ? "default" : "outline"}
-            size="icon"
-            aria-label={listening ? "Stop dictation" : "Dictate"}
-            className="absolute bottom-2 right-2 rounded-full"
-            onClick={toggleMic}
-          >
-            {listening ? <MicOff /> : <Mic />}
-          </Button>
-        ) : null}
-      </div>
+      {/* Note is optional — keep it out of the happy path until asked for, so
+          the empty state reads as "snap", not "fill out a form". */}
+      {showNote || text ? (
+        <div className="editorial-card editorial-cut relative p-3">
+          <p className="editorial-kicker mb-2">Context note</p>
+          <Textarea
+            placeholder='Optional details, e.g. "2 rotis, dal, no butter"'
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+          />
+          {speechSupported ? (
+            <Button
+              type="button"
+              variant={listening ? "default" : "outline"}
+              size="icon"
+              aria-label={listening ? "Stop dictation" : "Dictate"}
+              className="absolute bottom-2 right-2 rounded-full"
+              onClick={toggleMic}
+            >
+              {listening ? <MicOff /> : <Mic />}
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <Button
+          variant="ghost"
+          className="text-muted-foreground w-full"
+          onClick={() => setShowNote(true)}
+        >
+          <Plus data-icon="inline-start" />
+          Add a note
+        </Button>
+      )}
 
-      <Button size="lg" onClick={analyze} disabled={!canAnalyze || analyzing}>
-        {analyzing ? <Spinner data-icon="inline-start" /> : null}
-        {analyzing ? "Analyzing…" : "Analyze"}
-      </Button>
+      {/* Analyze appears only once there's something to analyze — the camera
+          card is the single obvious CTA in the empty state. */}
+      {canAnalyze ? (
+        <Button size="lg" onClick={analyze} disabled={analyzing}>
+          {analyzing ? <Spinner data-icon="inline-start" /> : null}
+          {analyzing ? "Analyzing…" : "Analyze"}
+        </Button>
+      ) : null}
 
       <FoodSearchDrawer
         onAdd={(item) =>
@@ -561,21 +631,25 @@ export default function AddMealPage() {
             className="pl-9"
           />
         </div>
-        {recentUnique.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            <h2 className="text-muted-foreground text-sm font-medium">
-              {search.trim() ? "Results" : "Recent meals"}
-            </h2>
-            {recentUnique.map((meal) => (
-              <MealListItem
-                key={meal.id}
-                meal={meal}
-                onClick={() => logExisting(meal, "copy")}
-              />
-            ))}
-          </div>
-        ) : search.trim() ? (
-          <p className="text-muted-foreground text-sm">No meals found.</p>
+        {/* The quick-add row already covers re-logging recents, so the list
+            here only appears while actively searching for a specific meal. */}
+        {search.trim() ? (
+          recentUnique.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              <h2 className="text-muted-foreground text-sm font-medium">
+                Results
+              </h2>
+              {recentUnique.map((meal) => (
+                <MealListItem
+                  key={meal.id}
+                  meal={meal}
+                  onClick={() => logExisting(meal, "copy")}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">No meals found.</p>
+          )
         ) : null}
       </div>
     </div>
