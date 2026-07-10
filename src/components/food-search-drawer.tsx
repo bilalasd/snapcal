@@ -92,7 +92,14 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
           if (!o) reset();
         }}
       >
-        <DrawerContent>
+        <DrawerContent
+          // The search view fills a tall sheet; the "how much?" step stays auto.
+          style={
+            picked
+              ? undefined
+              : ({ "--drawer-height": "88dvh" } as React.CSSProperties)
+          }
+        >
           <DrawerHeader>
             <DrawerTitle>
               {picked ? "How much?" : "Search foods"}
@@ -154,7 +161,7 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-3 px-4 pb-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4">
               <div className="relative">
                 <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
                 <Input
@@ -165,7 +172,7 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
                   className="pl-9"
                 />
               </div>
-              <div className="flex max-h-[45dvh] flex-col gap-1 overflow-y-auto">
+              <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
                 {loading ? (
                   <div className="text-muted-foreground flex items-center gap-2 p-3 text-sm">
                     <Spinner /> Searching…

@@ -4,13 +4,13 @@ import Image from "next/image";
 import { Moon, Sun, Sunrise, Sunset } from "lucide-react";
 import { mealTotals, type ApiMeal } from "@/lib/client";
 
-// A time-of-day glyph + tint so a list of photo-less meals isn't a wall of
-// identical icons — breakfast/lunch/dinner/night read at a glance.
+// A time-of-day glyph on a pastel color block, so a list of photo-less meals
+// reads at a glance (breakfast/lunch/dinner/night) and carries Figma's color.
 function mealGlyph(hour: number) {
-  if (hour < 11) return { Icon: Sunrise, tint: "text-chart-4" }; // morning
-  if (hour < 16) return { Icon: Sun, tint: "text-primary-strong" }; // midday
-  if (hour < 21) return { Icon: Sunset, tint: "text-chart-4" }; // evening
-  return { Icon: Moon, tint: "text-chart-2" }; // night
+  if (hour < 11) return { Icon: Sunrise, block: "bg-block-cream" }; // morning
+  if (hour < 16) return { Icon: Sun, block: "bg-block-lime" }; // midday
+  if (hour < 21) return { Icon: Sunset, block: "bg-block-coral" }; // evening
+  return { Icon: Moon, block: "bg-block-lilac" }; // night
 }
 
 interface MealListItemProps {
@@ -26,7 +26,7 @@ export function MealListItem({ meal, onClick, action }: MealListItemProps) {
     hour: "numeric",
     minute: "2-digit",
   });
-  const { Icon: TimeIcon, tint } = mealGlyph(eaten.getHours());
+  const { Icon: TimeIcon, block } = mealGlyph(eaten.getHours());
 
   return (
     <article
@@ -35,21 +35,21 @@ export function MealListItem({ meal, onClick, action }: MealListItemProps) {
     >
       <div className="flex items-stretch gap-3 p-3">
         {meal.photos.length > 0 ? (
-          <div className="photo-frame h-20 w-16 shrink-0 -rotate-1">
+          <div className="size-16 shrink-0 overflow-hidden rounded-2xl">
             <Image
               src={meal.photos[0].url}
               alt=""
               width={80}
-              height={104}
+              height={80}
               unoptimized
               className="size-full object-cover"
             />
           </div>
         ) : (
           <span
-            className={`flex h-20 w-16 shrink-0 items-center justify-center bg-muted ring-1 ring-foreground/15 ${tint}`}
+            className={`flex size-16 shrink-0 items-center justify-center rounded-2xl text-black ${block}`}
           >
-            <TimeIcon className="size-6" />
+            <TimeIcon className="size-7" strokeWidth={2} />
           </span>
         )}
         <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
