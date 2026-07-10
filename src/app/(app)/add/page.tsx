@@ -333,7 +333,7 @@ export default function AddMealPage() {
         ) : null}
 
         {draft.question ? (
-          <div className="editorial-card editorial-cut border-2 border-primary/60 bg-primary/5 p-4">
+          <div className="block-surface bg-block-lilac editorial-cut p-4">
             <p className="editorial-kicker flex items-center gap-1.5 text-primary-strong">
               <HelpCircle className="size-4" /> Quick question
             </p>
@@ -552,9 +552,9 @@ export default function AddMealPage() {
       {photos.length < 3 ? (
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="editorial-card editorial-cut flex h-44 flex-col items-center justify-center gap-3 border-2 border-dashed border-primary/45 text-accent-foreground transition-colors active:bg-accent"
+          className="block-surface bg-block-mint editorial-cut flex h-44 flex-col items-center justify-center gap-3 transition-opacity active:opacity-90"
         >
-          <span className="flex size-16 items-center justify-center rounded-none bg-primary text-primary-foreground">
+          <span className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <Camera className="size-6" />
           </span>
           <span className="text-center text-xl font-black tracking-[-0.05em]">

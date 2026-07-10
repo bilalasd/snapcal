@@ -415,7 +415,7 @@ export default function OnboardingPage() {
           title="Your plan is ready 🎉"
           subtitle="Here's what the numbers say. Log your meals and SnapCal will check this against your real results."
         >
-          <Card className="editorial-card editorial-cut">
+          <Card className="block-surface bg-block-lime editorial-cut border-transparent">
             <CardContent className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <span className="bg-accent text-accent-foreground flex size-10 items-center justify-center rounded-full">

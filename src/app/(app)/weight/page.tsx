@@ -179,7 +179,7 @@ export default function WeightPage() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <Card className="editorial-card editorial-cut">
+            <Card className="block-surface bg-block-cream editorial-cut border-transparent">
               <CardHeader className="flex-row items-center justify-between">
                 <div>
                   <p className="editorial-kicker">Measured line</p>
@@ -357,7 +357,7 @@ export default function WeightPage() {
           ) : null}
 
           {data.recap ? (
-            <Card className="editorial-card editorial-cut">
+            <Card className="block-surface bg-block-coral editorial-cut border-transparent">
               <CardHeader>
                 <CardTitle className="text-2xl font-black tracking-[-0.06em]">
                   Weekly recap

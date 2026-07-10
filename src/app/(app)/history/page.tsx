@@ -133,7 +133,7 @@ export default function HistoryPage() {
         </div>
       ) : (
         <>
-          <Card className="editorial-card editorial-cut">
+          <Card className="block-surface bg-block-lilac editorial-cut border-transparent">
             <CardHeader className="flex-row items-center justify-between">
               <div>
                 <p className="editorial-kicker">Plate index</p>

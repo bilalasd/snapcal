@@ -141,7 +141,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
 
   return (
     <>
-      <Card>
+      <Card className="block-surface bg-block-cream border-transparent">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="size-4" />
