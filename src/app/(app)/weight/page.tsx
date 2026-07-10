@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/card";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -38,8 +40,8 @@ import { fetchJson, tzOffsetMinutes } from "@/lib/client";
 const KG_PER_LB = 0.453592;
 
 const chartConfig = {
-  weightKg: { label: "Weight", color: "var(--chart-2)" },
-  trendKg: { label: "Trend", color: "var(--chart-1)" },
+  weight: { label: "Measured", color: "var(--chart-2)" },
+  trend: { label: "Trend", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 interface TrendsResponse {
@@ -214,14 +216,15 @@ export default function WeightPage() {
                       width={36}
                     />
                     <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
                     <Scatter
                       dataKey="weight"
-                      fill="var(--color-weightKg)"
+                      fill="var(--color-weight)"
                       opacity={0.5}
                     />
                     <Line
                       dataKey="trend"
-                      stroke="var(--color-trendKg)"
+                      stroke="var(--color-trend)"
                       strokeWidth={2.5}
                       dot={false}
                       type="monotone"

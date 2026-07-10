@@ -84,6 +84,11 @@ export interface MealDraft {
   source: "photo" | "text" | "favorite" | "copy";
   items: DraftItem[];
   photos?: DraftPhoto[];
+  // Optional: a pending clarifying question + tappable answers, so a restored
+  // draft can show the review's question card (used by the "log again" flow
+  // and the review screenshot).
+  question?: string;
+  choices?: string[];
 }
 
 /** Convert an ApiMeal's items into editable DraftItems. */

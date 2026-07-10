@@ -178,7 +178,7 @@ export default function SettingsPage() {
                     ? `= ${goals.daily_protein_g}g protein · ${goals.daily_carbs_g}g carbs · ${goals.daily_fat_g}g fat`
                     : `Percentages add up to ${pctTotal}% — they need to total 100%.`}
                 </p>
-                <Button onClick={save} disabled={saving}>
+                <Button onClick={save} disabled={saving || pctTotal !== 100}>
                   {saving ? <Spinner data-icon="inline-start" /> : null}
                   Save targets
                 </Button>

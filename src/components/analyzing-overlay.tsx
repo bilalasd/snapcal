@@ -51,7 +51,7 @@ export function AnalyzingOverlay({ photoUrl }: { photoUrl?: string }) {
             className="object-cover"
           />
         ) : (
-          <div className="flex size-full items-center justify-center text-primary">
+          <div className="flex size-full items-center justify-center text-primary-strong">
             <UtensilsCrossed className="size-16" strokeWidth={1.6} />
           </div>
         )}
@@ -64,7 +64,7 @@ export function AnalyzingOverlay({ photoUrl }: { photoUrl?: string }) {
         <p className="text-2xl font-black tracking-[-0.05em]">
           Reading your plate…
         </p>
-        <p className="editorial-kicker flex items-center gap-2 text-primary">
+        <p className="editorial-kicker flex items-center gap-2 text-primary-strong">
           <span className="size-2 animate-pulse rounded-full bg-primary" />
           {STATUS_LINES[step]}
         </p>

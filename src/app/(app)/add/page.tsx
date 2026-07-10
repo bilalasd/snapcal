@@ -87,6 +87,8 @@ export default function AddMealPage() {
         items: stashed.items,
         source: stashed.source,
         photos: stashed.photos ?? [],
+        question: stashed.question || undefined,
+        choices: stashed.choices?.length ? stashed.choices : undefined,
       });
     }
     fetchJson<ApiMeal[]>("/api/meals?favorites=true")
@@ -288,13 +290,15 @@ export default function AddMealPage() {
           <p className="editorial-kicker">AI readback</p>
           <h1 className="editorial-headline mt-1">Review the plate</h1>
         </section>
-        <div className="editorial-card editorial-cut p-3">
-          <PhotoStrip urls={draftPhotoUrls} />
-        </div>
+        {draftPhotoUrls.length > 0 ? (
+          <div className="editorial-card editorial-cut p-3">
+            <PhotoStrip urls={draftPhotoUrls} />
+          </div>
+        ) : null}
 
         {draft.question ? (
           <div className="editorial-card editorial-cut border-2 border-primary/60 bg-primary/5 p-4">
-            <p className="editorial-kicker flex items-center gap-1.5 text-primary">
+            <p className="editorial-kicker flex items-center gap-1.5 text-primary-strong">
               <HelpCircle className="size-4" /> Quick question
             </p>
             <p className="mt-1.5 text-lg font-black tracking-[-0.03em]">
@@ -314,10 +318,29 @@ export default function AddMealPage() {
                 ))}
               </div>
             ) : null}
-            <p className="text-muted-foreground mt-3 text-xs">
-              Tap an answer to refine, or add details in the correction note
-              below.
-            </p>
+            <div className="relative mt-3">
+              <Textarea
+                placeholder={
+                  draft.choices?.length
+                    ? "…or type your own answer"
+                    : "Type your answer…"
+                }
+                value={refineText}
+                onChange={(e) => setRefineText(e.target.value)}
+                rows={2}
+                disabled={analyzing}
+                className="bg-card"
+              />
+              <Button
+                size="sm"
+                className="absolute bottom-2 right-2"
+                onClick={reanalyze}
+                disabled={analyzing || !refineText.trim()}
+              >
+                {analyzing ? <Spinner data-icon="inline-start" /> : null}
+                Send
+              </Button>
+            </div>
           </div>
         ) : null}
 
@@ -328,7 +351,7 @@ export default function AddMealPage() {
           onItemsChange={(items) => setDraft({ ...draft, items })}
         />
 
-        {canReanalyze ? (
+        {canReanalyze && !draft.question ? (
           <div className="editorial-card editorial-cut relative p-3">
             <p className="editorial-kicker mb-2">Correction note</p>
             <Textarea
@@ -379,6 +402,13 @@ export default function AddMealPage() {
   }
 
   const canAnalyze = photos.length > 0 || text.trim().length > 0;
+
+  // The recent list comes back newest-first with the same meal logged many
+  // times; collapse to one card per distinct name and cap it so it stays a
+  // quick-pick shortcut, not an endless scroll.
+  const recentUnique = Array.from(
+    new Map(recent.map((m) => [m.name.toLowerCase(), m])).values(),
+  ).slice(0, 12);
 
   return (
     <div className="flex flex-col gap-4">
@@ -453,7 +483,7 @@ export default function AddMealPage() {
               />
               <button
                 aria-label="Remove photo"
-                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background"
+                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background after:absolute after:-inset-3 after:content-['']"
                 onClick={() => {
                   URL.revokeObjectURL(photo.previewUrl);
                   setPhotos(photos.filter((_, i) => i !== index));
@@ -531,12 +561,12 @@ export default function AddMealPage() {
             className="pl-9"
           />
         </div>
-        {recent.length > 0 ? (
+        {recentUnique.length > 0 ? (
           <div className="flex flex-col gap-2">
             <h2 className="text-muted-foreground text-sm font-medium">
               {search.trim() ? "Results" : "Recent meals"}
             </h2>
-            {recent.map((meal) => (
+            {recentUnique.map((meal) => (
               <MealListItem
                 key={meal.id}
                 meal={meal}

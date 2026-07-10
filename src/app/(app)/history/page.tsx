@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ReferenceLine, XAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { ChevronDown } from "lucide-react";
 import {
   Card,
@@ -156,12 +163,24 @@ export default function HistoryPage() {
                     axisLine={false}
                     interval="preserveStartEnd"
                   />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                    tickFormatter={(v) => `${Math.round(v / 100) / 10}k`}
+                  />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   {goals ? (
                     <ReferenceLine
                       y={goals.daily_calories}
                       strokeDasharray="4 4"
+                      ifOverflow="extendDomain"
                       className="stroke-muted-foreground"
+                      label={{
+                        value: "Goal",
+                        position: "insideTopRight",
+                        className: "fill-muted-foreground text-[10px]",
+                      }}
                     />
                   ) : null}
                   <Bar
@@ -202,7 +221,7 @@ export default function HistoryPage() {
                         <span
                           className={cn(
                             "tabular-nums text-sm font-semibold",
-                            overGoal ? "text-destructive" : "text-primary",
+                            overGoal ? "text-destructive" : "text-primary-strong",
                           )}
                         >
                           {day.calories} kcal

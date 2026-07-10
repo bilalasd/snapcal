@@ -1,17 +1,13 @@
 "use client";
 
-import { BadgeCheck, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { BadgeCheck, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import type { DraftItem } from "@/lib/client";
 
 function round1(n: number) {
@@ -55,9 +51,20 @@ export function MealReview({
   items,
   onItemsChange,
 }: MealReviewProps) {
+  // Accordion: one item's editor open at a time. Items read as a tidy summary
+  // list by default; tap a row to reveal the number fields (progressive
+  // disclosure) so a 4-item meal isn't a wall of inputs.
+  const [open, setOpen] = useState<number | null>(null);
+
   function updateItem(index: number, patch: Partial<DraftItem>) {
     onItemsChange(
       items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+    );
+  }
+
+  function scale(index: number, factor: number) {
+    onItemsChange(
+      items.map((it, i) => (i === index ? scaleDraftItem(it, factor) : it)),
     );
   }
 
@@ -83,98 +90,138 @@ export function MealReview({
           />
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {items.map((item, index) => (
-          <div key={index} className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <Input
-                aria-label="Food name"
-                value={item.name}
-                onChange={(e) => updateItem(index, { name: e.target.value })}
-                className="flex-1"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Remove ${item.name}`}
-                onClick={() =>
-                  onItemsChange(items.filter((_, i) => i !== index))
-                }
+      <CardContent className="flex flex-col gap-1">
+        {items.map((item, index) => {
+          const isOpen = open === index;
+          return (
+            <div
+              key={index}
+              className="border-b border-foreground/10 last:border-0"
+            >
+              {/* Summary row — tap to edit */}
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setOpen(isOpen ? null : index)}
+                className="flex w-full items-center gap-3 py-3 text-left"
               >
-                <Trash2 />
-              </Button>
-            </div>
-            {item.usda_match ? (
-              <Badge variant="secondary" className="w-fit gap-1">
-                <BadgeCheck data-icon="inline-start" />
-                USDA verified · {item.usda_match}
-              </Badge>
-            ) : null}
-            <div className="flex items-center gap-2">
-              <Input
-                aria-label="Portion"
-                value={item.portion}
-                onChange={(e) => updateItem(index, { portion: e.target.value })}
-                className="flex-1 text-sm"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onItemsChange(
-                    items.map((it, i) =>
-                      i === index ? scaleDraftItem(it, 0.5) : it,
-                    ),
-                  )
-                }
-              >
-                ×½
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onItemsChange(
-                    items.map((it, i) =>
-                      i === index ? scaleDraftItem(it, 2) : it,
-                    ),
-                  )
-                }
-              >
-                ×2
-              </Button>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {macroFields.map(({ key, label, step }) => (
-                <div key={key} className="flex flex-col gap-1">
-                  <Label className="text-muted-foreground text-xs">
-                    {label}
-                  </Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    step={step}
-                    min={0}
-                    value={item[key]}
-                    onChange={(e) =>
-                      updateItem(index, {
-                        [key]:
-                          key === "calories"
-                            ? Math.max(0, Math.round(Number(e.target.value)))
-                            : Math.max(0, Number(e.target.value)),
-                      })
-                    }
-                  />
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1 truncate font-semibold">
+                    {item.name || "Untitled item"}
+                    {item.usda_match ? (
+                      <BadgeCheck className="text-primary-strong size-3.5 shrink-0" />
+                    ) : null}
+                  </p>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {[
+                      item.portion,
+                      `P ${round1(item.protein_g)} · C ${round1(item.carbs_g)} · F ${round1(item.fat_g)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
                 </div>
-              ))}
+                <span className="tabular-nums font-bold">
+                  {item.calories}
+                  <span className="text-muted-foreground ml-1 text-xs font-medium">
+                    kcal
+                  </span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "text-muted-foreground size-4 shrink-0 transition-transform",
+                    isOpen && "rotate-180",
+                  )}
+                />
+              </button>
+
+              {/* Editor — revealed on demand */}
+              {isOpen ? (
+                <div className="flex flex-col gap-2 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      aria-label="Food name"
+                      value={item.name}
+                      onChange={(e) =>
+                        updateItem(index, { name: e.target.value })
+                      }
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Remove ${item.name}`}
+                      onClick={() =>
+                        onItemsChange(items.filter((_, i) => i !== index))
+                      }
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                  {item.usda_match ? (
+                    <Badge variant="secondary" className="w-fit gap-1">
+                      <BadgeCheck data-icon="inline-start" />
+                      USDA verified · {item.usda_match}
+                    </Badge>
+                  ) : null}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      aria-label="Portion"
+                      value={item.portion}
+                      onChange={(e) =>
+                        updateItem(index, { portion: e.target.value })
+                      }
+                      className="flex-1 text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => scale(index, 0.5)}
+                    >
+                      ×½
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => scale(index, 2)}
+                    >
+                      ×2
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {macroFields.map(({ key, label, step }) => (
+                      <div key={key} className="flex flex-col gap-1">
+                        <Label className="text-muted-foreground text-xs">
+                          {label}
+                        </Label>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          step={step}
+                          min={0}
+                          value={item[key]}
+                          onChange={(e) =>
+                            updateItem(index, {
+                              [key]:
+                                key === "calories"
+                                  ? Math.max(0, Math.round(Number(e.target.value)))
+                                  : Math.max(0, Number(e.target.value)),
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
-            {index < items.length - 1 ? <Separator /> : null}
-          </div>
-        ))}
+          );
+        })}
 
         <Button
           variant="outline"
-          onClick={() =>
+          className="mt-3"
+          onClick={() => {
             onItemsChange([
               ...items,
               {
@@ -185,15 +232,15 @@ export function MealReview({
                 carbs_g: 0,
                 fat_g: 0,
               },
-            ])
-          }
+            ]);
+            setOpen(items.length); // open the new item for entry
+          }}
         >
           <Plus data-icon="inline-start" />
           Add item
         </Button>
 
-        <Separator />
-        <div className="text-sm">
+        <div className="mt-3 border-t border-foreground/10 pt-3 text-sm">
           <span className="font-semibold">{totals.calories} kcal</span>
           <span className="text-muted-foreground">
             {" "}

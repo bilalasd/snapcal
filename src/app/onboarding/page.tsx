@@ -445,7 +445,7 @@ export default function OnboardingPage() {
                         } to ${goalKind} ${kgToDisplay(Math.abs(effectiveRate), imperial)}/week`}
                   </p>
                 </div>
-                <span className="text-primary text-2xl font-black tracking-[-0.06em] tabular-nums">
+                <span className="text-primary-strong text-2xl font-black tracking-[-0.06em] tabular-nums">
                   {plan.intake.toLocaleString()} kcal
                 </span>
               </div>

@@ -113,13 +113,16 @@ export default function TodayPage() {
         setGoals(g);
       })
       .catch(() => {});
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Last 7 calendar days inclusive of today (6 days back), so a full week of
+    // logging reads "7/7" — not "8/7" from a rolling 7×24h window spilling into
+    // an 8th local date.
+    const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
     fetchMealsRange(weekAgo, new Date())
       .then((weekMeals) => {
         const days = new Set(
           weekMeals.map((m) => localDateString(new Date(m.eatenAt))),
         );
-        setStreak(days.size);
+        setStreak(Math.min(days.size, 7));
       })
       .catch(() => {});
   }, [router]);
@@ -183,7 +186,7 @@ export default function TodayPage() {
       <div className="editorial-rule flex items-center justify-between pt-3">
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={goPrev}
           aria-label="Previous day"
         >
@@ -194,7 +197,7 @@ export default function TodayPage() {
         </span>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={goNext}
           disabled={isToday}
           aria-label="Next day"
