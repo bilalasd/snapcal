@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { scalePortion } from "@/lib/analysis";
 import type { DraftItem } from "@/lib/client";
 
 function round1(n: number) {
@@ -20,6 +21,7 @@ const scaleOpt = (v: number | null | undefined, factor: number) =>
 export function scaleDraftItem(item: DraftItem, factor: number): DraftItem {
   return {
     ...item,
+    portion: scalePortion(item.portion, factor),
     calories: Math.round(item.calories * factor),
     protein_g: round1(item.protein_g * factor),
     carbs_g: round1(item.carbs_g * factor),

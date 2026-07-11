@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analysisSchema, scaleItem, sumItems } from "./analysis";
+import { analysisSchema, scaleItem, scalePortion, sumItems } from "./analysis";
 
 const item = {
   name: "Cooked rice",
@@ -14,6 +14,18 @@ const item = {
   sugar_g: 0.1,
   sodium_mg: 2,
 };
+
+describe("scalePortion", () => {
+  it("scales every number in the portion string", () => {
+    expect(scalePortion("1 cup (1.5 oz)", 2)).toBe("2 cup (3 oz)");
+    expect(scalePortion("2 rotis", 0.5)).toBe("1 rotis");
+    expect(scalePortion("4 crackers total", 0.5)).toBe("2 crackers total");
+  });
+
+  it("leaves number-free portions untouched", () => {
+    expect(scalePortion("a handful", 2)).toBe("a handful");
+  });
+});
 
 describe("analysisSchema", () => {
   it("accepts a valid analysis", () => {

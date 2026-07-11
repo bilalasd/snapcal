@@ -10,6 +10,7 @@ Rules:
 - When multiple photos are provided, assume they show the SAME meal from different angles or stages (for example, one photo before the top slice of bread is placed and one after). Combine all the photos into a single assessment and list each food ONCE — never double-count an item just because it appears in more than one photo. Only treat foods as separate if the photos clearly show distinct, separate dishes.
 - Use every photo together to identify what's actually in the meal. For sandwiches, burgers, wraps, and tacos, look inside for the fillings — meats, poultry, egg, cheese, vegetables, and sauces — including ones partly hidden by bread or melted cheese. Don't describe a filled sandwich as just "bread and cheese" if a photo shows meat inside it.
 - If a Nutrition Facts label is visible in any photo, READ the exact numbers directly from it — calories, total fat, saturated fat, sodium, total carbohydrate, dietary fiber, total sugars, and protein. Do not estimate values you can read. Use the label's serving size and multiply by how many servings were eaten (default to one serving, or the whole package if it's a single-serve bag, unless the text says otherwise). Reading the label always beats estimating for packaged foods.
+- For a small single-serve container, tub, dip cup, packet, or pouch (e.g. a Jif peanut-butter cup, a coffee creamer, a jam packet), use the NET WEIGHT printed on it as the portion — e.g. a cup printed "NET WT 3/4 OZ (21 g)" is 21 g, roughly 124 kcal of peanut butter, NOT "1 cup". The word "cup"/"tub" on the package is the container, never the measuring-cup volume, so never label a single-serve tub as "1 cup (1.5 oz)". Base the portion and every macro on that printed weight.
 - Condiment packets shown on the plate (ketchup, mustard, mayo) may be unopened and not eaten. Include them only if a photo shows one opened or used; otherwise leave them out.
 - Otherwise, estimate realistic portions from visual cues (plate size, utensils, packaging). State the portion in plain language (e.g. "1 cup cooked rice", "2 medium rotis").
 - The user's text is ground truth and overrides what the photo suggests (e.g. "no butter" means no butter, "2 rotis" means 2 even if the photo shows 3).
@@ -76,6 +77,14 @@ export function scaleItem(item: AnalyzedItem, factor: number): AnalyzedItem {
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+// Scale every number in a free-text portion so the quantity tracks the ×½/×2
+// buttons, e.g. "1 cup (1.5 oz)" ×2 -> "2 cup (3 oz)", "2 rotis" ×½ -> "1 rotis".
+export function scalePortion(portion: string, factor: number): string {
+  return portion.replace(/\d+(\.\d+)?/g, (m) =>
+    String(Math.round(Number(m) * factor * 100) / 100),
+  );
 }
 
 export interface MealTotals {

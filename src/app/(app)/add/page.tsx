@@ -499,21 +499,24 @@ export default function AddMealPage() {
       {photos.length > 0 ? (
         <div className="flex gap-3">
           {photos.map((photo, index) => (
-            <div
-              key={index}
-              className={cn(
-                "photo-frame relative h-28 w-24",
-                index % 2 === 0 ? "-rotate-2" : "rotate-2",
-              )}
-            >
-              <Image
-                src={photo.previewUrl}
-                alt={`Photo ${index + 1}`}
-                width={112}
-                height={132}
-                unoptimized
-                className="size-full object-cover"
-              />
+            // Outer wrapper doesn't clip, so the remove badge sitting outside
+            // the frame stays fully visible (the frame itself is overflow-hidden).
+            <div key={index} className="relative">
+              <div
+                className={cn(
+                  "photo-frame h-28 w-24",
+                  index % 2 === 0 ? "-rotate-2" : "rotate-2",
+                )}
+              >
+                <Image
+                  src={photo.previewUrl}
+                  alt={`Photo ${index + 1}`}
+                  width={112}
+                  height={132}
+                  unoptimized
+                  className="size-full object-cover"
+                />
+              </div>
               <button
                 aria-label="Remove photo"
                 className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background after:absolute after:-inset-3 after:content-['']"
