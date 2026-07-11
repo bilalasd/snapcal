@@ -475,7 +475,7 @@ export default function AddMealPage() {
                     {meal.name}
                   </span>
                   <span className="text-muted-foreground text-xs tabular-nums">
-                    {totals.calories} kcal
+                    {totals.calories} cal
                   </span>
                 </button>
               );

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { scalePortion } from "@/lib/analysis";
@@ -41,7 +42,7 @@ interface MealReviewProps {
 }
 
 const macroFields = [
-  { key: "calories", label: "kcal", step: 1 },
+  { key: "calories", label: "cal", step: 1 },
   { key: "protein_g", label: "P (g)", step: 0.5 },
   { key: "carbs_g", label: "C (g)", step: 0.5 },
   { key: "fat_g", label: "F (g)", step: 0.5 },
@@ -84,11 +85,13 @@ export function MealReview({
     <Card>
       <CardHeader>
         <CardTitle>
-          <Input
+          {/* Wraps to fit long names, centered, no border box. */}
+          <Textarea
             aria-label="Meal name"
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
-            className="text-base font-semibold"
+            rows={1}
+            className="min-h-0 resize-none border-0 bg-transparent p-0 text-center text-base font-semibold shadow-none [field-sizing:content] focus-visible:ring-0"
           />
         </CardTitle>
       </CardHeader>
@@ -126,7 +129,7 @@ export function MealReview({
                 <span className="tabular-nums font-bold">
                   {item.calories}
                   <span className="text-muted-foreground ml-1 text-xs font-medium">
-                    kcal
+                    cal
                   </span>
                 </span>
                 <ChevronDown
@@ -247,7 +250,7 @@ export function MealReview({
         </Button>
 
         <div className="mt-3 border-t border-foreground/10 pt-3 text-sm">
-          <span className="font-semibold">{totals.calories} kcal</span>
+          <span className="font-semibold">{totals.calories} cal</span>
           <span className="text-muted-foreground">
             {" "}
             · P {totals.protein}g · C {totals.carbs}g · F {totals.fat}g

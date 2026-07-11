@@ -148,7 +148,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
             Your goal
           </CardTitle>
           <CardDescription>
-            {summary} · eating {goals.daily_calories.toLocaleString()} kcal/day
+            {summary} · eating {goals.daily_calories.toLocaleString()} cal/day
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -217,7 +217,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
                 ) : null}
                 <Field>
                   <FieldLabel htmlFor="goal-cal">
-                    Daily calories (kcal)
+                    Daily calories (cal)
                   </FieldLabel>
                   <Input
                     id="goal-cal"
@@ -280,7 +280,7 @@ export function GoalCard({ goals, onGoalsSaved }: GoalCardProps) {
                 ? "Maintain current weight"
                 : `${direction === "lose" ? "Lose" : "Gain"} ${Math.abs(Number(rateInput) || 0)} ${unit}/week`}
               {" · "}eating {Math.round(Number(caloriesInput)).toLocaleString()}{" "}
-              kcal/day. This replaces your current plan.
+              cal/day. This replaces your current plan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

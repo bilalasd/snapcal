@@ -229,7 +229,7 @@ export default function TodayPage() {
                     {Math.abs(remaining).toLocaleString()}
                   </p>
                   <p className="text-sm font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                    kcal {remaining >= 0 ? "left" : "over"}
+                    cal {remaining >= 0 ? "left" : "over"}
                   </p>
                 </div>
                 <p className="mt-4 text-xs font-semibold text-muted-foreground">

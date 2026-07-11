@@ -439,7 +439,7 @@ export default function OnboardingPage() {
                   </p>
                 </div>
                 <span className="text-2xl font-black tracking-[-0.06em] tabular-nums">
-                  {tdee.toLocaleString()} kcal
+                  {tdee.toLocaleString()} cal
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -451,13 +451,13 @@ export default function OnboardingPage() {
                   <p className="text-muted-foreground text-xs">
                     {goalKind === "maintain"
                       ? "to hold steady"
-                      : `a ${Math.abs(deficitForRate(effectiveRate)).toLocaleString()} kcal/day ${
+                      : `a ${Math.abs(deficitForRate(effectiveRate)).toLocaleString()} cal/day ${
                           effectiveRate < 0 ? "deficit" : "surplus"
                         } to ${goalKind} ${kgToDisplay(Math.abs(effectiveRate), imperial)}/week`}
                   </p>
                 </div>
                 <span className="text-primary-strong text-2xl font-black tracking-[-0.06em] tabular-nums">
-                  {plan.intake.toLocaleString()} kcal
+                  {plan.intake.toLocaleString()} cal
                 </span>
               </div>
               {plan.floored ? (

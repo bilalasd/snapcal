@@ -166,7 +166,7 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
                 </div>
               </div>
               <p className="text-muted-foreground text-sm">
-                {Math.round((picked.calories * grams) / 100)} kcal · P{" "}
+                {Math.round((picked.calories * grams) / 100)} cal · P{" "}
                 {Math.round((picked.proteinG * grams) / 100)}g · C{" "}
                 {Math.round((picked.carbsG * grams) / 100)}g · F{" "}
                 {Math.round((picked.fatG * grams) / 100)}g
@@ -217,7 +217,7 @@ export function FoodSearchDrawer({ onAdd }: FoodSearchDrawerProps) {
                         {food.description}
                       </span>
                       <span className="text-muted-foreground ml-2 shrink-0 text-xs tabular-nums">
-                        {Math.round(food.calories)} kcal/100g
+                        {Math.round(food.calories)} cal/100g
                       </span>
                     </button>
                   ))

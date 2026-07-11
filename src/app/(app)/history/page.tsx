@@ -228,7 +228,7 @@ export default function HistoryPage() {
                         {overGoal ? (
                           <TrendingUp className="size-3.5" aria-label="over goal" />
                         ) : null}
-                        {day.calories} kcal
+                        {day.calories} cal
                       </span>
                       <ChevronDown
                         className={cn(

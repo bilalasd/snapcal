@@ -67,7 +67,7 @@ export function MealListItem({ meal, onClick, action }: MealListItemProps) {
         <span className="flex min-w-16 flex-col items-end justify-center border-l border-foreground/15 pl-3 text-right text-2xl font-black tabular-nums tracking-[-0.06em]">
           {totals.calories}
           <span className="text-[0.62rem] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">
-            kcal
+            cal
           </span>
         </span>
         {action}

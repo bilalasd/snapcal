@@ -311,7 +311,7 @@ export default function WeightPage() {
                   Maintenance (measured)
                 </p>
                 <p className="text-2xl font-black tracking-[-0.06em] tabular-nums">
-                  {data.balance ? `${data.balance.tdeeKcal} kcal` : "—"}
+                  {data.balance ? `${data.balance.tdeeKcal} cal` : "—"}
                 </p>
               </CardContent>
             </Card>
@@ -332,9 +332,9 @@ export default function WeightPage() {
               <AlertTitle>On track</AlertTitle>
               <AlertDescription>
                 You&apos;re averaging a{" "}
-                {Math.abs(data.verdict.actualDeficitKcal)} kcal/day{" "}
+                {Math.abs(data.verdict.actualDeficitKcal)} cal/day{" "}
                 {data.verdict.actualDeficitKcal >= 0 ? "deficit" : "surplus"},
-                right around the {data.verdict.neededDeficitKcal} kcal/day
+                right around the {data.verdict.neededDeficitKcal} cal/day
                 needed for your target rate.
               </AlertDescription>
             </Alert>
@@ -345,9 +345,9 @@ export default function WeightPage() {
               <AlertDescription>
                 Your average{" "}
                 {data.verdict.actualDeficitKcal >= 0 ? "deficit" : "surplus"} is{" "}
-                {Math.abs(data.verdict.actualDeficitKcal)} kcal/day; your target
-                rate needs {data.verdict.neededDeficitKcal} kcal/day. Eat about{" "}
-                {Math.abs(data.verdict.adjustKcal)} kcal/day{" "}
+                {Math.abs(data.verdict.actualDeficitKcal)} cal/day; your target
+                rate needs {data.verdict.neededDeficitKcal} cal/day. Eat about{" "}
+                {Math.abs(data.verdict.adjustKcal)} cal/day{" "}
                 {data.verdict.adjustKcal > 0 ? "less" : "more"} to hit it.
               </AlertDescription>
             </Alert>
@@ -357,7 +357,7 @@ export default function WeightPage() {
             <p className="text-muted-foreground text-xs">
               Based on {data.balance.loggedDays} logged days and{" "}
               {data.balance.weighIns} weigh-ins over the last ~2 weeks. Avg
-              intake {data.balance.avgIntakeKcal} kcal/day.
+              intake {data.balance.avgIntakeKcal} cal/day.
             </p>
           ) : null}
 

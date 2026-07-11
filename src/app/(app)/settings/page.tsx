@@ -128,7 +128,7 @@ export default function SettingsPage() {
             <CardContent>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="cal">Calories (kcal)</FieldLabel>
+                  <FieldLabel htmlFor="cal">Calories (cal)</FieldLabel>
                   <Input
                     id="cal"
                     type="number"
