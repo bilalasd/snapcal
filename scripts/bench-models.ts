@@ -109,7 +109,7 @@ async function runOne(
         {
           role: "user",
           content: [
-            { type: "image", image: bytes, mediaType },
+            { type: "file", data: bytes, mediaType },
             { type: "text", text: "Analyze this meal." },
           ],
         },
@@ -154,8 +154,11 @@ async function main() {
     console.error(`No images in ${IMAGES_DIR}. Add jpg/png/webp food photos and re-run.`);
     process.exit(1);
   }
-  if (!process.env.AI_GATEWAY_API_KEY) {
-    console.error("Set AI_GATEWAY_API_KEY in .env.local (Vercel AI Gateway key).");
+  if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) {
+    console.error(
+      "No gateway auth. Set AI_GATEWAY_API_KEY in .env.local, or pull a fresh\n" +
+        "VERCEL_OIDC_TOKEN (`vercel env pull`) — either authenticates the gateway.",
+    );
     process.exit(1);
   }
 

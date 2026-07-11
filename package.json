@@ -15,6 +15,7 @@
     "import-foods": "tsx scripts/import-foods.ts",
     "seed:preview": "tsx --env-file=.env.local scripts/seed-preview.ts",
     "shots": "playwright test",
+    "download-images": "tsx --env-file=.env.local scripts/download-db-images.ts",
     "bench": "tsx --env-file=.env.local scripts/bench-models.ts"
   },
   "dependencies": {
