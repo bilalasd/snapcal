@@ -364,6 +364,8 @@ export default function AddMealPage() {
           </div>
         ) : null}
 
+        <NutritionFacts items={draft.items} />
+
         <MealReview
           name={draft.name}
           onNameChange={(name) => setDraft({ ...draft, name })}
@@ -372,7 +374,7 @@ export default function AddMealPage() {
         />
 
         {canReanalyze ? (
-          <div className="editorial-card editorial-cut relative p-3">
+          <div className="editorial-card editorial-cut p-3">
             <p className="editorial-kicker mb-2">Correction note</p>
             <Textarea
               placeholder="Not quite right? Add details and re-analyze…"
@@ -381,15 +383,16 @@ export default function AddMealPage() {
               rows={2}
               disabled={analyzing}
             />
-            <Button
-              size="sm"
-              className="absolute bottom-2 right-2"
-              onClick={reanalyze}
-              disabled={analyzing || !refineText.trim()}
-            >
-              {analyzing ? <Spinner data-icon="inline-start" /> : null}
-              Re-analyze
-            </Button>
+            <div className="mt-2 flex justify-end">
+              <Button
+                size="sm"
+                onClick={reanalyze}
+                disabled={analyzing || !refineText.trim()}
+              >
+                {analyzing ? <Spinner data-icon="inline-start" /> : null}
+                Re-analyze
+              </Button>
+            </div>
           </div>
         ) : null}
 
@@ -398,7 +401,6 @@ export default function AddMealPage() {
             setDraft({ ...draft, items: [...draft.items, item] })
           }
         />
-        <NutritionFacts items={draft.items} />
         <div className="flex gap-2">
           <Button
             variant="outline"

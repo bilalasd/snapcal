@@ -71,16 +71,6 @@ export function MealReview({
     );
   }
 
-  const totals = items.reduce(
-    (acc, i) => ({
-      calories: acc.calories + (i.calories || 0),
-      protein: round1(acc.protein + (i.protein_g || 0)),
-      carbs: round1(acc.carbs + (i.carbs_g || 0)),
-      fat: round1(acc.fat + (i.fat_g || 0)),
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
-  );
-
   return (
     <Card>
       <CardHeader>
@@ -247,14 +237,6 @@ export function MealReview({
           <Plus data-icon="inline-start" />
           Add item
         </Button>
-
-        <div className="mt-3 border-t border-foreground/10 pt-3 text-sm">
-          <span className="font-semibold">{totals.calories} cal</span>
-          <span className="text-muted-foreground">
-            {" "}
-            · P {totals.protein}g · C {totals.carbs}g · F {totals.fat}g
-          </span>
-        </div>
       </CardContent>
     </Card>
   );
