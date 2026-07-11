@@ -1,4 +1,4 @@
-# SnapCal — Design Specification
+# Mealio — Design Specification
 
 > Format: **Google Stitch** design brief — an app concept, a single design theme
 > (the generative "design system"), a component inventory, and one generation
@@ -9,7 +9,7 @@
 
 ## 1. App concept
 
-**SnapCal** is a mobile-first calorie & weight tracker. You photograph a meal,
+**Mealio** is a mobile-first calorie & weight tracker. You photograph a meal,
 an AI reads the plate and estimates nutrition, you confirm, and the app tracks
 intake against a personalized target and a smoothed weight trend.
 
@@ -143,7 +143,7 @@ inverted.
 
 | Component | Description | States |
 |---|---|---|
-| **Header bar** | Sticky. Logo + "DAILY LEDGER / SnapCal", "KCAL" chip. | — |
+| **Header bar** | Sticky. Logo + "DAILY LEDGER / Mealio", "KCAL" chip. | — |
 | **Tab bar** | Fixed bottom, 4 destinations + center "+" action (notched amber tile). ≥44px targets, safe-area padded. | active / inactive |
 | **Editorial card** | Cream card, ring, soft shadow, notched corner. | — |
 | **Metric block** | Oversized tabular number + kicker + sublabel. | positive / over-target (destructive) |

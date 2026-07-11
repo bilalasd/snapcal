@@ -1,4 +1,4 @@
-# SnapCal
+# Mealio
 
 Personal calorie tracker: snap photos of food (or describe it), Claude estimates
 calories + macros, and your smart-scale weight trend (via Google Health) tells you whether your deficit is

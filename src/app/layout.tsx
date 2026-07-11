@@ -12,12 +12,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SnapCal",
+  title: "Mealio",
   description: "Photo-based calorie and macro tracking",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "SnapCal",
+    title: "Mealio",
   },
 };
 

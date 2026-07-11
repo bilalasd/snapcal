@@ -249,7 +249,7 @@ export default function OnboardingPage() {
 
       {step === "units" && (
         <StepShell
-          title="Welcome to SnapCal 👋"
+          title="Welcome to Mealio 👋"
           subtitle="A few quick questions and we'll work out exactly how much you should eat. First — which units do you use?"
         >
           <div className="grid grid-cols-2 gap-3">
@@ -424,7 +424,7 @@ export default function OnboardingPage() {
       {step === "result" && plan && tdee !== null && macros ? (
         <StepShell
           title="Your plan is ready 🎉"
-          subtitle="Here's what the numbers say. Log your meals and SnapCal will check this against your real results."
+          subtitle="Here's what the numbers say. Log your meals and Mealio will check this against your real results."
         >
           <Card className="block-surface bg-block-lime editorial-cut border-transparent">
             <CardContent className="flex flex-col gap-4">

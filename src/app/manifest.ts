@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "SnapCal",
-    short_name: "SnapCal",
+    name: "Mealio",
+    short_name: "Mealio",
     description: "Photo-based calorie and macro tracking",
     start_url: "/",
     display: "standalone",

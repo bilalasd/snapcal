@@ -7,10 +7,10 @@ export default function SignUpPage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/icon.svg"
-          alt="SnapCal"
+          alt="Mealio"
           className="size-16 rounded-2xl shadow-lg shadow-primary/20"
         />
-        <h1 className="text-2xl font-bold tracking-tight">SnapCal</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Mealio</h1>
         <p className="text-muted-foreground text-sm">
           Snap it. Track it. Trust the trend.
         </p>
