@@ -19,8 +19,8 @@ Rules:
 - calories must be an integer per item; macros in grams to one decimal.
 - Also estimate per item: saturated fat (g), fiber (g), sugar (g), and sodium (mg). Use typical values for the food; a rough estimate is fine.
 - estimated_grams: your best estimate of the item's total weight in grams. This is used to reconcile the item against a verified nutrition database, so estimate the weight as accurately as you can.
-- question: usually leave this an empty string. Set it to ONE short question ONLY when you are genuinely uncertain about something that would materially change the calorie estimate and you cannot reasonably tell from the photos or text (for example: an unclear meat, a hidden sauce, or an ambiguous portion). Do not ask about minor details. Always give your best estimate in the items regardless; the question just lets the user correct you.
-- options: when you ask a question, list the likely answers as tappable options — at least 2 and at most 6. Cover the realistic possibilities specifically: for an unidentified meat, that means options like "Chicken", "Beef", "Pork", "Vegetarian" rather than a vague yes/no. Keep each label to one or two words. For EACH option, set its "items" to the COMPLETE item list for the whole meal as it would be if that option were the truth — recompute the affected item's nutrition (calories and macros) for that option and copy the other, unaffected items unchanged. One of the options must match your best-guess items above. Leave options as an empty array when there is no question, or when the answer is open-ended (like an exact portion) with no obvious short answers.`;
+- questions: usually an empty array. Add a question ONLY when you are genuinely uncertain about something that would materially change the calorie estimate and you cannot reasonably tell from the photos or text (for example: an unclear meat, a hidden sauce, or an ambiguous portion). You MAY include more than one question when there are several independent uncertainties, but keep it to the few that actually matter — never ask about minor details, and prefer zero questions when your estimate is solid. Always give your best estimate in the items regardless; the questions just let the user correct you.
+- Each question is an object with "question" (one short sentence) and "options" (the likely answers as tappable choices, at least 2 and at most 6). Make the option set as COMPLETE as you reasonably can so the user can almost always just tap instead of typing: cover every realistic possibility specifically (for an unidentified meat that means "Chicken", "Beef", "Pork", "Vegetarian", not a vague yes/no), and if a couple of common answers remain, use one option as the most likely catch-all. Keep each label to one or two words. For EACH option, set its "items" to the COMPLETE item list for the whole meal as it would be if that option were the truth — recompute the affected item's nutrition (calories and macros) for that option and copy the other, unaffected items unchanged. One option per question must match your best-guess items above. Only include a question if you can also provide these options.`;
 
 export const analyzedItemSchema = z.object({
   name: z.string(),
@@ -36,25 +36,29 @@ export const analyzedItemSchema = z.object({
   sodium_mg: z.number().min(0),
 });
 
-// One tappable answer to the clarifying question. It carries the FULL item
-// list for the meal as it would be if this answer were true, so tapping it
-// applies the corrected nutrition instantly with no re-analysis round-trip.
+// One tappable answer to a clarifying question. It carries the FULL item list
+// for the meal as it would be if this answer were true, so a single tapped
+// answer applies the corrected nutrition instantly with no re-analysis.
 export const clarificationOptionSchema = z.object({
   label: z.string(),
   items: z.array(analyzedItemSchema).min(1),
 });
 
+// One clarifying question with its tappable answers.
+export const clarificationQuestionSchema = z.object({
+  question: z.string(),
+  options: z.array(clarificationOptionSchema).min(1),
+});
+
 export const analysisSchema = z.object({
   meal_name: z.string(),
   items: z.array(analyzedItemSchema).min(1),
-  // A single clarifying question, only when genuinely uncertain; "" otherwise.
-  question: z.string(),
-  // Up to 6 tappable answers, each with the full item list for that answer;
-  // empty when there's no question or no obvious set of answers.
-  options: z.array(clarificationOptionSchema),
+  // Zero or more clarifying questions, only when genuinely uncertain.
+  questions: z.array(clarificationQuestionSchema),
 });
 
 export type ClarificationOption = z.infer<typeof clarificationOptionSchema>;
+export type ClarificationQuestion = z.infer<typeof clarificationQuestionSchema>;
 
 export type AnalyzedItem = z.infer<typeof analyzedItemSchema>;
 export type Analysis = z.infer<typeof analysisSchema>;

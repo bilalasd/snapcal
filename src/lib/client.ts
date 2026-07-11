@@ -84,16 +84,19 @@ export interface MealDraft {
   source: "photo" | "text" | "favorite" | "copy";
   items: DraftItem[];
   photos?: DraftPhoto[];
-  // Optional: a pending clarifying question + tappable answers, so a restored
-  // draft can show the review's question card (used by the "log again" flow
-  // and the review screenshot). Each option carries the full item list to apply.
-  question?: string;
-  options?: ClarifyOption[];
+  // Optional: pending clarifying questions, shown on the dedicated question
+  // step before review. Each option carries the full item list to apply.
+  questions?: ClarifyQuestion[];
 }
 
 export interface ClarifyOption {
   label: string;
   items: DraftItem[];
+}
+
+export interface ClarifyQuestion {
+  question: string;
+  options: ClarifyOption[];
 }
 
 /** Convert an ApiMeal's items into editable DraftItems. */

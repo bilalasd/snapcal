@@ -6,7 +6,6 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   Camera,
-  HelpCircle,
   Mic,
   MicOff,
   Plus,
@@ -24,7 +23,9 @@ import { MealListItem } from "@/components/meal-list-item";
 import { FoodSearchDrawer } from "@/components/food-search-drawer";
 import { NutritionFacts } from "@/components/nutrition-facts";
 import { PhotoStrip } from "@/components/photo-strip";
+import { QuestionsStep } from "@/components/questions-step";
 import { resizeImage, type EncodedImage } from "@/lib/resize-image";
+import { resolveAnswers, type ClarifyAnswer } from "@/lib/clarify";
 import { cn } from "@/lib/utils";
 import {
   fetchJson,
@@ -32,7 +33,7 @@ import {
   mealTotals,
   popDraft,
   type ApiMeal,
-  type ClarifyOption,
+  type ClarifyQuestion,
   type DraftItem,
   type DraftPhoto,
   type MealDraft,
@@ -81,8 +82,7 @@ export default function AddMealPage() {
     items: DraftItem[];
     source: MealDraft["source"];
     photos: DraftPhoto[];
-    question?: string;
-    options?: ClarifyOption[];
+    questions?: ClarifyQuestion[];
   } | null>(null);
 
   useEffect(() => {
@@ -97,8 +97,7 @@ export default function AddMealPage() {
         items: stashed.items,
         source: stashed.source,
         photos: stashed.photos ?? [],
-        question: stashed.question || undefined,
-        options: stashed.options?.length ? stashed.options : undefined,
+        questions: stashed.questions?.length ? stashed.questions : undefined,
       });
     }
     fetchJson<ApiMeal[]>("/api/meals?favorites=true")
@@ -188,14 +187,16 @@ export default function AddMealPage() {
     return uploaded;
   }
 
-  async function runAnalysis(fullText: string) {
+  async function runAnalysis(
+    fullText: string,
+    opts?: { suppressQuestions?: boolean },
+  ) {
     setAnalyzing(true);
     try {
       const result = await fetchJson<{
         meal_name: string;
         items: DraftItem[];
-        question?: string;
-        options?: ClarifyOption[];
+        questions?: ClarifyQuestion[];
       }>("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,8 +210,13 @@ export default function AddMealPage() {
         items: result.items,
         source: photos.length > 0 ? "photo" : "text",
         photos: [],
-        question: result.question || undefined,
-        options: result.options?.length ? result.options : undefined,
+        // After answering questions we don't re-ask, even if the model surfaces
+        // fresh ones — the user already told us what they know.
+        questions: opts?.suppressQuestions
+          ? undefined
+          : result.questions?.length
+            ? result.questions
+            : undefined,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Analysis failed");
@@ -238,11 +244,23 @@ export default function AddMealPage() {
     applyRefinement(refineText);
   }
 
-  // Tapping a clarifying answer: the option already carries its full item list,
-  // so apply it in place and dismiss the question — no re-analysis round-trip.
-  function chooseOption(option: ClarifyOption) {
+  // All questions answered on the question step. Apply precomputed data when a
+  // single tapped answer settles it; otherwise fold every answer into the
+  // description and make one consolidated re-analysis (see resolveAnswers).
+  function handleAnswers(answers: ClarifyAnswer[]) {
     if (!draft) return;
-    setDraft({ ...draft, items: option.items, question: undefined, options: undefined });
+    const { items, refineText } = resolveAnswers(answers);
+    if (items) {
+      setDraft({ ...draft, items, questions: undefined });
+    } else if (refineText) {
+      const combined = [text, refineText].filter((s) => s.trim()).join(". ");
+      setText(combined);
+      setDraft({ ...draft, questions: undefined });
+      runAnalysis(combined, { suppressQuestions: true });
+    } else {
+      // Everything skipped — keep the best-guess items as-is.
+      setDraft({ ...draft, questions: undefined });
+    }
   }
 
   function logExisting(meal: ApiMeal, source: "favorite" | "copy") {
@@ -320,6 +338,12 @@ export default function AddMealPage() {
     }
   }
 
+  // Dedicated question step: shown after analysis when the AI has questions,
+  // before the review. Answers resolve via handleAnswers.
+  if (draft?.questions?.length) {
+    return <QuestionsStep questions={draft.questions} onDone={handleAnswers} />;
+  }
+
   if (draft) {
     const draftPhotoUrls = [
       ...draft.photos.map((p) => p.url),
@@ -340,54 +364,6 @@ export default function AddMealPage() {
           </div>
         ) : null}
 
-        {draft.question ? (
-          <div className="block-surface bg-block-lilac editorial-cut p-4">
-            <p className="editorial-kicker flex items-center gap-1.5 text-primary-strong">
-              <HelpCircle className="size-4" /> Quick question
-            </p>
-            <p className="mt-1.5 text-lg font-black tracking-[-0.03em]">
-              {draft.question}
-            </p>
-            {draft.options?.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {draft.options.map((option) => (
-                  <Button
-                    key={option.label}
-                    variant="outline"
-                    disabled={analyzing}
-                    onClick={() => chooseOption(option)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
-            <div className="relative mt-3">
-              <Textarea
-                placeholder={
-                  draft.options?.length
-                    ? "…or type your own answer"
-                    : "Type your answer…"
-                }
-                value={refineText}
-                onChange={(e) => setRefineText(e.target.value)}
-                rows={2}
-                disabled={analyzing}
-                className="bg-card"
-              />
-              <Button
-                size="sm"
-                className="absolute bottom-2 right-2"
-                onClick={reanalyze}
-                disabled={analyzing || !refineText.trim()}
-              >
-                {analyzing ? <Spinner data-icon="inline-start" /> : null}
-                Send
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
         <MealReview
           name={draft.name}
           onNameChange={(name) => setDraft({ ...draft, name })}
@@ -395,15 +371,11 @@ export default function AddMealPage() {
           onItemsChange={(items) => setDraft({ ...draft, items })}
         />
 
-        {canReanalyze && !draft.question ? (
+        {canReanalyze ? (
           <div className="editorial-card editorial-cut relative p-3">
             <p className="editorial-kicker mb-2">Correction note</p>
             <Textarea
-              placeholder={
-                draft.question
-                  ? "Answer the question, or add any details…"
-                  : "Not quite right? Add details and re-analyze…"
-              }
+              placeholder="Not quite right? Add details and re-analyze…"
               value={refineText}
               onChange={(e) => setRefineText(e.target.value)}
               rows={2}

@@ -78,22 +78,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Ground each item against the USDA reference database where confident.
-    // Options carry their own full item lists, so ground those too — tapping an
-    // option applies its items directly with no re-analysis.
-    const [items, options] = await Promise.all([
+    // Every question's options carry their own full item lists, so ground those
+    // too — a single tapped answer applies its items directly with no re-call.
+    const [items, questions] = await Promise.all([
       groundWithUsda(response.parsed_output.items),
       Promise.all(
-        response.parsed_output.options.map(async (opt) => ({
-          label: opt.label,
-          items: await groundWithUsda(opt.items),
+        response.parsed_output.questions.map(async (q) => ({
+          question: q.question,
+          options: await Promise.all(
+            q.options.map(async (opt) => ({
+              label: opt.label,
+              items: await groundWithUsda(opt.items),
+            })),
+          ),
         })),
       ),
     ]);
     return NextResponse.json({
       meal_name: response.parsed_output.meal_name,
       items,
-      question: response.parsed_output.question,
-      options,
+      questions,
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {
