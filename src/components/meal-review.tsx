@@ -111,19 +111,18 @@ export function MealReview({
                 className="flex w-full items-center gap-3 py-3 text-left"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1 truncate font-semibold">
+                  <p className="flex items-center gap-1 font-semibold">
                     {item.name || "Untitled item"}
                     {item.usda_match ? (
                       <BadgeCheck className="text-primary-strong size-3.5 shrink-0" />
                     ) : null}
                   </p>
-                  <p className="text-muted-foreground truncate text-xs">
-                    {[
-                      item.portion,
-                      `P ${round1(item.protein_g)} · C ${round1(item.carbs_g)} · F ${round1(item.fat_g)}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                  {item.portion ? (
+                    <p className="text-muted-foreground text-xs">{item.portion}</p>
+                  ) : null}
+                  <p className="text-muted-foreground text-xs tabular-nums">
+                    P {round1(item.protein_g)} · C {round1(item.carbs_g)} · F{" "}
+                    {round1(item.fat_g)}
                   </p>
                 </div>
                 <span className="tabular-nums font-bold">
