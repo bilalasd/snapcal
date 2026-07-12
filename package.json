@@ -21,6 +21,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
     "@base-ui/react": "^1.6.0",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
     "@clerk/nextjs": "^7.5.14",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.6.0",
@@ -40,6 +42,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@clerk/testing": "^2.2.5",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",

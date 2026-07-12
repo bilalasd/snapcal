@@ -18,3 +18,4 @@ tsconfig.tsbuildinfo
 /bench/images/*
 !/bench/images/.gitkeep
 /bench/results-*.json
+/IMG_*.heic
