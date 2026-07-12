@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Mealio",
+    "slug": "mealio",
+    "version": "0.1.0",
+    "scheme": "mealio",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.mealio.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.mealio.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Mealio uses your photos to log meals.",
+          "cameraPermission": "Mealio uses the camera to snap your meals."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
