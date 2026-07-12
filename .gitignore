@@ -1,21 +1,18 @@
+# Monorepo root
 node_modules
-.next
-.env*
-!.env.example
-.vercel
-.claude
-tsconfig.tsbuildinfo
-
-# Screenshot loop
-/preview
-/e2e/.clerk
-/test-results
-/playwright-report
-
-# Model benchmark: keep the harness, ignore inputs (photos) and outputs (results)
 .DS_Store
+*.tsbuildinfo
+.claude
+
+# Personal test photos (kept out of git)
 /IMG_*.PNG
-/bench/images/*
-!/bench/images/.gitkeep
-/bench/results-*.json
 /IMG_*.heic
+
+# Yarn Berry
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*

@@ -1,0 +1,19 @@
+# Next.js / Vercel
+.next
+.vercel
+tsconfig.tsbuildinfo
+
+# Env (keep the example)
+.env*
+!.env.example
+
+# Screenshot loop
+/preview
+/e2e/.clerk
+/test-results
+/playwright-report
+
+# Model benchmark: keep the harness, ignore inputs (photos) and outputs (results)
+/bench/images/*
+!/bench/images/.gitkeep
+/bench/results-*.json
