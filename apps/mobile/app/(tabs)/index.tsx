@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { localDateString, mealTotals, type ApiMeal, type Goals } from "@mealio/shared";
 import { fetchJson, fetchMealsForDate, fetchMealsRange } from "../../lib/api";
@@ -48,6 +48,9 @@ export default function Today() {
   }, []);
 
   useEffect(() => load(date), [load, date]);
+
+  // Refresh silently when returning to the tab (e.g. after saving a meal).
+  useFocusEffect(useCallback(() => load(date, false), [load, date]));
 
   useEffect(() => {
     fetchJson<Goals>("/api/goals")

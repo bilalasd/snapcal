@@ -1,4 +1,5 @@
-import type { ApiMeal } from "@mealio/shared";
+import { uploadAsync, FileSystemUploadType } from "expo-file-system/legacy";
+import type { ApiMeal, DraftPhoto } from "@mealio/shared";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -7,6 +8,21 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 let getToken: (() => Promise<string | null>) | null = null;
 export function setTokenGetter(fn: () => Promise<string | null>) {
   getToken = fn;
+}
+
+/** Upload one resized photo (local file uri) to /api/photos as raw bytes. */
+export async function uploadPhoto(uri: string): Promise<DraftPhoto> {
+  const token = getToken ? await getToken() : null;
+  const res = await uploadAsync(`${BASE_URL}/api/photos`, uri, {
+    httpMethod: "POST",
+    uploadType: FileSystemUploadType.BINARY_CONTENT,
+    headers: {
+      "content-type": "image/jpeg",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (res.status < 200 || res.status >= 300) throw new Error("Photo upload failed");
+  return JSON.parse(res.body) as DraftPhoto;
 }
 
 export async function fetchJson<T = unknown>(
