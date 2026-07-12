@@ -23,7 +23,8 @@
           "photosPermission": "Mealio uses your photos to log meals.",
           "cameraPermission": "Mealio uses the camera to snap your meals."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
