@@ -1,23 +1,22 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 // Public paths that must NOT require a signed-in user.
 const isPublic = createRouteMatcher([
-  "/sign-in(.*)",
-  "/sign-up(.*)",
   "/api/cron/(.*)", // cron routes authenticate with CRON_SECRET
-  "/manifest.webmanifest",
 ]);
 
+// The mobile app sends a Clerk session JWT as `Authorization: Bearer`; Clerk's
+// middleware reads it automatically. Unauthenticated API calls get 401 JSON
+// (the app has no HTML pages to redirect to).
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPublic(req)) {
-    await auth.protect();
+  if (isPublic(req)) return;
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 });
 
 export const config = {
-  matcher: [
-    // Skip Next internals and static assets; run on everything else
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|webmanifest)).*)",
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ["/(api|trpc)(.*)"],
 };
