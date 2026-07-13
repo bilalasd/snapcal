@@ -25,7 +25,21 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { generateObject, gateway } from "ai";
-import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT } from "@mealio/shared";
+import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT, type Analysis } from "@mealio/shared";
+// GROUND=raw (default) | usda (current post-hoc match) | llm (approach A:
+// retrieve candidates + a fast model picks the match). Times/scores the full
+// pipeline the app would run.
+const GROUND = (process.env.GROUND ?? "raw") as "raw" | "usda" | "llm";
+
+// Lazy-load the DB-backed grounding only when needed, so `raw` runs need no
+// DATABASE_URL. Typed via the module so we don't import it eagerly.
+type FoodMatch = typeof import("@/lib/food-match");
+let _fm: FoodMatch | null = null;
+async function ground(items: Analysis["items"]): Promise<Analysis["items"]> {
+  if (GROUND === "raw") return items;
+  if (!_fm) _fm = await import("@/lib/food-match");
+  return GROUND === "usda" ? _fm.groundWithUsda(items) : _fm.groundWithLlm(items);
+}
 
 // Models to compare — edit freely. IDs are Vercel AI Gateway model IDs
 // (`provider/model`); list them with:
@@ -134,16 +148,18 @@ async function runOne(
         },
       ],
     });
+    // Grounding is part of the pipeline, so keep it inside the timed block.
+    const items = await ground(object.items);
     const ms = Date.now() - start;
-    const totalCalories = sumItems(object.items).calories;
+    const totalCalories = sumItems(items).calories;
     return {
       model,
       image,
       ms,
-      cost: computeCost(usage, pricing),
+      cost: computeCost(usage, pricing), // analysis model only; the small match model's cost is excluded
       totalCalories,
       errorPct: expected === undefined ? NaN : absErrorPct(totalCalories, expected),
-      items: object.items.map((i) => `${i.name} (${i.calories})`),
+      items: items.map((i) => `${i.name} (${i.calories})`),
     };
   } catch (err) {
     return {
@@ -187,7 +203,8 @@ async function main() {
   const pricing = await fetchPricing();
 
   console.log(
-    `Benchmarking ${MODELS.length} models × ${files.length} image(s) × ${REPEAT} run(s)…\n`,
+    `Benchmarking ${MODELS.length} models × ${files.length} image(s) × ${REPEAT} run(s)` +
+      `  [grounding: ${GROUND}${GROUND === "llm" ? ` via ${process.env.GROUND_MODEL || "google/gemini-2.5-flash-lite"}` : ""}]\n`,
   );
 
   // Pre-process each image ONCE to match the mobile upload pipeline
