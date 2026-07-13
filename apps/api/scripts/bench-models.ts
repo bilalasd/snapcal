@@ -23,6 +23,7 @@
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import sharp from "sharp";
 import { generateObject, gateway } from "ai";
 import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT } from "@mealio/shared";
 
@@ -35,15 +36,12 @@ const MODELS = [
   "google/gemini-3-pro-preview",
   "openai/gpt-5.4",
   "xai/grok-4.5",
-  "mistral/pixtral-large",
   // — Sweet spot: ship candidates —
   "anthropic/claude-sonnet-5", // current production model
   "google/gemini-3-flash",
   "google/gemini-3.5-flash",
   "openai/gpt-5-mini",
   "alibaba/qwen3-vl-instruct",
-  "zai/glm-4.6v",
-  "meta/llama-4-maverick",
   // — Budget: cheapest "good enough"? —
   "amazon/nova-lite",
   "google/gemini-2.5-flash-lite",
@@ -51,6 +49,10 @@ const MODELS = [
   "openai/gpt-4.1-nano",
   "xai/grok-4.1-fast-non-reasoning",
   "nvidia/nemotron-nano-12b-v2-vl",
+  // Dropped (broken on the gateway / unreliable at structured output):
+  //   mistral/pixtral-large  → "Invalid model: pixtral-large-latest"
+  //   zai/glm-4.6v           → response didn't match schema
+  //   meta/llama-4-maverick  → response didn't match schema
 ];
 
 const IMAGES_DIR = join(process.cwd(), "bench/images");
@@ -188,13 +190,24 @@ async function main() {
     `Benchmarking ${MODELS.length} models × ${files.length} image(s) × ${REPEAT} run(s)…\n`,
   );
 
+  // Pre-process each image ONCE to match the mobile upload pipeline
+  // (auto-orient, ≤1024px wide, JPEG q80) so every model sees exactly what
+  // production sends — not the raw full-res file.
+  const prepared = new Map<string, Buffer>();
+  for (const file of files) {
+    const raw = readFileSync(join(IMAGES_DIR, file));
+    prepared.set(
+      file,
+      await sharp(raw).rotate().resize({ width: 1024 }).jpeg({ quality: 80 }).toBuffer(),
+    );
+  }
+
   const all: CaseResult[] = [];
   for (const model of MODELS) {
     const priceForModel = pricing.get(model) ?? {};
     for (const file of files) {
-      const bytes = readFileSync(join(IMAGES_DIR, file));
-      const ext = file.slice(file.lastIndexOf(".")).toLowerCase();
-      const mediaType = MEDIA_BY_EXT[ext];
+      const bytes = prepared.get(file)!;
+      const mediaType = "image/jpeg"; // always JPEG after resize
       for (let r = 0; r < REPEAT; r++) {
         const result = await runOne(model, file, bytes, mediaType, priceForModel, expected[file]);
         all.push(result);
