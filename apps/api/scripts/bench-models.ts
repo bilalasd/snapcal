@@ -30,10 +30,23 @@ import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT } from "@mealio/share
 // (`provider/model`); list them with:
 //   curl -s https://ai-gateway.vercel.sh/v1/models | jq -r '.data[].id'
 const MODELS = [
-  "anthropic/claude-sonnet-5",
+  // — Flagships: quality ceiling —
   "anthropic/claude-opus-4.8",
+  "google/gemini-3-pro-preview",
+  // — Sweet spot: strong + affordable (ship candidates) —
+  "anthropic/claude-sonnet-5", // current production model
   "google/gemini-3.5-flash",
-  "openai/gpt-5.6-luna",
+  "openai/gpt-5.4-mini",
+  "alibaba/qwen3-vl-instruct", // cheap purpose-built VLM — the dark horse
+  // — Budget: cheapest "good enough"? —
+  "anthropic/claude-haiku-4.5",
+  "google/gemini-3.1-flash-lite",
+
+  // Uncomment to widen the field (each adds cost × images × REPEAT):
+  // "openai/gpt-5.4",              // OpenAI flagship
+  // "xai/grok-4.5",                // xAI multimodal
+  // "meta/llama-4-maverick",       // open, cheap
+  // "amazon/nova-2-lite",          // cheap
 ];
 
 const IMAGES_DIR = join(process.cwd(), "bench/images");
