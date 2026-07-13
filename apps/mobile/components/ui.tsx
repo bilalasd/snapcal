@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { Feather } from "@expo/vector-icons";
 import {
   Pressable,
   Text,
@@ -143,4 +144,53 @@ export function Field({
 
 export function Spinner({ className }: { className?: string }) {
   return <ActivityIndicator color="#000000" className={className} />;
+}
+
+export function Alert({
+  icon,
+  title,
+  children,
+  variant = "default",
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  title: string;
+  children?: React.ReactNode;
+  variant?: "default" | "destructive";
+}) {
+  const color = variant === "destructive" ? "#d92d20" : "#000000";
+  return (
+    <View className={`flex-row gap-3 rounded-2xl border p-4 ${variant === "destructive" ? "border-destructive/30" : "border-border"} bg-card`}>
+      <Feather name={icon} size={18} color={color} />
+      <View className="flex-1">
+        <Text className={`font-bold ${variant === "destructive" ? "text-destructive" : "text-foreground"}`}>{title}</Text>
+        {children ? <Text className="mt-0.5 text-sm text-muted-foreground">{children}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+export function SegmentedToggle<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <View className="flex-row rounded-xl border border-border bg-card p-0.5">
+      {options.map((o) => (
+        <Pressable
+          key={o.value}
+          onPress={() => onChange(o.value)}
+          className={`rounded-lg px-3 py-1.5 ${value === o.value ? "bg-primary" : ""}`}
+        >
+          <Text className={`text-xs font-bold ${value === o.value ? "text-white" : "text-muted-foreground"}`}>
+            {o.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
 }
