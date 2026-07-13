@@ -16,7 +16,7 @@
     "seed:preview": "tsx --env-file=.env.local scripts/seed-preview.ts",
     "shots": "playwright test",
     "download-images": "tsx --env-file=.env.local scripts/download-db-images.ts",
-    "bench": "tsx --env-file=.env.local scripts/bench-models.ts"
+    "bench": "tsx --env-file=.env.development.local scripts/bench-models.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
