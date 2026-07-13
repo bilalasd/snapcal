@@ -7,6 +7,7 @@ import { tzOffsetMinutes } from "@mealio/shared";
 import { fetchJson } from "../../lib/api";
 import { Card, Skeleton, Kicker, SegmentedToggle, Alert, Button } from "../../components/ui";
 import { LogWeightDrawer } from "../../components/log-weight-drawer";
+import { WeightChart } from "../../components/charts";
 
 const KG_PER_LB = 0.453592;
 
@@ -106,7 +107,15 @@ export default function Weight() {
                   </View>
                   <SegmentedToggle options={[{ value: "30", label: "30d" }, { value: "90", label: "90d" }]} value={range} onChange={setRange} />
                 </View>
-                {/* Scatter + trend-line chart lands in Phase 4 (react-native-svg). */}
+                <View className="mt-4">
+                  <WeightChart
+                    points={data.weights.map((w) => ({
+                      measured: Math.round(toUnit(w.weightKg) * 10) / 10,
+                      trend: Math.round(toUnit(w.trendKg) * 10) / 10,
+                      label: new Date(`${w.date}T12:00:00`).toLocaleDateString([], { month: "numeric", day: "numeric" }),
+                    }))}
+                  />
+                </View>
               </Card>
             )}
 

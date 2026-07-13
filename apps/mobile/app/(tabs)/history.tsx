@@ -8,6 +8,7 @@ import { localDateString, mealTotals, type ApiMeal, type Goals } from "@mealio/s
 import { Card, Skeleton, Kicker, SegmentedToggle } from "../../components/ui";
 import { MealListItem } from "../../components/meal-list-item";
 import { MealDrawer } from "../../components/meal-drawer";
+import { BarChart } from "../../components/charts";
 
 interface DayGroup {
   date: string;
@@ -73,8 +74,6 @@ export default function History() {
     return result;
   }, [days, range, today]);
 
-  const chartMax = Math.max(goals?.daily_calories ?? 0, ...chartData.map((d) => d.calories), 1);
-
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
       <ScrollView contentContainerClassName="p-5 gap-5">
@@ -103,22 +102,11 @@ export default function History() {
                 </View>
                 <SegmentedToggle options={[{ value: "7", label: "7d" }, { value: "30", label: "30d" }]} value={range} onChange={setRange} />
               </View>
-              {/* Simple bar chart — react-native-svg version lands in Phase 4. */}
-              <View className="mt-4 h-44 flex-row items-end gap-0.5">
-                {chartData.map((d, i) => {
-                  const over = goals !== null && d.calories > goals.daily_calories;
-                  return (
-                    <View key={i} className="flex-1 items-center justify-end">
-                      <View
-                        className={`w-full rounded-t ${over ? "bg-destructive" : "bg-foreground"}`}
-                        style={{ height: `${Math.max((d.calories / chartMax) * 100, 1)}%` }}
-                      />
-                    </View>
-                  );
-                })}
+              <View className="mt-4">
+                <BarChart data={chartData.map((d) => ({ label: d.day, value: d.calories }))} goal={goals?.daily_calories} />
               </View>
               {goals ? (
-                <Text className="mt-2 text-right text-[10px] text-muted-foreground">Goal {goals.daily_calories.toLocaleString()} cal</Text>
+                <Text className="mt-1 text-right text-[10px] text-muted-foreground">Goal {goals.daily_calories.toLocaleString()} cal</Text>
               ) : null}
             </Card>
 
