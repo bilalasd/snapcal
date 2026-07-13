@@ -16,6 +16,7 @@ import {
   type Goals,
 } from "@mealio/shared";
 import { fetchJson } from "../lib/api";
+import { tapSuccess } from "../lib/haptics";
 import { Card, Button, Input, Field, Kicker, Spinner } from "../components/ui";
 
 const KG_PER_LB = 0.453592;
@@ -133,6 +134,7 @@ export default function Onboarding() {
           onboarded: true,
         }),
       });
+      tapSuccess();
       router.replace("/");
     } catch (err) {
       Alert.alert(err instanceof Error ? err.message : "Couldn't save");

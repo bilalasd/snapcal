@@ -15,6 +15,7 @@ import {
   type MealDraft,
 } from "@mealio/shared";
 import { fetchJson, uploadPhoto } from "../lib/api";
+import { tapSuccess } from "../lib/haptics";
 import { popDraft } from "../lib/draft";
 import { takePhoto, pickPhotos, type PickedPhoto } from "../lib/image";
 import { Button, Card, Input, Kicker, Spinner } from "../components/ui";
@@ -151,6 +152,7 @@ export default function Add() {
           photos: meal.photos.map((p) => ({ url: p.url, pathname: p.pathname })),
         }),
       });
+      tapSuccess();
       router.replace("/");
     } catch (err) {
       Alert.alert(err instanceof Error ? err.message : "Couldn't log that");
@@ -177,6 +179,7 @@ export default function Add() {
           photos: [...draft.photos, ...captured],
         }),
       });
+      tapSuccess();
       router.replace("/");
     } catch (err) {
       Alert.alert(err instanceof Error ? err.message : "Save failed");

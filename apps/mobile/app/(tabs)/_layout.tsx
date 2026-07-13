@@ -1,6 +1,7 @@
 import { View, Pressable } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
+import { tapLight } from "../../lib/haptics";
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -34,7 +35,10 @@ export default function TabsLayout() {
 
       {/* Center Add action, floating above the bar (matches the web tab bar's "+"). */}
       <Pressable
-        onPress={() => router.push("/add")}
+        onPress={() => {
+          tapLight();
+          router.push("/add");
+        }}
         className="absolute bottom-16 left-1/2 -ml-7 h-14 w-14 items-center justify-center rounded-full bg-magenta shadow-lg active:opacity-80"
         accessibilityLabel="Log a meal"
       >

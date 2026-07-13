@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { itemsToDraft, localDateString, type ApiMeal, type DraftItem } from "@mealio/shared";
 import { fetchJson } from "../lib/api";
+import { tapSuccess } from "../lib/haptics";
 import { stashDraft } from "../lib/draft";
 import { Sheet } from "./sheet";
 import { Button, Field, Input, Spinner } from "./ui";
@@ -47,6 +48,7 @@ function MealDrawerInner({ meal, onClose, onChanged }: { meal: ApiMeal; onClose:
         method: "PATCH",
         body: JSON.stringify({ name, is_favorite: favorite, eaten_at: eaten.toISOString(), items: valid }),
       });
+      tapSuccess();
       onChanged();
       onClose();
     } catch (err) {

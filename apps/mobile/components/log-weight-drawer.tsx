@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, Alert as RNAlert } from "react-native";
 import { fetchJson } from "../lib/api";
+import { tapSuccess } from "../lib/haptics";
 import { Sheet } from "./sheet";
 import { Button, Field, Input, Spinner } from "./ui";
 
@@ -32,6 +33,7 @@ export function LogWeightDrawer({
         method: "POST",
         body: JSON.stringify({ weight_kg: Math.round(weightKg * 100) / 100, date }),
       });
+      tapSuccess();
       setWeight("");
       onClose();
       onLogged();
