@@ -30,23 +30,27 @@ import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT } from "@mealio/share
 // (`provider/model`); list them with:
 //   curl -s https://ai-gateway.vercel.sh/v1/models | jq -r '.data[].id'
 const MODELS = [
-  // — Flagships: quality ceiling —
+  // — Flagship: accuracy ceiling —
   "anthropic/claude-opus-4.8",
   "google/gemini-3-pro-preview",
-  // — Sweet spot: strong + affordable (ship candidates) —
+  "openai/gpt-5.4",
+  "xai/grok-4.5",
+  "mistral/pixtral-large",
+  // — Sweet spot: ship candidates —
   "anthropic/claude-sonnet-5", // current production model
+  "google/gemini-3-flash",
   "google/gemini-3.5-flash",
-  "openai/gpt-5.4-mini",
-  "alibaba/qwen3-vl-instruct", // cheap purpose-built VLM — the dark horse
+  "openai/gpt-5-mini",
+  "alibaba/qwen3-vl-instruct",
+  "zai/glm-4.6v",
+  "meta/llama-4-maverick",
   // — Budget: cheapest "good enough"? —
-  "anthropic/claude-haiku-4.5",
-  "google/gemini-3.1-flash-lite",
-
-  // Uncomment to widen the field (each adds cost × images × REPEAT):
-  // "openai/gpt-5.4",              // OpenAI flagship
-  // "xai/grok-4.5",                // xAI multimodal
-  // "meta/llama-4-maverick",       // open, cheap
-  // "amazon/nova-2-lite",          // cheap
+  "amazon/nova-lite",
+  "google/gemini-2.5-flash-lite",
+  "mistral/pixtral-12b",
+  "openai/gpt-4.1-nano",
+  "xai/grok-4.1-fast-non-reasoning",
+  "nvidia/nemotron-nano-12b-v2-vl",
 ];
 
 const IMAGES_DIR = join(process.cwd(), "bench/images");
