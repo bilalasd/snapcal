@@ -1,0 +1,72 @@
+import { useEffect, useState } from "react";
+import { View, Text, Pressable, Alert } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
+import { useSSO } from "@clerk/clerk-expo";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
+
+// Finishes any auth session the browser bounced back (call once, module scope).
+WebBrowser.maybeCompleteAuthSession();
+
+function useWarmBrowser() {
+  useEffect(() => {
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+}
+
+/** Google + Apple sign-in row. Clerk hosts the OAuth; we open it in a browser
+ *  session and set the resulting session active. */
+export function SsoRow() {
+  useWarmBrowser();
+  const { startSSOFlow } = useSSO();
+  const [busy, setBusy] = useState<null | "google" | "apple">(null);
+
+  async function run(kind: "google" | "apple") {
+    if (busy) return;
+    setBusy(kind);
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy: kind === "google" ? "oauth_google" : "oauth_apple",
+        redirectUrl: Linking.createURL("/", { scheme: "mealio" }),
+      });
+      if (createdSessionId && setActive) await setActive({ session: createdSessionId });
+      // If no session, Clerk needs more steps (e.g. new-account MFA) — rare for
+      // these providers; leaving the user on the sign-in screen is acceptable.
+    } catch (e: any) {
+      Alert.alert(e?.errors?.[0]?.message ?? "Sign-in failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <View className="gap-3">
+      <View className="flex-row items-center gap-3">
+        <View className="h-px flex-1 bg-border" />
+        <Text className="text-muted-foreground text-xs font-bold uppercase tracking-[2px]">or</Text>
+        <View className="h-px flex-1 bg-border" />
+      </View>
+      <View className="flex-row gap-3">
+        <Pressable
+          onPress={() => run("google")}
+          disabled={!!busy}
+          className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border py-4 active:opacity-70 ${busy ? "opacity-40" : ""}`}
+        >
+          <FontAwesome name="google" size={18} color="#000" />
+          <Text className="text-base font-bold text-foreground">Google</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => run("apple")}
+          disabled={!!busy}
+          className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-primary py-4 active:opacity-80 ${busy ? "opacity-40" : ""}`}
+        >
+          <FontAwesome name="apple" size={20} color="#fff" />
+          <Text className="text-base font-bold text-white">Apple</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}

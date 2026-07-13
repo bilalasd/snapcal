@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform } from
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { useSignIn } from "@clerk/clerk-expo";
+import { SsoRow } from "../../components/sso";
 
 export default function SignIn() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -68,6 +69,13 @@ export default function SignIn() {
               {busy ? "Signing in…" : "Sign in"}
             </Text>
           </Pressable>
+          <Link href="/(auth)/reset-password" className="self-center py-1 text-sm font-semibold text-muted-foreground">
+            Forgot password?
+          </Link>
+        </View>
+
+        <View className="mt-6">
+          <SsoRow />
         </View>
 
         <View className="mt-6 flex-row justify-center gap-1">

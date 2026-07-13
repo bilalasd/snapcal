@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform } from
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { useSignUp } from "@clerk/clerk-expo";
+import { SsoRow } from "../../components/sso";
 
 export default function SignUp() {
   const { signUp, setActive, isLoaded } = useSignUp();
@@ -109,6 +110,12 @@ export default function SignUp() {
             </Pressable>
           </View>
         )}
+
+        {!pendingCode ? (
+          <View className="mt-6">
+            <SsoRow />
+          </View>
+        ) : null}
 
         <View className="mt-6 flex-row justify-center gap-1">
           <Text className="text-muted-foreground">Have an account?</Text>
