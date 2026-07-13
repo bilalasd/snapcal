@@ -21,7 +21,9 @@ export async function uploadPhoto(uri: string): Promise<DraftPhoto> {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
-  if (res.status < 200 || res.status >= 300) throw new Error("Photo upload failed");
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`Upload ${res.status}: ${(res.body || "").slice(0, 200)}`);
+  }
   return JSON.parse(res.body) as DraftPhoto;
 }
 
