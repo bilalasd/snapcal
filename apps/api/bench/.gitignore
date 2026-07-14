@@ -1,3 +1,5 @@
 images/
 _unused/
 results-*.json
+prompt.txt
+prompt.best.txt

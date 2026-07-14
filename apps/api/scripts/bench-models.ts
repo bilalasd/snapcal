@@ -78,6 +78,11 @@ const IMAGES_DIR = join(process.cwd(), "bench/images");
 const EXPECTED_PATH = join(process.cwd(), "bench/expected.json");
 const REPEAT = Math.max(1, Number(process.env.REPEAT) || 1);
 
+// Prompt training: if bench/prompt.txt exists, use it as the system prompt so
+// candidate prompts can be A/B'd without touching the shipped shared prompt.
+const PROMPT_PATH = join(process.cwd(), "bench/prompt.txt");
+const SYSTEM = existsSync(PROMPT_PATH) ? readFileSync(PROMPT_PATH, "utf8") : NUTRITION_SYSTEM_PROMPT;
+
 const MEDIA_BY_EXT: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -159,7 +164,7 @@ async function runOne(
     const { object, usage } = await generateObject({
       model: gateway(model),
       schema: analysisSchema,
-      system: NUTRITION_SYSTEM_PROMPT,
+      system: SYSTEM,
       abortSignal: AbortSignal.timeout(120_000), // don't let one hung call stall the run
       messages: [
         {
