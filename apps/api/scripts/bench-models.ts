@@ -26,10 +26,9 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { generateObject, gateway } from "ai";
 import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT, type Analysis } from "@mealio/shared";
-// ONE vision call per image feeds all three scores: raw (model as-is), usda
-// (current production grounding), llm (approach A). Grounding is deterministic
-// post-processing, so no need to re-run the expensive vision call per mode.
-// Set GROUND=raw to skip the DB (and the usda/llm columns) entirely.
+// ONE vision call per image scores raw (model as-is) and usda (production
+// grounding). Grounding is deterministic post-processing, so no re-running the
+// vision call. Set GROUND=raw to skip the DB (and the usda column) entirely.
 const GROUND_ENABLED = process.env.GROUND !== "raw" && !!process.env.DATABASE_URL;
 
 // Lazy-load the DB-backed grounding so `raw` runs need no DATABASE_URL.
@@ -44,9 +43,10 @@ async function fm(): Promise<FoodMatch> {
 // (`provider/model`); list them with:
 //   curl -s https://ai-gateway.vercel.sh/v1/models | jq -r '.data[].id'
 const MODELS = [
-  // — Flagship: accuracy ceiling —
-  "anthropic/claude-opus-4.8",
-  "google/gemini-3-pro-preview",
+  // — Flagships dropped for cost (~60% of a full run): uncomment to include —
+  // "anthropic/claude-opus-4.8",     // ~$0.08/call
+  // "google/gemini-3-pro-preview",   // ~$0.07/call
+  // — Strong, not expensive —
   "openai/gpt-5.4",
   "xai/grok-4.5",
   // — Sweet spot: ship candidates —
@@ -130,7 +130,6 @@ interface CaseResult {
   cost: number;
   raw: ModeScore;
   usda: ModeScore;
-  llm: ModeScore;
   items: string[]; // raw model identification, for eyeballing
   error?: string;
 }
@@ -175,23 +174,19 @@ async function runOne(
     const visionMs = Date.now() - start;
     const raw = object.items;
 
-    // Score all three modes off the SAME vision output.
+    // Score raw + usda off the SAME vision output (grounding is deterministic).
     const rawScore = await score(raw);
-    const [usda, llm] = GROUND_ENABLED
-      ? await Promise.all([
-          score(raw, (i) => fm().then((m) => m.groundWithUsda(i))),
-          score(raw, (i) => fm().then((m) => m.groundWithLlm(i))),
-        ])
-      : [await score(null), await score(null)];
+    const usda = GROUND_ENABLED
+      ? await score(raw, (i) => fm().then((m) => m.groundWithUsda(i)))
+      : await score(null);
 
     return {
       model,
       image,
       visionMs,
-      cost: computeCost(usage, pricing), // vision model only; the tiny match model's cost is excluded
+      cost: computeCost(usage, pricing),
       raw: rawScore,
       usda,
-      llm,
       items: raw.map((i) => `${i.name} (${i.calories})`),
     };
   } catch (err) {
@@ -203,7 +198,6 @@ async function runOne(
       cost: NaN,
       raw: blank,
       usda: blank,
-      llm: blank,
       items: [],
       error: err instanceof Error ? err.message : String(err),
     };
@@ -239,7 +233,7 @@ async function main() {
 
   console.log(
     `Benchmarking ${ACTIVE.length} models × ${files.length} image(s) × ${REPEAT} run(s)` +
-      `  [grounding: ${GROUND_ENABLED ? `raw + usda + llm (via ${process.env.GROUND_MODEL || "google/gemini-2.5-flash-lite"})` : "raw only — no DATABASE_URL"}]\n`,
+      `  [grounding: ${GROUND_ENABLED ? "raw + usda" : "raw only — no DATABASE_URL"}]\n`,
   );
 
   // Pre-process each image ONCE to match the mobile upload pipeline
@@ -264,7 +258,7 @@ async function main() {
         const result = await runOne(model, file, bytes, mediaType, priceForModel, expected[file]);
         all.push(result);
         const cal = GROUND_ENABLED
-          ? `raw ${result.raw.cal} / usda ${result.usda.cal} / llm ${result.llm.cal} kcal`
+          ? `raw ${result.raw.cal} / usda ${result.usda.cal} kcal`
           : `${result.raw.cal} kcal`;
         const tag = result.error ? `ERROR ${result.error}` : `${result.visionMs}ms  $${result.cost.toFixed(5)}  ${cal}`;
         console.log(`  ${model.padEnd(28)} ${file.padEnd(24)} ${tag}`);
@@ -273,7 +267,7 @@ async function main() {
   }
 
   // Aggregate per model over successful runs. Mean error for each mode.
-  const meanErr = (rows: CaseResult[], mode: "raw" | "usda" | "llm") => {
+  const meanErr = (rows: CaseResult[], mode: "raw" | "usda") => {
     const vals = rows.map((r) => r[mode].errPct).filter((v) => !Number.isNaN(v));
     return vals.length ? Number(mean(vals).toFixed(1)) : "n/a";
   };
@@ -286,10 +280,7 @@ async function main() {
       "$/call": ok.length ? Number(mean(ok.map((r) => r.cost)).toFixed(5)) : NaN,
       "raw err%": meanErr(ok, "raw"),
     };
-    if (GROUND_ENABLED) {
-      row["usda err%"] = meanErr(ok, "usda");
-      row["llm err%"] = meanErr(ok, "llm");
-    }
+    if (GROUND_ENABLED) row["usda err%"] = meanErr(ok, "usda");
     row.failures = errs;
     return row;
   });
