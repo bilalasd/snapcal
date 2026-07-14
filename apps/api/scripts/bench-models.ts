@@ -77,6 +77,7 @@ const ACTIVE = process.env.ONLY
 const IMAGES_DIR = join(process.cwd(), "bench/images");
 const EXPECTED_PATH = join(process.cwd(), "bench/expected.json");
 const REPEAT = Math.max(1, Number(process.env.REPEAT) || 1);
+const WIDTH = Number(process.env.WIDTH) || 1024; // resize width (mobile ships 1024)
 
 // Prompt training: if bench/prompt.txt exists, use it as the system prompt so
 // candidate prompts can be A/B'd without touching the shipped shared prompt.
@@ -249,7 +250,7 @@ async function main() {
     const raw = readFileSync(join(IMAGES_DIR, file));
     prepared.set(
       file,
-      await sharp(raw).rotate().resize({ width: 1024 }).jpeg({ quality: 80 }).toBuffer(),
+      await sharp(raw).rotate().resize({ width: WIDTH }).jpeg({ quality: 80 }).toBuffer(),
     );
   }
 

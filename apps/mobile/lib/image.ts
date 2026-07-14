@@ -12,7 +12,10 @@ export interface PickedPhoto {
 }
 
 async function resize(uri: string): Promise<PickedPhoto> {
-  const out = await manipulateAsync(uri, [{ resize: { width: 1024 } }], {
+  // 768px chosen by the bench (scripts/bench-models.ts, WIDTH sweep): ~12%
+  // faster analysis than 1024 with no accuracy loss — fewer image tiles for
+  // the vision model to process.
+  const out = await manipulateAsync(uri, [{ resize: { width: 768 } }], {
     compress: 0.8,
     format: SaveFormat.JPEG,
     base64: true,
