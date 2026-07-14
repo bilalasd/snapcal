@@ -26,19 +26,18 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { generateObject, gateway } from "ai";
 import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT, type Analysis } from "@mealio/shared";
-// GROUND=raw (default) | usda (current post-hoc match) | llm (approach A:
-// retrieve candidates + a fast model picks the match). Times/scores the full
-// pipeline the app would run.
-const GROUND = (process.env.GROUND ?? "raw") as "raw" | "usda" | "llm";
+// ONE vision call per image feeds all three scores: raw (model as-is), usda
+// (current production grounding), llm (approach A). Grounding is deterministic
+// post-processing, so no need to re-run the expensive vision call per mode.
+// Set GROUND=raw to skip the DB (and the usda/llm columns) entirely.
+const GROUND_ENABLED = process.env.GROUND !== "raw" && !!process.env.DATABASE_URL;
 
-// Lazy-load the DB-backed grounding only when needed, so `raw` runs need no
-// DATABASE_URL. Typed via the module so we don't import it eagerly.
+// Lazy-load the DB-backed grounding so `raw` runs need no DATABASE_URL.
 type FoodMatch = typeof import("@/lib/food-match");
 let _fm: FoodMatch | null = null;
-async function ground(items: Analysis["items"]): Promise<Analysis["items"]> {
-  if (GROUND === "raw") return items;
+async function fm(): Promise<FoodMatch> {
   if (!_fm) _fm = await import("@/lib/food-match");
-  return GROUND === "usda" ? _fm.groundWithUsda(items) : _fm.groundWithLlm(items);
+  return _fm;
 }
 
 // Models to compare — edit freely. IDs are Vercel AI Gateway model IDs
@@ -68,6 +67,12 @@ const MODELS = [
   //   zai/glm-4.6v           → response didn't match schema
   //   meta/llama-4-maverick  → response didn't match schema
 ];
+
+// ONLY=<substring> runs just the matching models (cheap smoke tests), e.g.
+// ONLY=nemotron yarn bench
+const ACTIVE = process.env.ONLY
+  ? MODELS.filter((m) => m.includes(process.env.ONLY!))
+  : MODELS;
 
 const IMAGES_DIR = join(process.cwd(), "bench/images");
 const EXPECTED_PATH = join(process.cwd(), "bench/expected.json");
@@ -113,14 +118,20 @@ async function fetchPricing(): Promise<Map<string, { input?: string; output?: st
   return new Map(body.data.map((m) => [m.id, m.pricing ?? {}]));
 }
 
+interface ModeScore {
+  cal: number;
+  errPct: number; // NaN when no ground truth
+  ms: number; // grounding time (0 for raw)
+}
 interface CaseResult {
   model: string;
   image: string;
-  ms: number;
+  visionMs: number; // the shared vision call
   cost: number;
-  totalCalories: number;
-  errorPct: number; // NaN when no ground truth
-  items: string[];
+  raw: ModeScore;
+  usda: ModeScore;
+  llm: ModeScore;
+  items: string[]; // raw model identification, for eyeballing
   error?: string;
 }
 
@@ -132,12 +143,25 @@ async function runOne(
   pricing: { input?: string; output?: string },
   expected: number | undefined,
 ): Promise<CaseResult> {
+  const err = (cal: number) => (expected === undefined ? NaN : absErrorPct(cal, expected));
+  const score = async (
+    items: Analysis["items"] | null,
+    grounder?: (i: Analysis["items"]) => Promise<Analysis["items"]>,
+  ): Promise<ModeScore> => {
+    if (!items) return { cal: NaN, errPct: NaN, ms: NaN };
+    const t = Date.now();
+    const out = grounder ? await grounder(items) : items;
+    const cal = sumItems(out).calories;
+    return { cal, errPct: err(cal), ms: grounder ? Date.now() - t : 0 };
+  };
+
   const start = Date.now();
   try {
     const { object, usage } = await generateObject({
       model: gateway(model),
       schema: analysisSchema,
       system: NUTRITION_SYSTEM_PROMPT,
+      abortSignal: AbortSignal.timeout(120_000), // don't let one hung call stall the run
       messages: [
         {
           role: "user",
@@ -148,27 +172,38 @@ async function runOne(
         },
       ],
     });
-    // Grounding is part of the pipeline, so keep it inside the timed block.
-    const items = await ground(object.items);
-    const ms = Date.now() - start;
-    const totalCalories = sumItems(items).calories;
+    const visionMs = Date.now() - start;
+    const raw = object.items;
+
+    // Score all three modes off the SAME vision output.
+    const rawScore = await score(raw);
+    const [usda, llm] = GROUND_ENABLED
+      ? await Promise.all([
+          score(raw, (i) => fm().then((m) => m.groundWithUsda(i))),
+          score(raw, (i) => fm().then((m) => m.groundWithLlm(i))),
+        ])
+      : [await score(null), await score(null)];
+
     return {
       model,
       image,
-      ms,
-      cost: computeCost(usage, pricing), // analysis model only; the small match model's cost is excluded
-      totalCalories,
-      errorPct: expected === undefined ? NaN : absErrorPct(totalCalories, expected),
-      items: items.map((i) => `${i.name} (${i.calories})`),
+      visionMs,
+      cost: computeCost(usage, pricing), // vision model only; the tiny match model's cost is excluded
+      raw: rawScore,
+      usda,
+      llm,
+      items: raw.map((i) => `${i.name} (${i.calories})`),
     };
   } catch (err) {
+    const blank: ModeScore = { cal: NaN, errPct: NaN, ms: NaN };
     return {
       model,
       image,
-      ms: Date.now() - start,
+      visionMs: Date.now() - start,
       cost: NaN,
-      totalCalories: NaN,
-      errorPct: NaN,
+      raw: blank,
+      usda: blank,
+      llm: blank,
       items: [],
       error: err instanceof Error ? err.message : String(err),
     };
@@ -203,8 +238,8 @@ async function main() {
   const pricing = await fetchPricing();
 
   console.log(
-    `Benchmarking ${MODELS.length} models × ${files.length} image(s) × ${REPEAT} run(s)` +
-      `  [grounding: ${GROUND}${GROUND === "llm" ? ` via ${process.env.GROUND_MODEL || "google/gemini-2.5-flash-lite"}` : ""}]\n`,
+    `Benchmarking ${ACTIVE.length} models × ${files.length} image(s) × ${REPEAT} run(s)` +
+      `  [grounding: ${GROUND_ENABLED ? `raw + usda + llm (via ${process.env.GROUND_MODEL || "google/gemini-2.5-flash-lite"})` : "raw only — no DATABASE_URL"}]\n`,
   );
 
   // Pre-process each image ONCE to match the mobile upload pipeline
@@ -220,7 +255,7 @@ async function main() {
   }
 
   const all: CaseResult[] = [];
-  for (const model of MODELS) {
+  for (const model of ACTIVE) {
     const priceForModel = pricing.get(model) ?? {};
     for (const file of files) {
       const bytes = prepared.get(file)!;
@@ -228,27 +263,38 @@ async function main() {
       for (let r = 0; r < REPEAT; r++) {
         const result = await runOne(model, file, bytes, mediaType, priceForModel, expected[file]);
         all.push(result);
-        const tag = result.error ? `ERROR ${result.error}` : `${result.ms}ms  $${result.cost.toFixed(5)}  ${result.totalCalories} kcal`;
+        const cal = GROUND_ENABLED
+          ? `raw ${result.raw.cal} / usda ${result.usda.cal} / llm ${result.llm.cal} kcal`
+          : `${result.raw.cal} kcal`;
+        const tag = result.error ? `ERROR ${result.error}` : `${result.visionMs}ms  $${result.cost.toFixed(5)}  ${cal}`;
         console.log(`  ${model.padEnd(28)} ${file.padEnd(24)} ${tag}`);
       }
     }
   }
 
-  // Aggregate per model over successful runs.
-  const summary = MODELS.map((model) => {
+  // Aggregate per model over successful runs. Mean error for each mode.
+  const meanErr = (rows: CaseResult[], mode: "raw" | "usda" | "llm") => {
+    const vals = rows.map((r) => r[mode].errPct).filter((v) => !Number.isNaN(v));
+    return vals.length ? Number(mean(vals).toFixed(1)) : "n/a";
+  };
+  const summary = ACTIVE.map((model) => {
     const ok = all.filter((r) => r.model === model && !r.error);
     const errs = all.filter((r) => r.model === model && r.error).length;
-    const withTruth = ok.filter((r) => !Number.isNaN(r.errorPct));
-    return {
+    const row: Record<string, unknown> = {
       model,
-      "median ms": ok.length ? Math.round(median(ok.map((r) => r.ms))) : NaN,
-      "avg $/call": ok.length ? Number(mean(ok.map((r) => r.cost)).toFixed(5)) : NaN,
-      "cal err %": withTruth.length ? Number(mean(withTruth.map((r) => r.errorPct)).toFixed(1)) : "n/a",
-      failures: errs,
+      "vision ms": ok.length ? Math.round(median(ok.map((r) => r.visionMs))) : NaN,
+      "$/call": ok.length ? Number(mean(ok.map((r) => r.cost)).toFixed(5)) : NaN,
+      "raw err%": meanErr(ok, "raw"),
     };
+    if (GROUND_ENABLED) {
+      row["usda err%"] = meanErr(ok, "usda");
+      row["llm err%"] = meanErr(ok, "llm");
+    }
+    row.failures = errs;
+    return row;
   });
 
-  console.log("\n=== Summary ===");
+  console.log("\n=== Summary (mean cal error % — lower is better) ===");
   console.table(summary);
 
   const outPath = join(process.cwd(), `bench/results-${Date.now()}.json`);
