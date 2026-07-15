@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Text, ScrollView, Image, Pressable, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import {
   itemsToDraft,
   mealTotals,
@@ -17,9 +17,9 @@ import {
 import { fetchJson, uploadPhoto } from "../lib/api";
 import { tapSuccess } from "../lib/haptics";
 import { popDraft } from "../lib/draft";
-import { takePhoto, pickPhotos, type PickedPhoto } from "../lib/image";
+import { pickPhotos, resizeToPhoto, type PickedPhoto } from "../lib/image";
 import { lookupBarcode } from "../lib/barcode";
-import { BarcodeScanner } from "../components/barcode-scanner";
+import { CameraCapture } from "../components/camera-capture";
 import { Button, Card, Input, Kicker, Spinner } from "../components/ui";
 import { AnalyzingOverlay } from "../components/analyzing-overlay";
 import { QuestionsStep } from "../components/questions-step";
@@ -50,25 +50,36 @@ export default function Add() {
   const [saving, setSaving] = useState(false);
   const [refineText, setRefineText] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [scanOpen, setScanOpen] = useState(false);
-  const [scanBusy, setScanBusy] = useState(false);
-  const [mode, setMode] = useState<"food" | "label">("food");
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [lookupBusy, setLookupBusy] = useState(false);
 
-  async function onScanned(code: string) {
-    setScanBusy(true);
+  // Shutter → capture a food/label photo (analyzed by the AI, which reads both).
+  async function onPhoto(uri: string) {
+    try {
+      const p = await resizeToPhoto(uri);
+      setPhotos((prev) => [...prev, p].slice(0, 3));
+      setCameraOpen(false);
+    } catch (e) {
+      Alert.alert("Couldn't use that photo", e instanceof Error ? e.message : "Try again.");
+    }
+  }
+
+  // Barcode detected in-frame → Open Food Facts lookup.
+  async function onBarcode(code: string) {
+    setLookupBusy(true);
     try {
       const item = await lookupBarcode(code);
       if (!item) {
-        Alert.alert("Not found", "That barcode isn't in the database. Try a photo instead.");
-        setScanBusy(false);
-        return;
+        Alert.alert("Not found", "That barcode isn't in the database — snap the food or its label instead.");
+        setLookupBusy(false);
+        return; // keep the camera open so they can snap
       }
-      setScanOpen(false);
-      setScanBusy(false);
+      setCameraOpen(false);
+      setLookupBusy(false);
       setDraft({ name: item.name, items: [item], source: "text", photos: [] });
     } catch {
-      setScanBusy(false);
-      Alert.alert("Lookup failed", "Try again, or use a photo.");
+      setLookupBusy(false);
+      Alert.alert("Lookup failed", "Try again, or snap the food.");
     }
   }
 
@@ -97,13 +108,13 @@ export default function Add() {
     return () => clearTimeout(handle);
   }, [search]);
 
-  async function addFromCamera() {
-    const p = await takePhoto();
-    if (p) setPhotos((prev) => [...prev, p].slice(0, 3));
-  }
   async function addFromLibrary() {
-    const picked = await pickPhotos(3 - photos.length);
-    if (picked.length) setPhotos((prev) => [...prev, ...picked].slice(0, 3));
+    try {
+      const picked = await pickPhotos(3 - photos.length);
+      if (picked.length) setPhotos((prev) => [...prev, ...picked].slice(0, 3));
+    } catch (e) {
+      Alert.alert("Couldn't open library", e instanceof Error ? e.message : "Try again.");
+    }
   }
 
   async function runAnalysis(fullText: string, opts?: { suppressQuestions?: boolean }) {
@@ -345,30 +356,19 @@ export default function Add() {
           </View>
         ) : null}
 
-        {/* Capture mode: Food / Barcode / Nutrition Facts */}
-        <View className="flex-row gap-2">
-          <ModeTile icon="restaurant-outline" label="Food" active={mode === "food"} onPress={() => setMode("food")} />
-          <ModeTile icon="barcode-outline" label="Barcode" onPress={() => setScanOpen(true)} />
-          <ModeTile icon="document-text-outline" label="Nutrition Facts" active={mode === "label"} onPress={() => setMode("label")} />
-        </View>
-
         {photos.length < 3 ? (
           <View className="gap-2">
             <Pressable
-              onPress={addFromCamera}
+              onPress={() => setCameraOpen(true)}
               className="h-44 items-center justify-center gap-3 rounded-3xl bg-block-mint active:opacity-90"
             >
               <View className="h-16 w-16 items-center justify-center rounded-full bg-primary">
-                <Feather name={mode === "label" ? "file-text" : "camera"} size={24} color="#fff" />
+                <Feather name="camera" size={24} color="#fff" />
               </View>
               <Text className="text-xl font-black tracking-tight text-foreground">
-                {photos.length > 0
-                  ? "Add another angle"
-                  : mode === "label"
-                    ? "Snap the nutrition label"
-                    : "Snap your food"}
+                {photos.length > 0 ? "Add another angle" : "Open camera"}
               </Text>
-              <Kicker>{mode === "label" ? "Point at the panel" : "Up to 3 angles"}</Kicker>
+              <Kicker>Food · label · or barcode</Kicker>
             </Pressable>
             <Button variant="outline" onPress={addFromLibrary}>
               <Feather name="image" size={16} color="#000" />
@@ -390,18 +390,7 @@ export default function Add() {
         )}
 
         {canAnalyze ? (
-          <Button
-            onPress={() =>
-              runAnalysis(
-                mode === "label"
-                  ? [text, "This photo is a nutrition facts label — read the calories and macros directly off the panel, scaled to the servings eaten."]
-                      .filter((s) => s.trim())
-                      .join(". ")
-                  : text,
-              )
-            }
-            disabled={analyzing}
-          >
+          <Button onPress={() => runAnalysis(text)} disabled={analyzing}>
             {analyzing ? "Analyzing…" : "Analyze"}
           </Button>
         ) : null}
@@ -422,34 +411,13 @@ export default function Add() {
         </View>
       </ScrollView>
 
-      <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)} onScanned={onScanned} busy={scanBusy} />
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onPhoto={onPhoto}
+        onBarcode={onBarcode}
+        busy={lookupBusy}
+      />
     </SafeAreaView>
-  );
-}
-
-function ModeTile({
-  icon,
-  label,
-  active,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  active?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-1 items-center gap-1.5 rounded-2xl border-2 px-1 py-3 active:opacity-80 ${active ? "border-primary bg-primary" : "border-border bg-card"}`}
-    >
-      <Ionicons name={icon} size={22} color={active ? "#fff" : "#000"} />
-      <Text
-        numberOfLines={2}
-        className={`text-center text-xs font-bold ${active ? "text-white" : "text-foreground"}`}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }

@@ -11,25 +11,16 @@ export interface PickedPhoto {
   uri: string; // resized local file, for preview + upload
 }
 
-async function resize(uri: string): Promise<PickedPhoto> {
-  // 768px chosen by the bench (scripts/bench-models.ts, WIDTH sweep): ~12%
-  // faster analysis than 1024 with no accuracy loss — fewer image tiles for
-  // the vision model to process.
+/** Resize any local image uri to the upload format (768px wide JPEG + base64).
+ *  768px chosen by the bench (WIDTH sweep): ~12% faster analysis, no accuracy
+ *  loss. Used for both camera captures and library picks. */
+export async function resizeToPhoto(uri: string): Promise<PickedPhoto> {
   const out = await manipulateAsync(uri, [{ resize: { width: 768 } }], {
     compress: 0.8,
     format: SaveFormat.JPEG,
     base64: true,
   });
   return { encoded: { data: out.base64!, media_type: "image/jpeg" }, uri: out.uri };
-}
-
-/** Snap a photo with the camera. Returns null if cancelled/denied. */
-export async function takePhoto(): Promise<PickedPhoto | null> {
-  const perm = await ImagePicker.requestCameraPermissionsAsync();
-  if (!perm.granted) return null;
-  const res = await ImagePicker.launchCameraAsync({ quality: 1 });
-  if (res.canceled || !res.assets[0]) return null;
-  return resize(res.assets[0].uri);
 }
 
 /** Pick up to `limit` photos from the library. */
@@ -40,5 +31,5 @@ export async function pickPhotos(limit: number): Promise<PickedPhoto[]> {
     selectionLimit: limit,
   });
   if (res.canceled) return [];
-  return Promise.all(res.assets.slice(0, limit).map((a) => resize(a.uri)));
+  return Promise.all(res.assets.slice(0, limit).map((a) => resizeToPhoto(a.uri)));
 }
