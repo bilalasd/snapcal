@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Text, ScrollView, Image, Pressable, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import {
   itemsToDraft,
   mealTotals,
@@ -18,6 +18,8 @@ import { fetchJson, uploadPhoto } from "../lib/api";
 import { tapSuccess } from "../lib/haptics";
 import { popDraft } from "../lib/draft";
 import { takePhoto, pickPhotos, type PickedPhoto } from "../lib/image";
+import { lookupBarcode } from "../lib/barcode";
+import { BarcodeScanner } from "../components/barcode-scanner";
 import { Button, Card, Input, Kicker, Spinner } from "../components/ui";
 import { AnalyzingOverlay } from "../components/analyzing-overlay";
 import { QuestionsStep } from "../components/questions-step";
@@ -48,6 +50,26 @@ export default function Add() {
   const [saving, setSaving] = useState(false);
   const [refineText, setRefineText] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanBusy, setScanBusy] = useState(false);
+
+  async function onScanned(code: string) {
+    setScanBusy(true);
+    try {
+      const item = await lookupBarcode(code);
+      if (!item) {
+        Alert.alert("Not found", "That barcode isn't in the database. Try a photo instead.");
+        setScanBusy(false);
+        return;
+      }
+      setScanOpen(false);
+      setScanBusy(false);
+      setDraft({ name: item.name, items: [item], source: "text", photos: [] });
+    } catch {
+      setScanBusy(false);
+      Alert.alert("Lookup failed", "Try again, or use a photo.");
+    }
+  }
 
   useEffect(() => {
     const stashed = popDraft();
@@ -336,10 +358,16 @@ export default function Add() {
               </Text>
               <Kicker>Up to 3 angles</Kicker>
             </Pressable>
-            <Button variant="outline" onPress={addFromLibrary}>
-              <Feather name="image" size={16} color="#000" />
-              <Text className="font-bold text-foreground">Choose from library</Text>
-            </Button>
+            <View className="flex-row gap-2">
+              <Button variant="outline" className="flex-1" onPress={addFromLibrary}>
+                <Feather name="image" size={16} color="#000" />
+                <Text className="font-bold text-foreground">Library</Text>
+              </Button>
+              <Button variant="outline" className="flex-1" onPress={() => setScanOpen(true)}>
+                <Ionicons name="barcode-outline" size={18} color="#000" />
+                <Text className="font-bold text-foreground">Scan barcode</Text>
+              </Button>
+            </View>
           </View>
         ) : null}
 
@@ -376,6 +404,8 @@ export default function Add() {
           ) : null}
         </View>
       </ScrollView>
+
+      <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)} onScanned={onScanned} busy={scanBusy} />
     </SafeAreaView>
   );
 }

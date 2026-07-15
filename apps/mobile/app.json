@@ -24,7 +24,11 @@
           "cameraPermission": "Mealio uses the camera to snap your meals."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        { "cameraPermission": "Mealio uses the camera to scan barcodes." }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
