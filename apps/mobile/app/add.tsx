@@ -52,6 +52,7 @@ export default function Add() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
+  const [mode, setMode] = useState<"food" | "label">("food");
 
   async function onScanned(code: string) {
     setScanBusy(true);
@@ -344,6 +345,13 @@ export default function Add() {
           </View>
         ) : null}
 
+        {/* Capture mode: Food / Barcode / Nutrition Facts */}
+        <View className="flex-row gap-2">
+          <ModeTile icon="restaurant-outline" label="Food" active={mode === "food"} onPress={() => setMode("food")} />
+          <ModeTile icon="barcode-outline" label="Barcode" onPress={() => setScanOpen(true)} />
+          <ModeTile icon="document-text-outline" label="Nutrition Facts" active={mode === "label"} onPress={() => setMode("label")} />
+        </View>
+
         {photos.length < 3 ? (
           <View className="gap-2">
             <Pressable
@@ -351,23 +359,21 @@ export default function Add() {
               className="h-44 items-center justify-center gap-3 rounded-3xl bg-block-mint active:opacity-90"
             >
               <View className="h-16 w-16 items-center justify-center rounded-full bg-primary">
-                <Feather name="camera" size={24} color="#fff" />
+                <Feather name={mode === "label" ? "file-text" : "camera"} size={24} color="#fff" />
               </View>
               <Text className="text-xl font-black tracking-tight text-foreground">
-                {photos.length === 0 ? "Snap a photo" : "Add another angle"}
+                {photos.length > 0
+                  ? "Add another angle"
+                  : mode === "label"
+                    ? "Snap the nutrition label"
+                    : "Snap your food"}
               </Text>
-              <Kicker>Up to 3 angles</Kicker>
+              <Kicker>{mode === "label" ? "Point at the panel" : "Up to 3 angles"}</Kicker>
             </Pressable>
-            <View className="flex-row gap-2">
-              <Button variant="outline" className="flex-1" onPress={addFromLibrary}>
-                <Feather name="image" size={16} color="#000" />
-                <Text className="font-bold text-foreground">Library</Text>
-              </Button>
-              <Button variant="outline" className="flex-1" onPress={() => setScanOpen(true)}>
-                <Ionicons name="barcode-outline" size={18} color="#000" />
-                <Text className="font-bold text-foreground">Scan barcode</Text>
-              </Button>
-            </View>
+            <Button variant="outline" onPress={addFromLibrary}>
+              <Feather name="image" size={16} color="#000" />
+              <Text className="font-bold text-foreground">Choose from library</Text>
+            </Button>
           </View>
         ) : null}
 
@@ -384,7 +390,18 @@ export default function Add() {
         )}
 
         {canAnalyze ? (
-          <Button onPress={() => runAnalysis(text)} disabled={analyzing}>
+          <Button
+            onPress={() =>
+              runAnalysis(
+                mode === "label"
+                  ? [text, "This photo is a nutrition facts label — read the calories and macros directly off the panel, scaled to the servings eaten."]
+                      .filter((s) => s.trim())
+                      .join(". ")
+                  : text,
+              )
+            }
+            disabled={analyzing}
+          >
             {analyzing ? "Analyzing…" : "Analyze"}
           </Button>
         ) : null}
@@ -407,5 +424,32 @@ export default function Add() {
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)} onScanned={onScanned} busy={scanBusy} />
     </SafeAreaView>
+  );
+}
+
+function ModeTile({
+  icon,
+  label,
+  active,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-1 items-center gap-1.5 rounded-2xl border-2 px-1 py-3 active:opacity-80 ${active ? "border-primary bg-primary" : "border-border bg-card"}`}
+    >
+      <Ionicons name={icon} size={22} color={active ? "#fff" : "#000"} />
+      <Text
+        numberOfLines={2}
+        className={`text-center text-xs font-bold ${active ? "text-white" : "text-foreground"}`}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }
