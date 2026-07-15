@@ -1,7 +1,8 @@
-import { View, Text, Image } from "react-native";
+import { View, Text } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { mealTotals, type ApiMeal } from "@loggi/shared";
 import { PressableScale } from "./pressable-scale";
+import { Photo } from "./photo";
 
 // Time-of-day glyph on a pastel block so photo-less meals read at a glance.
 function mealGlyph(hour: number): { icon: keyof typeof Feather.glyphMap; block: string } {
@@ -24,7 +25,7 @@ export function MealListItem({ meal, onPress }: { meal: ApiMeal; onPress?: () =>
       className="flex-row items-stretch gap-3 rounded-3xl border border-border bg-card p-3"
     >
       {meal.photos.length > 0 ? (
-        <Image source={{ uri: meal.photos[0].url }} className="h-16 w-16 rounded-2xl" />
+        <Photo source={{ uri: meal.photos[0].url }} className="h-16 w-16 rounded-2xl" />
       ) : (
         <View className={`h-16 w-16 items-center justify-center rounded-2xl ${block}`}>
           <Feather name={icon} size={26} color="#000000" />

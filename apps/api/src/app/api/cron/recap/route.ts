@@ -127,7 +127,9 @@ export async function GET(request: NextRequest) {
         "Given the week's data, write 4-6 sentences in second person covering: average intake vs goal, " +
         "protein consistency, what the weight trend says about the deficit vs the target rate, " +
         "and exactly one concrete, actionable suggestion for next week. " +
-        "Plain text only, no headers or bullet lists. Be encouraging but honest.",
+        "If the daily totals show one clear pattern (e.g. weekdays vs weekends), name it in a single " +
+        "matter-of-fact sentence; if no clear pattern exists, don't invent one. " +
+        "Plain text only, no headers or bullet lists. Be encouraging but honest — never guilt.",
       messages: [{ role: "user", content: JSON.stringify(summaryData) }],
     });
 

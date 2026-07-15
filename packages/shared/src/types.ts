@@ -55,6 +55,7 @@ export interface Goals {
     | null;
   onboarded: boolean;
   goal_weight_kg: number | null;
+  adaptive_goal: boolean;
 }
 
 /** Editable item shape used by the review card and POST /api/meals. */
@@ -72,6 +73,9 @@ export interface DraftItem {
   // Set when the item was reconciled against the USDA database (the matched
   // food's description); display-only, not persisted.
   usda_match?: string | null;
+  // AI's own certainty about identity + portion; review-time only, not
+  // persisted — once the user confirms the numbers it's stale.
+  confidence?: "low" | "medium" | "high" | null;
 }
 
 export interface DraftPhoto {

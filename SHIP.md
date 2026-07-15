@@ -50,15 +50,18 @@ internal APKs need no account).
 
 ---
 
-## Phase 6 — Health integration (deferred, not blocking)
+## Phase 6 — Health integration (Apple Health, done in code)
 
-The web app synced weight from Google Health via an OAuth web-redirect (`/api/health/*`).
-On native this needs one of:
+Weight syncs from **Apple Health** on-device: `apps/mobile/lib/apple-health.ts` reads new
+bodyMass samples via a HealthKit anchored query and POSTs them to `/api/weights` (upsert
+by date). Connect/disconnect lives in Settings; sync fires on Weight-tab focus. Needs a
+dev client — HealthKit doesn't exist in Expo Go, so build with
+`eas build --profile development --platform ios` (simulator build, no Apple account needed)
+and test by adding a weight in the sim's Health app.
 
-- **Google Health**: `expo-web-browser` `openAuthSessionAsync` + a `loggi://` deep-link
-  callback, and the API's OAuth redirect URI updated to accept it. Moderate work.
-- **Apple HealthKit** (iOS): `expo-health` / a HealthKit config plugin for native weight
-  sync — a genuine native win, but requires a dev client (not Expo Go) to test.
-
-The Weight screen already calls `POST /api/health/sync` opportunistically, so once a provider
-is connected server-side it flows through with no app change. Manual weight logging works today.
+Google Health was removed (2026-07-15): on iOS every scale ecosystem already lands in
+Apple Health, the mobile app never had a connect flow for it, and Google's sensitive-scope
+OAuth verification isn't worth it for a fallback. If Android ships someday, mirror the
+HealthKit approach with on-device Health Connect (`react-native-health-connect`) — don't
+resurrect the cloud API. The `health_tokens` table is orphaned in the DB; drop it whenever:
+`DROP TABLE health_tokens;`. The `GOOGLE_HEALTH_CLIENT_ID/SECRET` Vercel env vars are unused.

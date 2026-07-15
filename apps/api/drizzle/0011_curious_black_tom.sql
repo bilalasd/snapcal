@@ -1,0 +1,1 @@
+ALTER TABLE "goals" ADD COLUMN "adaptive_goal" boolean DEFAULT false NOT NULL;

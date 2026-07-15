@@ -31,9 +31,16 @@ export function BarChart({
   const n = data.length || 1;
   const slot = width / n;
   const barW = Math.max(slot * 0.6, 2);
+  const loggedDays = data.filter((d) => d.value > 0);
+  const avg = loggedDays.length ? Math.round(loggedDays.reduce((s, d) => s + d.value, 0) / loggedDays.length) : 0;
 
   return (
-    <View onLayout={onLayout} style={{ height }}>
+    <View
+      onLayout={onLayout}
+      style={{ height }}
+      accessible
+      accessibilityLabel={`Calorie chart, last ${n} days. Average ${avg} calories on logged days${goal ? `, goal ${goal}` : ""}.`}
+    >
       {width > 0 ? (
         <Svg width={width} height={height}>
           {goal ? (
@@ -58,7 +65,7 @@ export function BarChart({
           {/* Sparse x labels: first, middle, last */}
           {[0, Math.floor(n / 2), n - 1].map((i) =>
             data[i] ? (
-              <SvgText key={i} x={i * slot + slot / 2} y={height - 4} fontSize={9} fill="#565656" textAnchor="middle">
+              <SvgText key={i} x={i * slot + slot / 2} y={height - 4} fontSize={11} fill="#565656" textAnchor="middle">
                 {data[i].label}
               </SvgText>
             ) : null,
@@ -72,9 +79,11 @@ export function BarChart({
 /** Weight: faded measured dots + a smooth trend line, auto y-domain. */
 export function WeightChart({
   points,
+  goal,
   height = 208,
 }: {
   points: { measured: number; trend: number; label: string }[];
+  goal?: number;
   height?: number;
 }) {
   const [width, onLayout] = useWidth();
@@ -83,7 +92,8 @@ export function WeightChart({
   const chartH = height - padB;
   const chartW = Math.max(width - padL, 1);
 
-  const vals = points.flatMap((p) => [p.measured, p.trend]);
+  // Goal is part of the domain so the target line is always on screen.
+  const vals = points.flatMap((p) => [p.measured, p.trend]).concat(goal != null ? [goal] : []);
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const range = max - min || 1;
@@ -99,23 +109,36 @@ export function WeightChart({
     .join(" ");
 
   const yTicks = [lo, (lo + hi) / 2, hi];
+  const last = points[n - 1];
 
   return (
-    <View onLayout={onLayout} style={{ height }}>
+    <View
+      onLayout={onLayout}
+      style={{ height }}
+      accessible
+      accessibilityLabel={
+        last
+          ? `Weight chart, ${n} entries. Latest ${last.measured}, trend ${last.trend}${goal != null ? `, goal ${goal}` : ""}.`
+          : "Weight chart, no entries yet."
+      }
+    >
       {width > 0 && n > 0 ? (
         <Svg width={width} height={height}>
           {yTicks.map((t, i) => (
-            <SvgText key={i} x={0} y={y(t) + 3} fontSize={9} fill="#565656">
+            <SvgText key={i} x={0} y={y(t) + 3} fontSize={11} fill="#565656">
               {Math.round(t * 10) / 10}
             </SvgText>
           ))}
+          {goal != null ? (
+            <Line x1={padL} y1={y(goal)} x2={width} y2={y(goal)} stroke="#565656" strokeWidth={1} strokeDasharray="4 4" />
+          ) : null}
           {points.map((p, i) => (
             <Circle key={i} cx={x(i)} cy={y(p.measured)} r={2.5} fill="#6b6b6b" opacity={0.5} />
           ))}
           <Path d={trendPath} stroke="#000000" strokeWidth={2.5} fill="none" />
           {[0, n - 1].map((i) =>
             points[i] ? (
-              <SvgText key={i} x={x(i)} y={height - 4} fontSize={9} fill="#565656" textAnchor={i === 0 ? "start" : "end"}>
+              <SvgText key={i} x={x(i)} y={height - 4} fontSize={11} fill="#565656" textAnchor={i === 0 ? "start" : "end"}>
                 {points[i].label}
               </SvgText>
             ) : null,

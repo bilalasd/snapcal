@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, View, Text, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, useReducedMotion } from "react-native-reanimated";
 import { Bevi } from "./bevi";
 
 const STEPS = ["Identifying foods", "Estimating portions", "Checking the database", "Adding up the macros"];
@@ -10,12 +10,15 @@ const STEPS = ["Identifying foods", "Estimating portions", "Checking the databas
 export function AnalyzingOverlay({ photoUri }: { photoUri?: string }) {
   const [step, setStep] = useState(0);
   const glow = useSharedValue(0.5);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
-    glow.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }), -1, true);
+    // The checklist keeps ticking (that's progress info); only the pulse is decoration.
+    if (reducedMotion) glow.value = 0.7;
+    else glow.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }), -1, true);
     const id = setInterval(() => setStep((s) => (s + 1) % (STEPS.length + 1)), 1100);
     return () => clearInterval(id);
-  }, [glow]);
+  }, [glow, reducedMotion]);
 
   const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value, transform: [{ scale: 0.9 + glow.value * 0.15 }] }));
 

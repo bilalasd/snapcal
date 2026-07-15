@@ -4,10 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { fetchJson, fetchMealsRange } from "../../lib/api";
-import { getCachedRange, setCachedRange, getCachedGoals, setCachedGoals } from "../../lib/cache";
+import { getCachedRange, rangeIsFresh, reconcileRange, getCachedGoals, setCachedGoals } from "../../lib/cache";
 import { localDateString, mealTotals, type ApiMeal, type Goals } from "@loggi/shared";
 import { Card, Skeleton, Kicker, SegmentedToggle } from "../../components/ui";
-import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, LinearTransition } from "react-native-reanimated";
 import { MealListItem } from "../../components/meal-list-item";
 import { MealDrawer } from "../../components/meal-drawer";
 import { Bevi } from "../../components/bevi";
@@ -24,7 +24,9 @@ function groupByDay(meals: ApiMeal[]): DayGroup[] {
   const groups = new Map<string, ApiMeal[]>();
   for (const meal of meals) {
     const key = localDateString(new Date(meal.eatenAt));
-    groups.set(key, [...(groups.get(key) ?? []), meal]);
+    const group = groups.get(key);
+    if (group) group.push(meal);
+    else groups.set(key, [meal]);
   }
   return Array.from(groups.entries())
     .sort(([a], [b]) => (a < b ? 1 : -1))
@@ -43,28 +45,34 @@ export default function History() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<ApiMeal | null>(null);
   const [today, setToday] = useState<string | null>(() => localDateString());
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(() => {
+    const cached = getCachedRange();
+    if (cached) setMeals(cached); // instant — optimistic edits/deletes show right away
+    if (cached && rangeIsFresh()) return; // fetched <30s ago; skip the round-trip
     const now = new Date();
     const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     fetchMealsRange(from, now)
       .then((rows) => {
-        setMeals(rows);
-        setCachedRange(rows);
+        setMeals(reconcileRange(rows));
         setToday(localDateString(now));
+        setFailed(false);
       })
-      .catch(() => setMeals((m) => m ?? []));
+      .catch(() => setFailed(true));
   }, []);
 
   useEffect(() => {
-    load();
+    // load() is covered by useFocusEffect, which also fires on mount.
+    // Goals: Settings/onboarding saves keep the cache fresh — only fetch cold.
+    if (getCachedGoals()) return;
     fetchJson<Goals>("/api/goals")
       .then((g) => {
         setGoals(g);
         setCachedGoals(g);
       })
       .catch(() => {});
-  }, [load]);
+  }, []);
   useFocusEffect(useCallback(() => load(), [load]));
 
   const days = useMemo(() => groupByDay(meals ?? []), [meals]);
@@ -73,25 +81,34 @@ export default function History() {
     if (!today) return [];
     const anchor = new Date(`${today}T12:00:00`);
     const numDays = Number(range);
+    const caloriesByDate = new Map(days.map((g) => [g.date, g.calories]));
     const result: { day: string; calories: number }[] = [];
     for (let i = numDays - 1; i >= 0; i--) {
       const d = new Date(anchor.getTime() - i * 24 * 60 * 60 * 1000);
       const date = localDateString(d);
-      const group = days.find((g) => g.date === date);
-      result.push({ day: d.toLocaleDateString([], { month: "numeric", day: "numeric" }), calories: group?.calories ?? 0 });
+      result.push({ day: d.toLocaleDateString([], { month: "numeric", day: "numeric" }), calories: caloriesByDate.get(date) ?? 0 });
     }
     return result;
   }, [days, range, today]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
-      <ScrollView contentContainerClassName="p-5 gap-5">
+      <ScrollView contentContainerClassName="p-5 pb-16 gap-5">
         <View>
           <Kicker>Archive</Kicker>
           <Text className="mt-1 text-4xl font-black tracking-tighter text-foreground">History</Text>
         </View>
 
-        {meals === null ? (
+        {meals === null && failed ? (
+          <Card className="items-center gap-2 p-8">
+            <Bevi pose="standing" size={120} />
+            <Text className="text-lg font-black text-foreground">Couldn't load</Text>
+            <Text className="text-center text-muted-foreground">Check your connection and try again.</Text>
+            <Pressable className="mt-2 min-h-11 justify-center rounded-full bg-foreground px-6" onPress={load}>
+              <Text className="font-black text-background">Retry</Text>
+            </Pressable>
+          </Card>
+        ) : meals === null ? (
           <View className="gap-3">
             <Skeleton className="h-48 w-full rounded-3xl" />
             <Skeleton className="h-16 w-full rounded-2xl" />
@@ -125,9 +142,14 @@ export default function History() {
                 const isOpen = expanded === day.date;
                 const overGoal = goals !== null && day.calories > goals.daily_calories;
                 return (
-                  <Animated.View key={day.date} layout={LinearTransition.springify().damping(20)}>
+                  <Animated.View key={day.date} layout={LinearTransition.duration(130).easing(Easing.out(Easing.quad))}>
                     <Card className="p-4">
-                      <Pressable className="min-h-11 flex-row items-center gap-2" onPress={() => setExpanded(isOpen ? null : day.date)}>
+                      <Pressable
+                        className="min-h-11 flex-row items-center gap-2"
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: isOpen }}
+                        onPress={() => setExpanded(isOpen ? null : day.date)}
+                      >
                         <Text className="flex-1 text-lg font-black tracking-tight text-foreground">{day.label}</Text>
                         <View className="flex-row items-center gap-1">
                           {overGoal ? <Feather name="trending-up" size={13} color="#d92d20" /> : null}

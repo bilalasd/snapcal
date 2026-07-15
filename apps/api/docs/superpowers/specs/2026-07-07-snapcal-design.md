@@ -1,5 +1,8 @@
 # SnapCal — Design Spec
 
+> **Naming note:** the app has since been renamed SnapCal → Mealio → **Loggi**
+> (see Amendment 3). "SnapCal" below is the original working title.
+
 **Date:** 2026-07-07
 **Status:** Approved pending user review
 **Owner:** Bilal (single user)
@@ -194,6 +197,14 @@ Computed server-side by `GET /api/trends` from `weights` + meal totals:
   ≥ 10 logged days and ≥ 4 weigh-ins; otherwise the Trends screen shows
   "collecting data — verdict in ~N days". Days with zero logged meals are excluded
   from intake averages rather than counted as zero.
+- **Smart calorie goal (opt-in, `goals.adaptive_goal`):** replaces the manual
+  daily-calorie target on the home screen with `TDEE − needed deficit`, rounded to
+  the nearest 50 and floored at 500. To keep the number stable it is frozen per
+  calendar week: `/api/trends` computes it only from trend data *before* the
+  current week's local Monday and returns it as `adaptive_goal_kcal` (null while
+  that Monday snapshot is still gated by warm-up, in which case the app falls back
+  to the manual target). Recomputes each Monday; the daily-updating verdict above
+  is unaffected. Macro gram targets stay manual.
 
 ## 9. Screens
 
@@ -263,3 +274,25 @@ the redirect. Settings now has a unified **Goal** card — "Change goal" asks
 *set manually* (drawer) or *redo the steps* (back to the wizard, prefilled) —
 plus a dedicated Units card (metric/imperial, applied app-wide). The
 standalone calculator card is removed.
+
+## Amendment 3 (2026-07-15): Loggi rename, Bevi mascot, and superseded sections
+
+The app is now **Loggi** with mascot **Bevi the Beaver** (full spec:
+`docs/superpowers/specs/2026-07-14-loggi-rename-bevi-mascot-design.md`).
+Bevi appears in three places only — analyzing overlay (clipboard pose),
+onboarding welcome (clipboard), and empty meal-list states (standing) —
+static PNG + 130ms fade, no persistent companion, editorial tone unchanged.
+
+Sections superseded by the move from PWA to native mobile app:
+
+- **§2 Architecture / §3 Auth:** the client is an Expo (React Native) app
+  (`apps/mobile`), not a Next.js PWA; Next.js remains as the API only
+  (`apps/api`). Passcode auth is replaced by Clerk (email + SSO, multi-user).
+- **§7 / Amendment 1 (Fitbit → Google Health):** superseded again — weight
+  sync now reads HealthKit on-device (`apps/mobile/lib/apple-health.ts`);
+  the server-side `/api/health/*` OAuth routes and cron are removed.
+  Weights still land in `weights` via the API; trend math (§8) unchanged.
+- **§9 Screens:** navigation and screens evolved (see the 2026-07-08 bold
+  editorial redesign spec); §9 describes the original PWA layout.
+- **§12 Out of scope:** barcode scanning and nutrition-label capture have
+  shipped — the camera unifies food photo + label + barcode capture.

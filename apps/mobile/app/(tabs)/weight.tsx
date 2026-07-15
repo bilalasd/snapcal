@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { tzOffsetMinutes } from "@loggi/shared";
 import { fetchJson } from "../../lib/api";
+import { syncAppleHealth } from "../../lib/apple-health";
+import { getCachedGoals } from "../../lib/cache";
 import { Card, Skeleton, Kicker, SegmentedToggle, Alert, Button } from "../../components/ui";
 import { LogWeightDrawer } from "../../components/log-weight-drawer";
 import { WeightChart } from "../../components/charts";
+import { Bevi } from "../../components/bevi";
 
 const KG_PER_LB = 0.453592;
 
@@ -16,35 +19,45 @@ interface TrendsResponse {
   rate_kg_per_week: number | null;
   balance: { avgIntakeKcal: number; tdeeKcal: number; actualDeficitKcal: number; loggedDays: number; weighIns: number } | null;
   verdict: { status: "collecting" | "on_track" | "adjust"; adjustKcal: number; neededDeficitKcal: number; actualDeficitKcal: number; missing: string[] };
+  adaptive_goal_kcal: number | null;
   target_rate_kg_per_wk: number;
   goal_weight_kg: number | null;
   unit_system: "metric" | "imperial";
   recap: { week_start: string; content: string } | null;
 }
 
-export default function Weight() {
-  const [data, setData] = useState<TrendsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState<"30" | "90">("30");
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [logOpen, setLogOpen] = useState(false);
-  const [nowMs] = useState(() => Date.now());
+// Stale-while-revalidate, same as the meals caches: last response shows
+// instantly on focus, refresh happens in the background. Always fetches the
+// 90-day window — 30d is a client-side slice, so the toggle is instant.
+let trendsCache: TrendsResponse | null = null;
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      await fetchJson("/api/health/sync", { method: "POST" }).catch(() => {});
-      const trends = await fetchJson<TrendsResponse>(`/api/trends?days=${range}&tz_offset=${tzOffsetMinutes()}`);
-      if (!cancelled) {
-        setData(trends);
-        setError(null);
-      }
-    })().catch((err) => !cancelled && setError(err instanceof Error ? err.message : "Failed to load trends"));
-    return () => {
-      cancelled = true;
-    };
-  }, [range, refreshKey]);
-  useFocusEffect(useCallback(() => setRefreshKey((k) => k + 1), []));
+export default function Weight() {
+  const [range, setRange] = useState<"30" | "90">("30");
+  const [data, setData] = useState<TrendsResponse | null>(() => trendsCache);
+  const [error, setError] = useState<string | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
+
+  const load = useCallback(() => {
+    const fetchTrends = () =>
+      fetchJson<TrendsResponse>(`/api/trends?days=90&tz_offset=${tzOffsetMinutes()}`)
+        .then((trends) => {
+          trendsCache = trends;
+          setData(trends);
+          setError(null);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : "Failed to load trends"));
+
+    // Fire-and-forget: doesn't block the trends load, but refreshes it when
+    // the sync actually pushed new weigh-ins.
+    syncAppleHealth()
+      .then((pushed) => {
+        if (pushed) fetchTrends();
+      })
+      .catch(() => {});
+
+    fetchTrends();
+  }, []);
+  useFocusEffect(useCallback(() => load(), [load]));
 
   const imperial = data?.unit_system === "imperial";
   const unit = imperial ? "lbs" : "kg";
@@ -52,11 +65,14 @@ export default function Weight() {
 
   const rate = data?.rate_kg_per_week != null ? Math.round(toUnit(data.rate_kg_per_week) * 100) / 100 : null;
   const latest = data && data.weights.length > 0 ? data.weights[data.weights.length - 1] : null;
-  const daysSince = latest ? Math.floor((nowMs - new Date(`${latest.date}T12:00:00`).getTime()) / 86_400_000) : null;
+  // Date.now() per render: tabs stay mounted for days, a frozen timestamp goes stale.
+  const daysSince = latest ? Math.floor((Date.now() - new Date(`${latest.date}T12:00:00`).getTime()) / 86_400_000) : null;
+  const rangeCutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const chartWeights = data ? (range === "30" ? data.weights.filter((w) => w.date >= rangeCutoff) : data.weights) : [];
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
-      <ScrollView contentContainerClassName="p-5 gap-5">
+      <ScrollView contentContainerClassName="p-5 pb-16 gap-5">
         <View className="flex-row items-start justify-between gap-4">
           <View>
             <Kicker>Trend desk</Kicker>
@@ -77,9 +93,13 @@ export default function Weight() {
         {error ? <Alert icon="alert-triangle" title="Couldn't load trends" variant="destructive">{error}</Alert> : null}
 
         {!data && !error ? (
-          <View className="gap-3">
-            <Skeleton className="h-56 w-full rounded-3xl" />
-            <Skeleton className="h-28 w-full rounded-3xl" />
+          <View className="gap-5">
+            <Skeleton className="h-72 w-full rounded-3xl" />
+            <View className="flex-row gap-3">
+              <Skeleton className="h-20 flex-1 rounded-3xl" />
+              <Skeleton className="h-20 flex-1 rounded-3xl" />
+            </View>
+            <Skeleton className="h-16 w-full rounded-3xl" />
           </View>
         ) : null}
 
@@ -87,9 +107,10 @@ export default function Weight() {
           <>
             {data.weights.length === 0 ? (
               <Card className="items-center gap-2 p-8">
+                <Bevi pose="standing" size={120} />
                 <Text className="text-lg font-black text-foreground">No weight data yet</Text>
                 <Text className="text-center text-muted-foreground">
-                  Tap Log above to add a weigh-in — or connect Google Health in Settings to sync automatically.
+                  Tap Log above to add a weigh-in — or connect Apple Health in Settings to sync automatically.
                 </Text>
               </Card>
             ) : (
@@ -109,7 +130,8 @@ export default function Weight() {
                 </View>
                 <View className="mt-4">
                   <WeightChart
-                    points={data.weights.map((w) => ({
+                    goal={data.goal_weight_kg != null ? Math.round(toUnit(data.goal_weight_kg) * 10) / 10 : undefined}
+                    points={chartWeights.map((w) => ({
                       measured: Math.round(toUnit(w.weightKg) * 10) / 10,
                       trend: Math.round(toUnit(w.trendKg) * 10) / 10,
                       label: new Date(`${w.date}T12:00:00`).toLocaleDateString([], { month: "numeric", day: "numeric" }),
@@ -133,6 +155,19 @@ export default function Weight() {
                 </Text>
               </Card>
             </View>
+
+            {getCachedGoals()?.adaptive_goal && data.adaptive_goal_kcal != null ? (
+              <Card className="p-4">
+                <Text className="text-xs text-muted-foreground">This week's smart calorie goal</Text>
+                <Text className="text-2xl font-black tracking-tight tabular-nums text-foreground">
+                  {data.adaptive_goal_kcal.toLocaleString()} cal/day
+                </Text>
+                <Text className="mt-1 text-xs text-muted-foreground">
+                  Your measured maintenance minus the deficit your target rate needs, locked in from last Monday's
+                  trend. It recalculates next Monday.
+                </Text>
+              </Card>
+            ) : null}
 
             {data.verdict.status === "collecting" ? (
               <Alert icon="clock" title="Collecting data">
@@ -172,7 +207,7 @@ export default function Weight() {
         ) : null}
       </ScrollView>
 
-      <LogWeightDrawer open={logOpen} onClose={() => setLogOpen(false)} imperial={imperial} onLogged={() => setRefreshKey((k) => k + 1)} />
+      <LogWeightDrawer open={logOpen} onClose={() => setLogOpen(false)} imperial={imperial} onLogged={load} />
     </SafeAreaView>
   );
 }

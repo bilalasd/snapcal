@@ -3,6 +3,11 @@ import Animated, { FadeIn } from "react-native-reanimated";
 const POSES = {
   clipboard: require("../assets/bevi/clipboard.png"),
   standing: require("../assets/bevi/standing.png"),
+  camera: require("../assets/bevi/camera.png"),
+  scale: require("../assets/bevi/scale.png"),
+  promise: require("../assets/bevi/promise.png"),
+  wave: require("../assets/bevi/wave.png"),
+  celebrate: require("../assets/bevi/celebrate.png"),
 } as const;
 
 /** Bevi the Beaver — Loggi's mascot. One appearance per screen, keep it sparse. */

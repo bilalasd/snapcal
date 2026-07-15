@@ -6,18 +6,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "#ffffff",
-        foreground: "#000000",
-        card: "#ffffff",
-        muted: "#f7f7f5",
-        "muted-foreground": "#565656",
-        accent: "#f1f1f1",
-        primary: "#000000",
-        "primary-foreground": "#ffffff",
-        "primary-strong": "#000000",
-        destructive: "#d92d20",
-        border: "#e6e6e6",
-        magenta: "#ff3d8b",
+        // Themed tokens live in global.css as RGB-triplet CSS vars (light +
+        // dark); the wrapper keeps opacity modifiers like bg-background/95 working.
+        background: "rgb(var(--background) / <alpha-value>)",
+        foreground: "rgb(var(--foreground) / <alpha-value>)",
+        card: "rgb(var(--card) / <alpha-value>)",
+        muted: "rgb(var(--muted) / <alpha-value>)",
+        "muted-foreground": "rgb(var(--muted-foreground) / <alpha-value>)",
+        accent: "rgb(var(--accent) / <alpha-value>)",
+        primary: "rgb(var(--primary) / <alpha-value>)",
+        "primary-foreground": "rgb(var(--primary-foreground) / <alpha-value>)",
+        "primary-strong": "rgb(var(--primary-strong) / <alpha-value>)",
+        destructive: "rgb(var(--destructive) / <alpha-value>)",
+        border: "rgb(var(--border) / <alpha-value>)",
+        magenta: "#ff3d8b", // shared across themes: 5.9:1 on dark, brand accent
+
         block: {
           lime: "#dceeb1",
           lilac: "#c5b0f4",

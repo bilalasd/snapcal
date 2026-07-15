@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { View, Text, ScrollView, Image, Alert } from "react-native";
+import { View, Text, ScrollView, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { itemsToDraft, localDateString, type ApiMeal, type DraftItem } from "@loggi/shared";
 import { fetchJson } from "../lib/api";
 import { tapSuccess } from "../lib/haptics";
 import { stashDraft } from "../lib/draft";
+import { applyMealDelete, applyMealEdit, draftItemsToApi, settleMeal } from "../lib/cache";
 import { Sheet } from "./sheet";
-import { Button, Field, Input, Spinner } from "./ui";
+import { Button, Field, Input } from "./ui";
+import { Photo } from "./photo";
 import { MealReview } from "./meal-review";
 import { NutritionFacts } from "./nutrition-facts";
 
@@ -33,48 +35,61 @@ function MealDrawerInner({ meal, onClose, onChanged }: { meal: ApiMeal; onClose:
   const [items, setItems] = useState<DraftItem[]>(() => itemsToDraft(meal));
   const [favorite, setFavorite] = useState(meal.isFavorite);
   const [dateStr, setDateStr] = useState(() => localDateString(new Date(meal.eatenAt)));
-  const [busy, setBusy] = useState(false);
 
-  async function saveChanges() {
+  // Optimistic: update the caches + close instantly, PATCH in the background.
+  function saveChanges() {
     const valid = items.filter((i) => i.name.trim());
     if (valid.length === 0) return Alert.alert("A meal needs at least one item");
-    const orig = new Date(meal.eatenAt);
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const eaten = new Date(orig);
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+    if (!match) return Alert.alert("Date must look like 2026-07-15");
+    const [y, m, d] = match.slice(1).map(Number);
+    const eaten = new Date(meal.eatenAt);
     eaten.setFullYear(y, m - 1, d);
-    setBusy(true);
-    try {
-      await fetchJson(`/api/meals/${meal.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name, is_favorite: favorite, eaten_at: eaten.toISOString(), items: valid }),
+    // Round-trip check catches out-of-range days like 2026-02-31.
+    if (eaten.getMonth() !== m - 1 || eaten.getDate() !== d) return Alert.alert("That date doesn't exist — check the month and day");
+
+    const updated: ApiMeal = {
+      ...meal,
+      name: name || "Meal",
+      isFavorite: favorite,
+      eatenAt: eaten.toISOString(),
+      items: draftItemsToApi(valid, meal.id),
+    };
+    applyMealEdit(updated);
+    tapSuccess();
+    onChanged();
+    onClose();
+
+    fetchJson(`/api/meals/${meal.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name, is_favorite: favorite, eaten_at: eaten.toISOString(), items: valid }),
+    })
+      .then(() => settleMeal(meal.id))
+      .catch((err) => {
+        settleMeal(meal.id);
+        Alert.alert("Update didn't save", err instanceof Error ? err.message : "Try again.");
+        onChanged(); // refetch restores the server's version
       });
-      tapSuccess();
-      onChanged();
-      onClose();
-    } catch (err) {
-      Alert.alert(err instanceof Error ? err.message : "Update failed");
-    } finally {
-      setBusy(false);
-    }
   }
 
+  // Optimistic: gone from the list immediately, DELETE in the background.
   function confirmDelete() {
     Alert.alert("Delete meal?", meal.name, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          setBusy(true);
-          try {
-            await fetchJson(`/api/meals/${meal.id}`, { method: "DELETE" });
-            onChanged();
-            onClose();
-          } catch (err) {
-            Alert.alert(err instanceof Error ? err.message : "Delete failed");
-          } finally {
-            setBusy(false);
-          }
+        onPress: () => {
+          applyMealDelete(meal.id);
+          onChanged();
+          onClose();
+          fetchJson(`/api/meals/${meal.id}`, { method: "DELETE" })
+            .then(() => settleMeal(meal.id))
+            .catch((err) => {
+              settleMeal(meal.id);
+              Alert.alert("Delete failed — the meal is still there", err instanceof Error ? err.message : undefined);
+              onChanged();
+            });
         },
       },
     ]);
@@ -99,7 +114,7 @@ function MealDrawerInner({ meal, onClose, onChanged }: { meal: ApiMeal; onClose:
         {meal.photos.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
             {meal.photos.map((p) => (
-              <Image key={p.id} source={{ uri: p.url }} className="h-40 w-40 rounded-2xl" />
+              <Photo key={p.id} source={{ uri: p.url }} className="h-40 w-40 rounded-2xl" />
             ))}
           </ScrollView>
         ) : null}
@@ -112,20 +127,20 @@ function MealDrawerInner({ meal, onClose, onChanged }: { meal: ApiMeal; onClose:
 
       <View className="mt-4 gap-2">
         <View className="flex-row gap-2">
-          <Button variant={favorite ? "default" : "outline"} className="flex-1" onPress={() => setFavorite(!favorite)} disabled={busy}>
+          <Button variant={favorite ? "default" : "outline"} className="flex-1" onPress={() => setFavorite(!favorite)}>
             <Feather name="star" size={16} color={favorite ? "#fff" : "#000"} />
             <Text className={`font-bold ${favorite ? "text-white" : "text-foreground"}`}>{favorite ? "Favorited" : "Favorite"}</Text>
           </Button>
-          <Button variant="outline" className="flex-1" onPress={logAgain} disabled={busy}>
+          <Button variant="outline" className="flex-1" onPress={logAgain}>
             <Feather name="copy" size={16} color="#000" />
             <Text className="font-bold text-foreground">Log again</Text>
           </Button>
-          <Button variant="outline" size="icon" onPress={confirmDelete} disabled={busy}>
+          <Button variant="outline" size="icon" accessibilityLabel="Delete meal" onPress={confirmDelete}>
             <Feather name="trash-2" size={18} color="#000" />
           </Button>
         </View>
-        <Button onPress={saveChanges} disabled={busy}>
-          {busy ? <Spinner /> : <Text className="text-base font-bold text-white">Save changes</Text>}
+        <Button onPress={saveChanges}>
+          <Text className="text-base font-bold text-white">Save changes</Text>
         </Button>
       </View>
     </View>

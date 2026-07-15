@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, Image, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { View, Text, ScrollView, Alert, Pressable } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import {
   itemsToDraft,
@@ -16,11 +16,22 @@ import {
 import { fetchJson, uploadPhoto } from "../lib/api";
 import { tapSuccess } from "../lib/haptics";
 import { popDraft } from "../lib/draft";
-import { addOptimisticMeal, optimisticMeal } from "../lib/cache";
+import {
+  addOptimisticMeal,
+  discardOptimistic,
+  getCachedFavorites,
+  getCachedRecents,
+  optimisticMeal,
+  setCachedFavorites,
+  setCachedRecents,
+  settleMeal,
+} from "../lib/cache";
 import { pickPhotos, resizeToPhoto, type PickedPhoto } from "../lib/image";
 import { lookupBarcode } from "../lib/barcode";
+import { Bevi } from "../components/bevi";
 import { CameraCapture } from "../components/camera-capture";
-import { Button, Card, Input, Kicker, Spinner } from "../components/ui";
+import { Button, Card, Input, Kicker } from "../components/ui";
+import { Photo } from "../components/photo";
 import { AnalyzingOverlay } from "../components/analyzing-overlay";
 import { QuestionsStep } from "../components/questions-step";
 import { MealReview } from "../components/meal-review";
@@ -39,17 +50,20 @@ interface Draft {
 // camera (default), search (food database), or saved foods.
 export default function Add() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ date?: string; intent?: string }>();
   const targetDate = params.date ?? null;
-  const mode = params.intent === "search" ? "search" : params.intent === "saved" ? "saved" : "camera";
+  const initialMode = params.intent === "search" ? "search" : params.intent === "saved" ? "saved" : "camera";
+  // Stateful so a failed camera analysis can hand off to describe-by-text.
+  const [mode, setMode] = useState(initialMode);
 
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [text, setText] = useState("");
-  const [favorites, setFavorites] = useState<ApiMeal[]>([]);
-  const [recent, setRecent] = useState<ApiMeal[]>([]);
+  // Cached from the last visit so the saved/search lists paint instantly.
+  const [favorites, setFavorites] = useState<ApiMeal[]>(() => getCachedFavorites() ?? []);
+  const [recent, setRecent] = useState<ApiMeal[]>(() => getCachedRecents() ?? []);
   const [search, setSearch] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [refineText, setRefineText] = useState("");
   // A draft stashed by another screen (e.g. "log again" from the meal drawer)
   // lands directly on the review step.
@@ -67,6 +81,9 @@ export default function Add() {
   });
   const [cameraOpen, setCameraOpen] = useState(mode === "camera" && !draft);
   const [lookupBusy, setLookupBusy] = useState(false);
+  // Barcode misses surface as an inline card over the viewfinder (not an
+  // Alert), so the scanner stays live for an immediate retry or snap.
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
 
   async function runAnalysis(
     fullText: string,
@@ -87,8 +104,22 @@ export default function Add() {
         questions: opts?.suppressQuestions ? undefined : result.questions?.length ? result.questions : undefined,
       });
     } catch (err) {
-      Alert.alert(err instanceof Error ? err.message : "Analysis failed");
-      if (mode === "camera") setCameraOpen(true); // let them retry the shot
+      const msg = err instanceof Error ? err.message : "Try a clearer photo or a quick description.";
+      if (mode === "camera" && !draft) {
+        // Principle 6: the log never dead-ends — a failed photo hands off to words.
+        Alert.alert("That one stumped Bevi", msg, [
+          {
+            text: "Describe it instead",
+            onPress: () => {
+              setPhotos([]);
+              setMode("search");
+            },
+          },
+          { text: "Retry photo", onPress: () => setCameraOpen(true) },
+        ]);
+      } else {
+        Alert.alert("That one stumped Bevi", msg);
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -99,6 +130,7 @@ export default function Add() {
     try {
       const p = await resizeToPhoto(uri);
       setPhotos([p]);
+      setScanNotice(null);
       setCameraOpen(false);
       runAnalysis(text, { pics: [p] });
     } catch (e) {
@@ -112,6 +144,7 @@ export default function Add() {
       const picked = await pickPhotos(1);
       if (!picked.length) return;
       setPhotos(picked);
+      setScanNotice(null);
       setCameraOpen(false);
       runAnalysis(text, { pics: picked });
     } catch (e) {
@@ -121,11 +154,12 @@ export default function Add() {
 
   // Barcode detected in-frame → Open Food Facts lookup.
   async function onBarcode(code: string) {
+    setScanNotice(null);
     setLookupBusy(true);
     try {
       const item = await lookupBarcode(code);
       if (!item) {
-        Alert.alert("Not found", "That barcode isn't in the database — snap the food or its label instead.");
+        setScanNotice("That barcode isn't in the food database — snap the food or its label instead.");
         setLookupBusy(false);
         return; // keep the camera open so they can snap
       }
@@ -134,24 +168,41 @@ export default function Add() {
       setDraft({ name: item.name, items: [item], source: "text", photos: [] });
     } catch {
       setLookupBusy(false);
-      Alert.alert("Lookup failed", "Try again, or snap the food.");
+      setScanNotice("The lookup didn't go through — scan again, or snap the food.");
     }
   }
 
   useEffect(() => {
-    fetchJson<ApiMeal[]>("/api/meals?favorites=true").then(setFavorites).catch(() => {});
-    fetchJson<ApiMeal[]>("/api/meals?recent=true").then(setRecent).catch(() => {});
+    fetchJson<ApiMeal[]>("/api/meals?favorites=true")
+      .then((m) => {
+        setFavorites(m);
+        setCachedFavorites(m);
+      })
+      .catch(() => {});
   }, []);
 
+  // Also covers the initial recents load (fires immediately with an empty q).
   useEffect(() => {
     const q = search.trim();
     const handle = setTimeout(() => {
       fetchJson<ApiMeal[]>(`/api/meals?recent=true${q ? `&q=${encodeURIComponent(q)}` : ""}`)
-        .then(setRecent)
+        .then((m) => {
+          setRecent(m);
+          if (!q) setCachedRecents(m);
+        })
         .catch(() => {});
     }, 250);
     return () => clearTimeout(handle);
   }, [search]);
+
+  // Text-only logging — the fallback principle 6 promises. Reuses the same
+  // analyze endpoint; with no photos the draft lands as source "text".
+  function describe() {
+    const q = search.trim();
+    if (!q) return;
+    setText(q);
+    runAnalysis(q);
+  }
 
   function reanalyze() {
     const trimmed = refineText.trim();
@@ -193,14 +244,20 @@ export default function Add() {
     const eatenAt = targetDate ? new Date(`${targetDate}T12:00:00`).toISOString() : new Date().toISOString();
     const photosPayload = meal.photos.map((p) => ({ url: p.url, pathname: p.pathname }));
 
-    addOptimisticMeal(optimisticMeal({ name: meal.name, items, source: "copy", photos: photosPayload }, eatenAt, []));
+    const optimistic = optimisticMeal({ name: meal.name, items, source: "copy", photos: photosPayload }, eatenAt, []);
+    addOptimisticMeal(optimistic);
     tapSuccess();
     router.replace("/");
 
     fetchJson("/api/meals", {
       method: "POST",
       body: JSON.stringify({ name: meal.name || "Meal", eaten_at: eatenAt, source: "copy", items, photos: photosPayload }),
-    }).catch((err) => Alert.alert("Couldn't log that", err instanceof Error ? err.message : "Try again."));
+    })
+      .then(() => settleMeal(optimistic.id))
+      .catch((err) => {
+        discardOptimistic(optimistic.id);
+        Alert.alert("Couldn't log that", err instanceof Error ? err.message : "Try again.");
+      });
   }
 
   // Optimistic save: show the meal on Today immediately, upload + POST in the
@@ -212,15 +269,15 @@ export default function Add() {
     const eatenAt = targetDate ? new Date(`${targetDate}T12:00:00`).toISOString() : new Date().toISOString();
 
     // 1. Stash into the cache + navigate right away.
-    addOptimisticMeal(optimisticMeal({ ...draft, items }, eatenAt, photos.map((p) => p.uri)));
+    const optimistic = optimisticMeal({ ...draft, items }, eatenAt, photos.map((p) => p.uri));
+    addOptimisticMeal(optimistic);
     tapSuccess();
     router.replace("/");
 
     // 2. Do the real work in the background; the next Today refresh reconciles.
     (async () => {
       try {
-        const captured: DraftPhoto[] = [];
-        for (const p of photos) captured.push(await uploadPhoto(p.uri));
+        const captured = await Promise.all(photos.map((p) => uploadPhoto(p.uri)));
         await fetchJson("/api/meals", {
           method: "POST",
           body: JSON.stringify({
@@ -232,7 +289,9 @@ export default function Add() {
             photos: [...draft.photos, ...captured],
           }),
         });
+        settleMeal(optimistic.id);
       } catch (err) {
+        discardOptimistic(optimistic.id);
         Alert.alert("Meal didn't save", err instanceof Error ? err.message : "Check your connection and try again.");
       }
     })();
@@ -244,10 +303,16 @@ export default function Add() {
     if (mode === "camera") setCameraOpen(true); // retake instead of dead-ending on black
   }
 
+  // Camera mode lives in a fullscreen modal (a pageSheet would leave the tab
+  // screen peeking through above the viewfinder); rendered in every branch so
+  // the presentation doesn't flip when the flow moves to questions/review.
+  const screenOptions = <Stack.Screen options={{ presentation: initialMode === "camera" ? "fullScreenModal" : "modal" }} />;
+
   // Questions step
   if (draft?.questions?.length) {
     return (
       <>
+        {screenOptions}
         {analyzing ? <AnalyzingOverlay photoUri={photos[0]?.uri} /> : null}
         <QuestionsStep questions={draft.questions} onDone={handleAnswers} />
       </>
@@ -261,6 +326,7 @@ export default function Add() {
     const reviewTotal = draft.items.reduce((s, i) => s + (i.calories || 0), 0);
     return (
       <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+        {screenOptions}
         {analyzing ? <AnalyzingOverlay photoUri={draftPhotoUrls[0]} /> : null}
         <ScrollView contentContainerClassName="p-5 gap-5 pb-32" keyboardShouldPersistTaps="handled">
           {/* Header + hero total */}
@@ -280,9 +346,18 @@ export default function Add() {
           {draftPhotoUrls.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
               {draftPhotoUrls.map((url) => (
-                <Image key={url} source={{ uri: url }} className="h-24 w-24 rounded-2xl" />
+                <Photo key={url} source={{ uri: url }} className="h-24 w-24 rounded-2xl" />
               ))}
             </ScrollView>
+          ) : null}
+
+          {draft.items.some((i) => i.confidence === "low") ? (
+            <Card className="flex-row items-center gap-3 border-transparent bg-block-cream p-3">
+              <Bevi pose="clipboard" size={48} />
+              <Text className="flex-1 text-sm font-semibold text-foreground">
+                I'm guessing on the portions marked in orange — worth a quick check before you save.
+              </Text>
+            </Card>
           ) : null}
 
           {/* Edit the items first, then see the resulting nutrition */}
@@ -313,12 +388,15 @@ export default function Add() {
         </ScrollView>
 
         {/* Sticky action bar — Save always reachable */}
-        <View className="absolute inset-x-0 bottom-0 flex-row gap-3 border-t border-border bg-background px-5 pb-9 pt-3">
-          <Button variant="outline" className="flex-1" onPress={backFromReview} disabled={saving}>
+        <View
+          className="absolute inset-x-0 bottom-0 flex-row gap-3 border-t border-border bg-background px-5 pt-3"
+          style={{ paddingBottom: Math.max(insets.bottom, 12) + 12 }}
+        >
+          <Button variant="outline" className="flex-1" onPress={backFromReview}>
             Back
           </Button>
-          <Button className="flex-[2]" onPress={save} disabled={saving}>
-            {saving ? <Spinner /> : <Text className="text-base font-bold text-white">Save meal</Text>}
+          <Button className="flex-[2]" onPress={save}>
+            <Text className="text-base font-bold text-white">Save meal</Text>
           </Button>
         </View>
       </SafeAreaView>
@@ -329,6 +407,7 @@ export default function Add() {
   if (mode === "camera") {
     return (
       <View className="flex-1 bg-black">
+        {screenOptions}
         {analyzing ? <AnalyzingOverlay photoUri={photos[0]?.uri} /> : null}
         <CameraCapture
           open={cameraOpen && !analyzing}
@@ -338,6 +417,27 @@ export default function Add() {
           onLibrary={onLibrary}
           busy={lookupBusy}
         />
+        {scanNotice && cameraOpen && !analyzing ? (
+          <View
+            className="absolute inset-x-5 flex-row items-center gap-3 rounded-2xl bg-background p-4"
+            style={{ bottom: Math.max(insets.bottom, 16) + 148 }}
+          >
+            <Bevi pose="clipboard" size={48} />
+            <View className="flex-1">
+              <Text className="text-base font-black text-foreground">That one stumped Bevi</Text>
+              <Text className="mt-0.5 text-sm text-foreground">{scanNotice}</Text>
+            </View>
+            <Pressable
+              onPress={() => setScanNotice(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss"
+              className="h-8 w-8 items-center justify-center active:opacity-60"
+              hitSlop={8}
+            >
+              <Feather name="x" size={18} color="#565656" />
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -350,19 +450,29 @@ export default function Add() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+      {screenOptions}
       {analyzing ? <AnalyzingOverlay /> : null}
       <ScrollView contentContainerClassName="p-5 gap-4" keyboardShouldPersistTaps="handled">
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Kicker>{mode === "search" ? "Your food database" : "Tap to log again"}</Kicker>
-            <Text className="mt-1 text-4xl font-black tracking-tighter text-foreground">
-              {mode === "search" ? "Search meals" : "Saved foods"}
-            </Text>
+        {mode === "search" ? (
+          <View className="flex-row items-center gap-2">
+            <View className="flex-1">
+              <Input placeholder="Search meals, or describe a new one" value={search} onChangeText={setSearch} autoFocus />
+            </View>
+            <Button variant="ghost" size="icon" accessibilityLabel="Close" onPress={() => router.back()}>
+              <Feather name="x" size={22} color="#000" />
+            </Button>
           </View>
-          <Button variant="ghost" size="icon" onPress={() => router.back()}>
-            <Feather name="x" size={22} color="#000" />
-          </Button>
-        </View>
+        ) : (
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Kicker>Tap to log again</Kicker>
+              <Text className="mt-1 text-4xl font-black tracking-tighter text-foreground">Saved foods</Text>
+            </View>
+            <Button variant="ghost" size="icon" accessibilityLabel="Close" onPress={() => router.back()}>
+              <Feather name="x" size={22} color="#000" />
+            </Button>
+          </View>
+        )}
 
         {targetDate ? (
           <Card className="px-3 py-2">
@@ -375,8 +485,11 @@ export default function Add() {
           </Card>
         ) : null}
 
-        {mode === "search" ? (
-          <Input placeholder="Search your past meals" value={search} onChangeText={setSearch} autoFocus />
+        {mode === "search" && search.trim() ? (
+          <Button variant="outline" onPress={describe} disabled={analyzing}>
+            <Feather name="edit-3" size={14} color="#000" />
+            <Text className="font-bold text-foreground">Estimate "{search.trim()}" with Bevi</Text>
+          </Button>
         ) : null}
 
         {list.length > 0 ? (

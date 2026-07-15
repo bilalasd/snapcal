@@ -15,7 +15,7 @@ export function Sheet({
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40" onPress={onClose} />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View className="absolute bottom-0 w-full rounded-t-3xl bg-background pb-8 pt-3">
+        <View className="w-full rounded-t-3xl bg-background pb-8 pt-3">
           <View className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-border" />
           {children}
         </View>

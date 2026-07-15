@@ -26,6 +26,8 @@ export function LogWeightDrawer({
   async function save() {
     const value = Number(weight);
     if (!value || value <= 0) return RNAlert.alert("Enter a valid weight");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim()) || isNaN(new Date(`${date.trim()}T12:00:00`).getTime()))
+      return RNAlert.alert("Date must look like 2026-07-15");
     const weightKg = imperial ? value * KG_PER_LB : value;
     setSaving(true);
     try {

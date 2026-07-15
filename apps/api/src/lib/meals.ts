@@ -51,9 +51,13 @@ function itemValues(mealId: string, item: z.infer<typeof mealItemInput>) {
 }
 
 export async function createMeal(userId: string, input: MealInput) {
-  const [meal] = await db
+  // App-generated id lets all inserts go in one db.batch(): a single HTTP
+  // round trip to Neon, run atomically (no orphaned meal if items fail).
+  const mealId = crypto.randomUUID();
+  const insertMeal = db
     .insert(meals)
     .values({
+      id: mealId,
       userId,
       name: input.name,
       eatenAt: new Date(input.eaten_at),
@@ -61,30 +65,31 @@ export async function createMeal(userId: string, input: MealInput) {
       source: input.source,
     })
     .returning();
-
-  const items = await db
+  const insertItems = db
     .insert(mealItems)
-    .values(input.items.map((item) => itemValues(meal.id, item)))
+    .values(input.items.map((item) => itemValues(mealId, item)))
     .returning();
 
-  let photos: (typeof mealPhotos.$inferSelect)[] = [];
   if (input.photos && input.photos.length > 0) {
-    photos = await db
+    const insertPhotos = db
       .insert(mealPhotos)
       .values(
         input.photos.map((p) => ({
-          mealId: meal.id,
+          mealId,
           url: p.url,
           pathname: p.pathname,
         })),
       )
       .returning();
+    const [[meal], items, photos] = await db.batch([insertMeal, insertItems, insertPhotos]);
+    return { ...meal, items, photos };
   }
 
-  return { ...meal, items, photos };
+  const [[meal], items] = await db.batch([insertMeal, insertItems]);
+  return { ...meal, items, photos: [] };
 }
 
-async function attachChildren<T extends { id: string }>(rows: T[]) {
+export async function attachChildren<T extends { id: string }>(rows: T[]) {
   if (rows.length === 0) return [];
   const ids = rows.map((m) => m.id);
   const [items, photos] = await Promise.all([

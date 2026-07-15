@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, ScrollView, Pressable, Alert, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -16,6 +16,7 @@ import {
   type Goals,
 } from "@loggi/shared";
 import { fetchJson } from "../lib/api";
+import { setCachedGoals } from "../lib/cache";
 import { tapSuccess } from "../lib/haptics";
 import { Card, Button, Input, Field, Kicker, Spinner } from "../components/ui";
 import { Bevi } from "../components/bevi";
@@ -25,6 +26,79 @@ const CM_PER_IN = 2.54;
 
 type Step = "units" | "you" | "body" | "activity" | "goal" | "result";
 const STEPS: Step[] = ["units", "you", "body", "activity", "goal", "result"];
+
+const INTRO_SCREENS = [
+  {
+    pose: "camera" as const,
+    kicker: "Meet Loggi",
+    title: "Point it at anything edible.",
+    body: "Plate, nutrition label, or barcode — one camera reads them all. A meal takes seconds to log, so you'll actually keep logging.",
+  },
+  {
+    pose: "scale" as const,
+    kicker: "The smart part",
+    title: "Your target comes from your scale, not a formula.",
+    body: "We'll start with a good estimate today. As you log and weigh in, I measure what your body actually burns and adjust your target every Monday — so you always know if the plan is working.",
+  },
+  {
+    pose: "promise" as const,
+    kicker: "The deal",
+    title: "No tricks.",
+    body: "I'll tell you when I'm guessing on a portion. And your data is yours — never sold, never used for ads. Export everything or delete everything, one tap in Settings.",
+  },
+];
+
+function IntroCarousel({ onDone }: { onDone: () => void }) {
+  const { width } = useWindowDimensions();
+  const scrollRef = useRef<ScrollView>(null);
+  const [page, setPage] = useState(0);
+  const last = page === INTRO_SCREENS.length - 1;
+
+  const goTo = (i: number) => {
+    scrollRef.current?.scrollTo({ x: i * width, animated: true });
+    setPage(i);
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      <View className="h-11 flex-row items-center justify-end px-5">
+        <Pressable onPress={onDone} accessibilityRole="button" hitSlop={10} className="active:opacity-60">
+          <Text className="text-sm font-bold text-muted-foreground">Skip</Text>
+        </Pressable>
+      </View>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
+      >
+        {INTRO_SCREENS.map((s) => (
+          <View key={s.title} style={{ width }} className="justify-center gap-5 px-5">
+            <View className="items-center">
+              <Bevi pose={s.pose} size={180} />
+            </View>
+            <View>
+              <Kicker>{s.kicker}</Kicker>
+              <Text className="mt-1 text-4xl font-black tracking-tighter text-foreground">{s.title}</Text>
+              <Text className="mt-4 text-sm font-semibold text-muted-foreground">{s.body}</Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+      <View className="gap-6 px-5 pb-6">
+        <View className="flex-row justify-center gap-1.5">
+          {INTRO_SCREENS.map((s, i) => (
+            <View key={s.title} className={`h-1.5 rounded-full ${i === page ? "w-6 bg-primary" : "w-1.5 bg-muted"}`} />
+          ))}
+        </View>
+        <Button onPress={() => (last ? onDone() : goTo(page + 1))}>
+          {last ? "Build my starting plan" : "Next"}
+        </Button>
+      </View>
+    </SafeAreaView>
+  );
+}
 type GoalKind = "lose" | "maintain" | "gain";
 
 const KG = { gentle: -0.25, steady: -0.5, ambitious: -0.75, leanGain: 0.125, fastGain: 0.25 };
@@ -50,6 +124,7 @@ const kgToDisplay = (kg: number, imperial: boolean) => `${Math.round((imperial ?
 
 export default function Onboarding() {
   const router = useRouter();
+  const [intro, setIntro] = useState(true);
   const [goals, setGoals] = useState<Goals | null>(null);
   const [step, setStep] = useState<Step>("units");
   const [saving, setSaving] = useState(false);
@@ -119,7 +194,7 @@ export default function Onboarding() {
     setSaving(true);
     try {
       await fetchJson("/api/weights", { method: "POST", body: JSON.stringify({ weight_kg: Math.round(weightKg * 100) / 100 }) });
-      await fetchJson<Goals>("/api/goals", {
+      const saved = await fetchJson<Goals>("/api/goals", {
         method: "PUT",
         body: JSON.stringify({
           daily_calories: plan.intake,
@@ -135,6 +210,7 @@ export default function Onboarding() {
           onboarded: true,
         }),
       });
+      setCachedGoals(saved);
       tapSuccess();
       router.replace("/");
     } catch (err) {
@@ -145,15 +221,20 @@ export default function Onboarding() {
 
   const rates = ratePresets(imperial, goalKind === "gain" ? "gain" : "lose");
 
+  if (intro) return <IntroCarousel onDone={() => setIntro(false)} />;
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-1 px-5 pb-6 pt-2">
         <View className="mb-6 flex-row items-center gap-3">
-          {stepIndex > 0 ? (
-            <Pressable onPress={() => setStep(STEPS[stepIndex - 1])} className="-ml-2 h-11 w-11 items-center justify-center">
-              <Feather name="arrow-left" size={22} color="#000" />
-            </Pressable>
-          ) : null}
+          <Pressable
+            onPress={() => (stepIndex === 0 ? setIntro(true) : setStep(STEPS[stepIndex - 1]))}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            className="-ml-2 h-11 w-11 items-center justify-center active:opacity-60"
+          >
+            <Feather name="arrow-left" size={22} color="#000" />
+          </Pressable>
           <View className="flex-1 flex-row gap-1.5">
             {STEPS.map((s, i) => (
               <View key={s} className={`h-1.5 flex-1 ${i <= stepIndex ? "bg-primary" : "bg-muted"}`} />
@@ -163,10 +244,7 @@ export default function Onboarding() {
 
         <ScrollView contentContainerClassName="gap-5" showsVerticalScrollIndicator={false}>
           {step === "units" && (
-            <StepShell title="Welcome to Loggi 👋" subtitle="A few quick questions and we'll work out exactly how much you should eat. First — which units do you use?">
-              <View className="items-center">
-                <Bevi pose="clipboard" size={160} />
-              </View>
+            <StepShell title="First — your units" subtitle="Six quick questions and I'll work out your starting numbers. Which units do you think in?">
               <View className="flex-row gap-3">
                 <ChoiceCard className="flex-1" selected={!imperial} onPress={() => setImperial(false)} title="kg · cm" blurb="Kilograms & centimetres" />
                 <ChoiceCard className="flex-1" selected={imperial} onPress={() => setImperial(true)} title="lb · ft" blurb="Pounds, feet & inches" />
@@ -175,7 +253,7 @@ export default function Onboarding() {
           )}
 
           {step === "you" && (
-            <StepShell title="About you" subtitle="Your body burns calories all day just keeping you alive. Sex and age help us estimate that.">
+            <StepShell title="About you" subtitle="Your body burns calories all day, even asleep. Sex and age help me estimate how many.">
               <View className="flex-row gap-3">
                 <ChoiceCard className="flex-1" selected={sex === "male"} onPress={() => setSex("male")} title="Male" />
                 <ChoiceCard className="flex-1" selected={sex === "female"} onPress={() => setSex("female")} title="Female" />
@@ -187,7 +265,7 @@ export default function Onboarding() {
           )}
 
           {step === "body" && (
-            <StepShell title="Your body" subtitle="Bigger bodies burn more calories. We'll also use this weight as your starting point on the chart.">
+            <StepShell title="Your body" subtitle="Bigger bodies burn more calories. This weigh-in also becomes the first point on your trend.">
               {imperial ? (
                 <Field label="Height (ft / in)">
                   <View className="flex-row gap-2">
@@ -207,7 +285,7 @@ export default function Onboarding() {
           )}
 
           {step === "activity" && (
-            <StepShell title="How active are you?" subtitle="Be honest — most people pick one level too high. Exercise counts, but so does being on your feet all day.">
+            <StepShell title="How active are you?" subtitle="Be honest — most people pick one level too high, and an honest pick means a target you can trust. Being on your feet counts too.">
               <View className="gap-2">
                 {ACTIVITY_LEVELS.map((level) => (
                   <ChoiceCard key={level.value} selected={activity === level.value} onPress={() => setActivity(level.value)} title={level.label} blurb={level.description} />
@@ -217,7 +295,7 @@ export default function Onboarding() {
           )}
 
           {step === "goal" && (
-            <StepShell title="What's your goal?" subtitle="Weight change comes down to calories in vs calories out. Pick a direction and a pace you can live with.">
+            <StepShell title="What's your goal?" subtitle="Pick a direction and a pace you can live with — the gentler the pace, the easier it is to keep.">
               <View className="flex-row gap-2">
                 {(["lose", "maintain", "gain"] as const).map((kind) => (
                   <ChoiceCard
@@ -244,7 +322,10 @@ export default function Onboarding() {
           )}
 
           {step === "result" && plan && tdee !== null && macros ? (
-            <StepShell title="Your plan is ready 🎉" subtitle="Here's what the numbers say. Log your meals and Loggi will check this against your real results.">
+            <StepShell title="Your starting plan is ready 🎉" subtitle="Here's what the formula says. Log your meals and weigh in when you can — in about two weeks, your scale takes over.">
+              <View className="items-center">
+                <Bevi pose="celebrate" size={140} />
+              </View>
               <Card className="border-transparent bg-block-lime p-4 gap-4">
                 <View className="flex-row items-center gap-3">
                   <View className="h-10 w-10 items-center justify-center rounded-full bg-muted">
@@ -280,7 +361,7 @@ export default function Onboarding() {
                   ))}
                 </View>
                 <Text className="text-xs text-muted-foreground">
-                  These are estimates to get you started. After ~2 weeks of logging, the Weight screen measures your actual burn and tells you if this needs adjusting.
+                  These numbers are my starting guess. Once there's ~2 weeks of real data, the Weight screen measures your actual burn and I'll tell you if this needs adjusting.
                 </Text>
               </Card>
             </StepShell>
@@ -312,7 +393,7 @@ function StepShell({ title, subtitle, children }: { title: string; subtitle: str
   return (
     <View className="gap-5">
       <View>
-        <Kicker>Plan builder</Kicker>
+        <Kicker>Plan desk</Kicker>
         <Text className="mt-1 text-4xl font-black tracking-tighter text-foreground">{title}</Text>
         <Text className="mt-4 text-sm font-semibold text-muted-foreground">{subtitle}</Text>
       </View>
@@ -339,7 +420,9 @@ function ChoiceCard({
   return (
     <Pressable
       onPress={onPress}
-      className={`rounded-2xl border-2 p-3 ${selected ? "border-primary bg-primary" : "border-border bg-card"} ${className}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={`rounded-2xl border-2 p-3 active:opacity-70 ${selected ? "border-primary bg-primary" : "border-border bg-card"} ${className}`}
     >
       <View className="flex-row items-center gap-2">
         <Text className={`font-black tracking-tight ${selected ? "text-white" : "text-foreground"}`}>{title}</Text>

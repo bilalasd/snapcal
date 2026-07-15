@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import {
   Pressable,
@@ -10,6 +10,7 @@ import {
   type TextInputProps,
   type ViewProps,
 } from "react-native";
+import { useColors } from "../lib/colors";
 
 // Lean NativeWind primitives — the RN stand-ins for the web shadcn set. Only
 // what the screens actually use; grow as needed.
@@ -79,13 +80,14 @@ export function Badge({
   children,
   className = "",
   textClassName = "",
-}: {
+  ...props
+}: ViewProps & {
   children: React.ReactNode;
   className?: string;
   textClassName?: string;
 }) {
   return (
-    <View className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${className}`}>
+    <View className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${className}`} {...props}>
       {typeof children === "string" ? (
         <Text className={`text-xs font-bold uppercase ${textClassName}`}>{children}</Text>
       ) : (
@@ -119,13 +121,32 @@ export const Input = forwardRef<TextInput, TextInputProps & { className?: string
   ({ className = "", ...props }, ref) => (
     <TextInput
       ref={ref}
-      placeholderTextColor="#565656"
+      placeholderTextColor={useColors().mutedForeground}
       className={`rounded-2xl border border-border bg-muted px-4 py-3 text-base text-foreground ${className}`}
       {...props}
     />
   ),
 );
 Input.displayName = "Input";
+
+/** Input with a show/hide toggle — the standard password field. */
+export function PasswordInput({ className = "", ...props }: TextInputProps & { className?: string }) {
+  const [show, setShow] = useState(false);
+  const colors = useColors();
+  return (
+    <View>
+      <Input secureTextEntry={!show} className={`pr-12 ${className}`} {...props} />
+      <Pressable
+        onPress={() => setShow(!show)}
+        accessibilityRole="button"
+        accessibilityLabel={show ? "Hide password" : "Show password"}
+        className="absolute bottom-0 right-0 top-0 w-12 items-center justify-center"
+      >
+        <Feather name={show ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
+      </Pressable>
+    </View>
+  );
+}
 
 export function Field({
   label,
@@ -142,8 +163,9 @@ export function Field({
   );
 }
 
-export function Spinner({ className }: { className?: string }) {
-  return <ActivityIndicator color="#000000" className={className} />;
+export function Spinner({ className, color }: { className?: string; color?: string }) {
+  const colors = useColors();
+  return <ActivityIndicator color={color ?? colors.foreground} className={className} />;
 }
 
 export function Alert({
@@ -157,7 +179,8 @@ export function Alert({
   children?: React.ReactNode;
   variant?: "default" | "destructive";
 }) {
-  const color = variant === "destructive" ? "#d92d20" : "#000000";
+  const colors = useColors();
+  const color = variant === "destructive" ? colors.destructive : colors.foreground;
   return (
     <View className={`flex-row gap-3 rounded-2xl border p-4 ${variant === "destructive" ? "border-destructive/30" : "border-border"} bg-card`}>
       <Feather name={icon} size={18} color={color} />
@@ -184,7 +207,10 @@ export function SegmentedToggle<T extends string>({
         <Pressable
           key={o.value}
           onPress={() => onChange(o.value)}
-          className={`rounded-lg px-3 py-1.5 ${value === o.value ? "bg-primary" : ""}`}
+          hitSlop={{ top: 10, bottom: 10 }}
+          accessibilityRole="button"
+          accessibilityState={{ selected: value === o.value }}
+          className={`rounded-lg px-3 py-1.5 active:opacity-70 ${value === o.value ? "bg-primary" : ""}`}
         >
           <Text className={`text-xs font-bold ${value === o.value ? "text-white" : "text-muted-foreground"}`}>
             {o.label}

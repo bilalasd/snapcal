@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { useSignUp } from "@clerk/clerk-expo";
 import { SsoRow } from "../../components/sso";
+import { Button, Field, Input, PasswordInput } from "../../components/ui";
 
 export default function SignUp() {
   const { signUp, setActive, isLoaded } = useSignUp();
@@ -58,56 +59,46 @@ export default function SignUp() {
 
         {pendingCode ? (
           <View className="mt-8 gap-3">
-            <TextInput
-              className="rounded-2xl border border-border bg-muted px-4 py-4 text-base text-foreground"
-              placeholder="Verification code"
-              placeholderTextColor="#565656"
-              keyboardType="number-pad"
-              value={code}
-              onChangeText={setCode}
-            />
+            <Field label="Verification code">
+              <Input
+                placeholder="6-digit code"
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                value={code}
+                onChangeText={setCode}
+              />
+            </Field>
             {error && <Text className="text-destructive text-sm">{error}</Text>}
-            <Pressable
-              className="mt-2 rounded-2xl bg-primary py-4 active:opacity-80"
-              disabled={busy}
-              onPress={onVerify}
-            >
-              <Text className="text-center text-base font-bold text-white">
-                {busy ? "Verifying…" : "Verify"}
-              </Text>
-            </Pressable>
+            <Button className="mt-2" disabled={busy} onPress={onVerify}>
+              {busy ? "Verifying…" : "Verify"}
+            </Button>
           </View>
         ) : (
           <View className="mt-8 gap-3">
-            <TextInput
-              className="rounded-2xl border border-border bg-muted px-4 py-4 text-base text-foreground"
-              placeholder="Email"
-              placeholderTextColor="#565656"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              value={email}
-              onChangeText={setEmail}
-            />
-            <TextInput
-              className="rounded-2xl border border-border bg-muted px-4 py-4 text-base text-foreground"
-              placeholder="Password"
-              placeholderTextColor="#565656"
-              secureTextEntry
-              textContentType="newPassword"
-              value={password}
-              onChangeText={setPassword}
-            />
+            <Field label="Email">
+              <Input
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </Field>
+            <Field label="Password">
+              <PasswordInput
+                placeholder="Pick a password"
+                textContentType="newPassword"
+                autoComplete="new-password"
+                value={password}
+                onChangeText={setPassword}
+              />
+            </Field>
             {error && <Text className="text-destructive text-sm">{error}</Text>}
-            <Pressable
-              className="mt-2 rounded-2xl bg-primary py-4 active:opacity-80"
-              disabled={busy}
-              onPress={onCreate}
-            >
-              <Text className="text-center text-base font-bold text-white">
-                {busy ? "Creating…" : "Create account"}
-              </Text>
-            </Pressable>
+            <Button className="mt-2" disabled={busy} onPress={onCreate}>
+              {busy ? "Creating…" : "Create account"}
+            </Button>
           </View>
         )}
 

@@ -5,3 +5,4 @@ export * from "./analysis";
 export * from "./bmr";
 export * from "./trend";
 export * from "./clarify";
+export * from "./usual";

@@ -39,10 +39,14 @@ interface Props {
 export function MealReview({ name, onNameChange, items, onItemsChange }: Props) {
   const [open, setOpen] = useState<number | null>(null);
 
-  const updateItem = (index: number, patch: Partial<DraftItem>) =>
-    onItemsChange(items.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+  // Touching portion or any number counts as the human checking the AI's guess,
+  // so the low-confidence flag clears; renaming alone doesn't.
+  const updateItem = (index: number, patch: Partial<DraftItem>) => {
+    const checked = Object.keys(patch).some((k) => k !== "name");
+    onItemsChange(items.map((it, i) => (i === index ? { ...it, ...patch, ...(checked && { confidence: null }) } : it)));
+  };
   const scale = (index: number, factor: number) =>
-    onItemsChange(items.map((it, i) => (i === index ? scaleDraftItem(it, factor) : it)));
+    onItemsChange(items.map((it, i) => (i === index ? { ...scaleDraftItem(it, factor), confidence: null } : it)));
 
   return (
     <Card className="p-4">
@@ -58,6 +62,8 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
           <View key={index} className="border-b border-border">
             <Pressable
               onPress={() => setOpen(isOpen ? null : index)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isOpen }}
               className="flex-row items-center gap-3 py-3"
             >
               <View className="min-w-0 flex-1">
@@ -65,7 +71,14 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
                   <Text className="font-semibold text-foreground">{item.name || "Untitled item"}</Text>
                   {item.usda_match ? <Feather name="check-circle" size={13} color="#000" /> : null}
                 </View>
-                {item.portion ? <Text className="text-muted-foreground text-xs">{item.portion}</Text> : null}
+                {item.portion ? (
+                  <View className="flex-row items-center gap-1">
+                    {item.confidence === "low" ? <Feather name="help-circle" size={12} color="#d97706" /> : null}
+                    <Text className={`text-xs ${item.confidence === "low" ? "font-semibold text-amber-600" : "text-muted-foreground"}`}>
+                      {item.portion}
+                    </Text>
+                  </View>
+                ) : null}
                 <Text className="text-muted-foreground text-xs tabular-nums">
                   P {round1(item.protein_g)} · C {round1(item.carbs_g)} · F {round1(item.fat_g)}
                 </Text>
@@ -84,6 +97,7 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
                   <Button
                     variant="ghost"
                     size="icon"
+                    accessibilityLabel="Remove item"
                     onPress={() => onItemsChange(items.filter((_, i) => i !== index))}
                   >
                     <Feather name="trash-2" size={18} color="#000" />
@@ -91,8 +105,8 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
                 </View>
                 <View className="flex-row items-center gap-2">
                   <Input value={item.portion} onChangeText={(v) => updateItem(index, { portion: v })} className="flex-1" />
-                  <Button variant="outline" size="sm" onPress={() => scale(index, 0.5)}>×½</Button>
-                  <Button variant="outline" size="sm" onPress={() => scale(index, 2)}>×2</Button>
+                  <Button variant="outline" size="sm" className="min-h-11" accessibilityLabel="Halve portion" onPress={() => scale(index, 0.5)}>×½</Button>
+                  <Button variant="outline" size="sm" className="min-h-11" accessibilityLabel="Double portion" onPress={() => scale(index, 2)}>×2</Button>
                 </View>
                 <View className="flex-row gap-2">
                   {macroFields.map(({ key, label }) => (
@@ -106,7 +120,7 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
                             [key]: key === "calories" ? Math.max(0, Math.round(Number(v) || 0)) : Math.max(0, Number(v) || 0),
                           })
                         }
-                        className="px-2 py-2 text-center"
+                        className="min-h-11 px-2 py-2 text-center"
                       />
                     </View>
                   ))}

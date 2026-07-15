@@ -20,6 +20,12 @@ function localDateOf(d: Date, tzOffsetMin: number): string {
     .slice(0, 10);
 }
 
+function mondayOf(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); // Mon=0
+  return d.toISOString().slice(0, 10);
+}
+
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
@@ -33,33 +39,43 @@ export async function GET(request: NextRequest) {
   const historyStart = new Date(
     Date.now() - (chartDays + 90) * 24 * 60 * 60 * 1000,
   );
-  const weightRows = await db
-    .select()
-    .from(weights)
-    .where(
-      and(
-        eq(weights.userId, userId),
-        gte(weights.date, historyStart.toISOString().slice(0, 10)),
-      ),
-    )
-    .orderBy(weights.date);
+  // Intake by local day over the balance window (last 30 days is plenty)
+  const intakeStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  // All four queries are independent — one round trip's latency, not four.
+  const [weightRows, mealRows, [goalsRow], [latestRecap]] = await Promise.all([
+    db
+      .select()
+      .from(weights)
+      .where(
+        and(
+          eq(weights.userId, userId),
+          gte(weights.date, historyStart.toISOString().slice(0, 10)),
+        ),
+      )
+      .orderBy(weights.date),
+    db
+      .select({
+        eatenAt: meals.eatenAt,
+        calories: mealItems.calories,
+      })
+      .from(meals)
+      .innerJoin(mealItems, eq(mealItems.mealId, meals.id))
+      .where(and(eq(meals.userId, userId), gte(meals.eatenAt, intakeStart))),
+    db.select().from(goals).where(eq(goals.userId, userId)),
+    db
+      .select()
+      .from(weeklyRecaps)
+      .where(eq(weeklyRecaps.userId, userId))
+      .orderBy(desc(weeklyRecaps.weekStart))
+      .limit(1),
+  ]);
 
   const points: WeightPoint[] = weightRows.map((w) => ({
     date: w.date,
     weightKg: Number(w.weightKg),
   }));
   const trend = computeTrend(points);
-
-  // Intake by local day over the balance window (last 30 days is plenty)
-  const intakeStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const mealRows = await db
-    .select({
-      eatenAt: meals.eatenAt,
-      calories: mealItems.calories,
-    })
-    .from(meals)
-    .innerJoin(mealItems, eq(mealItems.mealId, meals.id))
-    .where(and(eq(meals.userId, userId), gte(meals.eatenAt, intakeStart)));
 
   const intakeByDay = new Map<string, number>();
   for (const row of mealRows) {
@@ -70,22 +86,27 @@ export async function GET(request: NextRequest) {
     ([date, calories]) => ({ date, calories }),
   );
 
-  const [goalsRow] = await db
-    .select()
-    .from(goals)
-    .where(eq(goals.userId, userId));
   const targetRate = goalsRow ? Number(goalsRow.targetRateKgPerWk) : -0.5;
 
   const rate = computeRateKgPerWeek(trend);
   const balance = computeEnergyBalance(trend, intake);
   const verdict = computeVerdict(balance, trend, targetRate);
 
-  const [latestRecap] = await db
-    .select()
-    .from(weeklyRecaps)
-    .where(eq(weeklyRecaps.userId, userId))
-    .orderBy(desc(weeklyRecaps.weekStart))
-    .limit(1);
+  // Adaptive calorie goal, frozen per calendar week: computed only from data
+  // before this week's local Monday, so the number holds still all week
+  // instead of wobbling as days roll through the 14-day window.
+  const weekStart = mondayOf(localDateOf(new Date(), tzOffset));
+  const trendAsOfWeek = trend.filter((p) => p.date < weekStart);
+  const weekBalance = computeEnergyBalance(trendAsOfWeek, intake);
+  const weekVerdict = computeVerdict(weekBalance, trendAsOfWeek, targetRate);
+  const adaptiveGoalKcal =
+    weekVerdict.status !== "collecting" && weekBalance
+      ? Math.max(
+          500,
+          // nearest 50 — anything finer is noise, not signal
+          Math.round((weekBalance.tdeeKcal - weekVerdict.neededDeficitKcal) / 50) * 50,
+        )
+      : null;
 
   const chartStart = new Date(Date.now() - chartDays * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -96,6 +117,7 @@ export async function GET(request: NextRequest) {
     rate_kg_per_week: rate,
     balance,
     verdict,
+    adaptive_goal_kcal: adaptiveGoalKcal,
     target_rate_kg_per_wk: targetRate,
     goal_weight_kg:
       goalsRow?.goalWeightKg == null ? null : Number(goalsRow.goalWeightKg),

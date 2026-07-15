@@ -11,7 +11,7 @@ const weightInput = z.object({
     .optional(),
 });
 
-/** Manual weigh-in (used by onboarding; Google Health sync also upserts here). */
+/** Weigh-in upsert by date (manual logging, onboarding, and Apple Health sync). */
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {

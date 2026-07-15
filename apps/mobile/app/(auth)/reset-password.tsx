@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { useSignIn } from "@clerk/clerk-expo";
-
-const inputClass = "rounded-2xl border border-border bg-muted px-4 py-4 text-base text-foreground";
+import { Button, Field, Input, PasswordInput } from "../../components/ui";
 
 export default function ResetPassword() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -53,20 +52,46 @@ export default function ResetPassword() {
 
         {sent ? (
           <View className="mt-8 gap-3">
-            <TextInput className={inputClass} placeholder="Reset code" placeholderTextColor="#565656" keyboardType="number-pad" value={code} onChangeText={setCode} />
-            <TextInput className={inputClass} placeholder="New password" placeholderTextColor="#565656" secureTextEntry textContentType="newPassword" value={password} onChangeText={setPassword} />
+            <Field label="Reset code">
+              <Input
+                placeholder="6-digit code"
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                value={code}
+                onChangeText={setCode}
+              />
+            </Field>
+            <Field label="New password">
+              <PasswordInput
+                placeholder="Pick a new password"
+                textContentType="newPassword"
+                autoComplete="new-password"
+                value={password}
+                onChangeText={setPassword}
+              />
+            </Field>
             {error && <Text className="text-destructive text-sm">{error}</Text>}
-            <Pressable className="mt-2 rounded-2xl bg-primary py-4 active:opacity-80" disabled={busy} onPress={reset}>
-              <Text className="text-center text-base font-bold text-white">{busy ? "Resetting…" : "Set new password"}</Text>
-            </Pressable>
+            <Button className="mt-2" disabled={busy} onPress={reset}>
+              {busy ? "Resetting…" : "Set new password"}
+            </Button>
           </View>
         ) : (
           <View className="mt-8 gap-3">
-            <TextInput className={inputClass} placeholder="Email" placeholderTextColor="#565656" autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" value={email} onChangeText={setEmail} />
+            <Field label="Email">
+              <Input
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </Field>
             {error && <Text className="text-destructive text-sm">{error}</Text>}
-            <Pressable className="mt-2 rounded-2xl bg-primary py-4 active:opacity-80" disabled={busy} onPress={sendCode}>
-              <Text className="text-center text-base font-bold text-white">{busy ? "Sending…" : "Send reset code"}</Text>
-            </Pressable>
+            <Button className="mt-2" disabled={busy} onPress={sendCode}>
+              {busy ? "Sending…" : "Send reset code"}
+            </Button>
           </View>
         )}
 

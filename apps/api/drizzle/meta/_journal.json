@@ -71,6 +71,20 @@
       "when": 1783569634692,
       "tag": "0009_multiuser_create",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784095538252,
+      "tag": "0010_optimal_bastion",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784095938486,
+      "tag": "0011_curious_black_tom",
+      "breakpoints": true
     }
   ]
 }
