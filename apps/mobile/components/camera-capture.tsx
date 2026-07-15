@@ -23,9 +23,18 @@ export function CameraCapture({
   const camRef = useRef<CameraView>(null);
   const firedBarcode = useRef(false);
   const [capturing, setCapturing] = useState(false);
+  const [barcodeBox, setBarcodeBox] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   // Reset the one-shot barcode guard whenever the camera reopens.
-  if (open && firedBarcode.current && !busy) firedBarcode.current = false;
+  if (open && firedBarcode.current && !busy) {
+    firedBarcode.current = false;
+    if (barcodeBox) setBarcodeBox(null);
+  }
 
   async function snap() {
     if (capturing || busy || !camRef.current) return;
@@ -48,9 +57,13 @@ export function CameraCapture({
             ref={camRef}
             style={{ flex: 1 }}
             barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e"] }}
-            onBarcodeScanned={({ data }) => {
+            onBarcodeScanned={({ data, bounds }) => {
               if (firedBarcode.current || busy || capturing) return;
               firedBarcode.current = true;
+              // ponytail: bounds are view coords on iOS; Android can report 0-size — just skip the box then
+              if (bounds?.size.width) {
+                setBarcodeBox({ ...bounds.origin, ...bounds.size });
+              }
               onBarcode(data);
             }}
           />
@@ -65,6 +78,23 @@ export function CameraCapture({
             </Pressable>
           </View>
         )}
+
+        {/* Barcode highlight */}
+        {barcodeBox ? (
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: barcodeBox.x,
+              top: barcodeBox.y,
+              width: barcodeBox.width,
+              height: barcodeBox.height,
+              borderWidth: 3,
+              borderColor: "#22c55e",
+              borderRadius: 8,
+            }}
+          />
+        ) : null}
 
         {/* Hint */}
         <View className="absolute inset-x-0 top-16 items-center" pointerEvents="none">
