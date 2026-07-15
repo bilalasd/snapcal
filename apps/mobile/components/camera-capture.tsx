@@ -1,13 +1,24 @@
 import { useRef, useState } from "react";
 import {
-  Modal,
   View,
   Text,
   Pressable,
   ActivityIndicator,
   useWindowDimensions,
+  Linking,
 } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Camera,
+  useCameraPermission,
+  usePhotoOutput,
+  useFrameOutput,
+  type CameraRef,
+  type Point,
+} from "react-native-vision-camera";
+import { useBarcodeScanner } from "react-native-vision-camera-barcode-scanner";
+import { useTextRecognition } from "react-native-vision-camera-ocr-plus";
+import { scheduleOnRN } from "react-native-worklets";
 import { Feather } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
@@ -24,17 +35,24 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 const HOLD_MS = 3000; // same code must stay in frame this long before lookup fires
-const LOST_MS = 500; // no scan events for this long = barcode left the frame
-const PAD = 22; // breathing room between barcode bounds and brackets
+const LOST_MS = 700; // no detections for this long = subject left the frame (MLKit rounds take ~100-200ms)
+const PAD = 22; // breathing room between detected bounds and brackets
 const HOLE_R = 18; // corner radius of the clear (non-dimmed) window
 const RING_R = 15;
 const RING_C = 2 * Math.PI * RING_R;
 const CORNER = 30;
 const STROKE = 5;
 
+// Nutrition labels are dense multi-block text with telltale words.
+const LABEL_WORDS = /calorie|kcal|protein|carbohydrate|total fat|serving|sodium|nutrition|energy/i;
+
+type Detection = { kind: "barcode" | "label"; value: string; tl: Point; br: Point };
+
 // One camera for all three: the shutter captures food or a nutrition label
-// (→ AI analyze, which reads both), and a barcode in frame is auto-detected
-// (→ Open Food Facts lookup). `busy` covers the barcode lookup in progress.
+// (→ AI analyze, which reads both), and a barcode or nutrition label in frame
+// is auto-detected by MLKit each frame — barcodes hold-to-fire an Open Food
+// Facts lookup, labels just get boxed with a "snap it" hint.
+// `busy` covers the barcode lookup in progress.
 export function CameraCapture({
   open,
   onClose,
@@ -50,16 +68,24 @@ export function CameraCapture({
   onLibrary?: () => void;
   busy?: boolean;
 }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const camRef = useRef<CameraView>(null);
+  const { hasPermission, requestPermission, canRequestPermission } = useCameraPermission();
+  const insets = useSafeAreaInsets();
+  const camRef = useRef<CameraRef>(null);
   const firedBarcode = useRef(false);
   const seenAt = useRef<{ code: string; t: number } | null>(null);
   const lostTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [labelSeen, setLabelSeen] = useState(false);
+
+  const photoOutput = usePhotoOutput();
+  const barcodeScanner = useBarcodeScanner({
+    barcodeFormats: ["ean-13", "ean-8", "upc-a", "upc-e"],
+  });
+  const { scanText } = useTextRecognition({ language: "latin" });
 
   // Walmart-style reticle: white corner brackets rest at screen center, morph
-  // out to hug a detected barcode and turn yellow; a center ring fills over
-  // HOLD_MS to show how long to keep holding.
+  // out to hug a detected barcode (yellow, with a hold-progress ring) or a
+  // detected nutrition label (white, no ring — the shutter does the rest).
   const { width: winW, height: winH } = useWindowDimensions();
   const rest = { x: winW * 0.19, y: winH * 0.36, w: winW * 0.62, h: 150 };
   const boxX = useSharedValue(rest.x);
@@ -68,6 +94,7 @@ export function CameraCapture({
   const boxH = useSharedValue(rest.h);
   const active = useSharedValue(0);
   const progress = useSharedValue(0);
+  const labelMode = useSharedValue(0); // 0 = barcode (yellow + ring), 1 = label (white)
 
   function resetReticle() {
     cancelAnimation(progress);
@@ -86,18 +113,122 @@ export function CameraCapture({
     resetReticle();
   }
 
+  // JS-side handler for detections reported by the frame worklet. Converts
+  // camera-sensor coords to view coords and drives the reticle.
+  function onDetect(d: Detection) {
+    if (firedBarcode.current || busy || capturing) return;
+    const preview = camRef.current?.preview;
+    if (!preview) return;
+    let box: { x: number; y: number; w: number; h: number };
+    try {
+      const tl = preview.convertCameraPointToViewPoint(d.tl);
+      const br = preview.convertCameraPointToViewPoint(d.br);
+      // min/max both corners — the camera→view transform may rotate the rect
+      box = {
+        x: Math.min(tl.x, br.x),
+        y: Math.min(tl.y, br.y),
+        w: Math.abs(br.x - tl.x),
+        h: Math.abs(br.y - tl.y),
+      };
+    } catch {
+      return; // preview not laid out yet
+    }
+    boxX.value = withTiming(box.x - PAD, { duration: 110 });
+    boxY.value = withTiming(box.y - PAD, { duration: 110 });
+    boxW.value = withTiming(box.w + PAD * 2, { duration: 110 });
+    boxH.value = withTiming(box.h + PAD * 2, { duration: 110 });
+    active.value = withTiming(1, { duration: 100 });
+    labelMode.value = withTiming(d.kind === "label" ? 1 : 0, { duration: 130 });
+    setLabelSeen(d.kind === "label");
+    // No "lost" event exists — silence for LOST_MS means it left the frame.
+    if (lostTimer.current) clearTimeout(lostTimer.current);
+    lostTimer.current = setTimeout(() => {
+      seenAt.current = null;
+      setLabelSeen(false);
+      resetReticle();
+    }, LOST_MS);
+
+    if (d.kind === "label") {
+      // A label never auto-fires; drop any barcode hold in progress.
+      seenAt.current = null;
+      cancelAnimation(progress);
+      progress.value = 0;
+      return;
+    }
+    const now = Date.now();
+    if (!seenAt.current || seenAt.current.code !== d.value) {
+      seenAt.current = { code: d.value, t: now };
+      cancelAnimation(progress);
+      progress.value = 0;
+      progress.value = withTiming(1, { duration: HOLD_MS, easing: Easing.linear });
+    } else if (now - seenAt.current.t >= HOLD_MS) {
+      firedBarcode.current = true;
+      seenAt.current = null;
+      if (lostTimer.current) clearTimeout(lostTimer.current); // keep the reticle locked during lookup
+      onBarcode(d.value);
+    }
+  }
+
+  // MLKit barcode + OCR on the camera's frame thread. The sync calls take
+  // ~100-200ms; dropFramesWhileBusy throttles detection to that cadence.
+  const frameOutput = useFrameOutput({
+    pixelFormat: "rgb", // MLKit OCR needs RGB buffers on Android
+    targetResolution: { width: 1280, height: 720 },
+    dropFramesWhileBusy: true,
+    onFrame(frame) {
+      "worklet";
+      try {
+        const code = barcodeScanner.scanCodes(frame)[0];
+        if (code?.rawValue) {
+          const b = code.boundingBox;
+          scheduleOnRN(onDetect, {
+            kind: "barcode" as const,
+            value: code.rawValue,
+            tl: frame.convertFramePointToCameraPoint({ x: b.left, y: b.top }),
+            br: frame.convertFramePointToCameraPoint({ x: b.right, y: b.bottom }),
+          });
+          return;
+        }
+        const text = scanText(frame);
+        if (text.blocks.length < 4 || !LABEL_WORDS.test(text.resultText)) return;
+        let l = Infinity;
+        let t = Infinity;
+        let r = -Infinity;
+        let btm = -Infinity;
+        for (const blk of text.blocks) {
+          const f = blk.blockFrame;
+          if (f.x < l) l = f.x;
+          if (f.y < t) t = f.y;
+          if (f.x + f.width > r) r = f.x + f.width;
+          if (f.y + f.height > btm) btm = f.y + f.height;
+        }
+        scheduleOnRN(onDetect, {
+          kind: "label" as const,
+          value: "",
+          tl: frame.convertFramePointToCameraPoint({ x: l, y: t }),
+          br: frame.convertFramePointToCameraPoint({ x: r, y: btm }),
+        });
+      } finally {
+        frame.dispose();
+      }
+    },
+  });
+
   const boxStyle = useAnimatedStyle(() => ({
     left: boxX.value,
     top: boxY.value,
     width: boxW.value,
     height: boxH.value,
   }));
-  // Brackets only exist while a barcode is locked — invisible at rest.
+  // Brackets only exist while something is locked — invisible at rest.
+  // Yellow for barcodes (auto-fires), white for nutrition labels (snap it).
   const cornerColor = useAnimatedStyle(() => ({
-    borderColor: "#facc15",
+    borderColor: interpolateColor(labelMode.value, [0, 1], ["#facc15", "#ffffff"]),
     opacity: active.value,
   }));
-  const ringStyle = useAnimatedStyle(() => ({ opacity: active.value }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: active.value * (1 - labelMode.value), // hold ring is barcode-only
+  }));
   const ringProps = useAnimatedProps(() => ({
     strokeDashoffset: RING_C * (1 - progress.value),
   }));
@@ -112,11 +243,13 @@ export function CameraCapture({
   }));
 
   async function snap() {
-    if (capturing || busy || !camRef.current) return;
+    if (capturing || busy) return;
     setCapturing(true);
     try {
-      const pic = await camRef.current.takePictureAsync({ quality: 1 });
-      if (pic?.uri) onPhoto(pic.uri);
+      const pic = await photoOutput.capturePhotoToFile({}, {});
+      if (pic?.filePath) {
+        onPhoto(pic.filePath.startsWith("file://") ? pic.filePath : `file://${pic.filePath}`);
+      }
     } catch {
       // Capture failed (e.g. no camera on the simulator) — stay open, no crash.
     } finally {
@@ -166,45 +299,20 @@ export function CameraCapture({
     />
   );
 
+  // Rendered inline (the /add route is already a fullscreen modal) — a nested
+  // RN Modal here left a black sheet visibly dismissing after the camera closed.
+  if (!open) return null;
   return (
-    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 bg-black">
-        {permission?.granted ? (
-          <CameraView
+    <View className="flex-1 bg-black">
+        {hasPermission ? (
+          <Camera
             ref={camRef}
             style={{ flex: 1 }}
-            barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e"] }}
-            onBarcodeScanned={({ data, bounds }) => {
-              if (firedBarcode.current || busy || capturing) return;
-              // ponytail: bounds are view coords on iOS; Android can report 0-size — brackets stay at rest then
-              if (bounds?.size.width) {
-                boxX.value = withTiming(bounds.origin.x - PAD, { duration: 110 });
-                boxY.value = withTiming(bounds.origin.y - PAD, { duration: 110 });
-                boxW.value = withTiming(bounds.size.width + PAD * 2, { duration: 110 });
-                boxH.value = withTiming(bounds.size.height + PAD * 2, { duration: 110 });
-              }
-              active.value = withTiming(1, { duration: 100 });
-              // No "barcode lost" event exists — silence for LOST_MS means it left the frame.
-              if (lostTimer.current) clearTimeout(lostTimer.current);
-              lostTimer.current = setTimeout(() => {
-                seenAt.current = null;
-                resetReticle();
-              }, LOST_MS);
-              const now = Date.now();
-              if (!seenAt.current || seenAt.current.code !== data) {
-                seenAt.current = { code: data, t: now };
-                cancelAnimation(progress);
-                progress.value = 0;
-                progress.value = withTiming(1, {
-                  duration: HOLD_MS,
-                  easing: Easing.linear,
-                });
-              } else if (now - seenAt.current.t >= HOLD_MS) {
-                firedBarcode.current = true;
-                seenAt.current = null;
-                if (lostTimer.current) clearTimeout(lostTimer.current); // keep the reticle locked during lookup
-                onBarcode(data);
-              }
+            device="back"
+            isActive={open}
+            outputs={[photoOutput, frameOutput]}
+            onError={() => {
+              // e.g. no camera on the simulator — the black screen + hint stay up
             }}
           />
         ) : (
@@ -213,14 +321,20 @@ export function CameraCapture({
             <Text className="text-center text-base text-white">
               Camera access is needed to log meals.
             </Text>
-            <Pressable className="rounded-2xl bg-white px-5 py-3" onPress={requestPermission}>
-              <Text className="font-bold text-black">Grant access</Text>
+            {/* After a hard denial the OS won't re-show the prompt — send them to Settings. */}
+            <Pressable
+              className="rounded-2xl bg-white px-5 py-3 active:opacity-80"
+              onPress={() => (canRequestPermission ? requestPermission() : Linking.openSettings())}
+            >
+              <Text className="font-bold text-black">
+                {canRequestPermission ? "Grant access" : "Open Settings"}
+              </Text>
             </Pressable>
           </View>
         )}
 
-        {/* Dim outside the locked barcode, with a rounded clear window */}
-        {permission?.granted ? (
+        {/* Dim outside the locked box, with a rounded clear window */}
+        {hasPermission ? (
           <Animated.View
             pointerEvents="none"
             style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }, dimOpacity]}
@@ -237,8 +351,8 @@ export function CameraCapture({
           </Animated.View>
         ) : null}
 
-        {/* Scan reticle: corner brackets + hold-progress ring */}
-        {permission?.granted ? (
+        {/* Scan reticle: corner brackets + hold-progress ring (barcode only) */}
+        {hasPermission ? (
           <Animated.View pointerEvents="none" style={[{ position: "absolute" }, boxStyle]}>
             {corner("tl")}
             {corner("tr")}
@@ -284,16 +398,22 @@ export function CameraCapture({
         {/* Hint */}
         <View className="absolute inset-x-0 top-16 items-center" pointerEvents="none">
           <Text className="overflow-hidden rounded-full bg-black/55 px-4 py-2 text-sm font-semibold text-white">
-            {busy ? "Looking up barcode…" : "Snap food or a label — or point at a barcode"}
+            {busy
+              ? "Looking up barcode…"
+              : labelSeen
+                ? "Nutrition label — snap it"
+                : "Snap food or a label — or point at a barcode"}
           </Text>
         </View>
 
         {/* Shutter + library */}
-        {permission?.granted ? (
-          <View className="absolute inset-x-0 bottom-12 items-center justify-center">
+        {hasPermission ? (
+          <View className="absolute inset-x-0 items-center justify-center" style={{ bottom: Math.max(insets.bottom, 16) + 32 }}>
             <Pressable
               onPress={snap}
               disabled={capturing || busy}
+              accessibilityRole="button"
+              accessibilityLabel="Take photo"
               className="h-20 w-20 items-center justify-center rounded-full border-4 border-white active:opacity-70"
             >
               <View className="h-16 w-16 rounded-full bg-white" />
@@ -303,6 +423,7 @@ export function CameraCapture({
                 onPress={onLibrary}
                 disabled={capturing || busy}
                 className="absolute left-8 h-12 w-12 items-center justify-center rounded-full bg-black/50 active:opacity-70"
+                accessibilityRole="button"
                 accessibilityLabel="Choose from library"
               >
                 <Feather name="image" size={20} color="#fff" />
@@ -314,7 +435,10 @@ export function CameraCapture({
         {/* Close */}
         <Pressable
           onPress={onClose}
-          className="absolute right-5 top-14 h-11 w-11 items-center justify-center rounded-full bg-black/50"
+          accessibilityRole="button"
+          accessibilityLabel="Close camera"
+          className="absolute right-5 h-11 w-11 items-center justify-center rounded-full bg-black/50 active:opacity-70"
+          style={{ top: Math.max(insets.top, 20) + 8 }}
         >
           <Feather name="x" size={22} color="#fff" />
         </Pressable>
@@ -326,7 +450,6 @@ export function CameraCapture({
             <ActivityIndicator color="#fff" size="large" />
           </View>
         ) : null}
-      </View>
-    </Modal>
+    </View>
   );
 }

@@ -5,16 +5,33 @@
     "version": "0.1.0",
     "scheme": "loggi",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.loggi.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Loggi uses the camera to snap meals and scan barcodes and nutrition labels."
+      }
     },
     "android": {
-      "package": "com.loggi.app"
+      "package": "com.loggi.app",
+      "permissions": ["android.permission.CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ff3d8b"
+      }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "backgroundColor": "#ffffff"
+        }
+      ],
       "expo-router",
       "expo-secure-store",
       [
@@ -26,8 +43,12 @@
       ],
       "expo-web-browser",
       [
-        "expo-camera",
-        { "cameraPermission": "Loggi uses the camera to scan barcodes." }
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Loggi reads your weigh-ins from Apple Health to keep your weight trend current.",
+          "NSHealthUpdateUsageDescription": false,
+          "background-delivery": false
+        }
       ]
     ],
     "experiments": {
