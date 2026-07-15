@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import type { ClarifyAnswer, ClarifyQuestion } from "@mealio/shared";
+import type { ClarifyAnswer, ClarifyQuestion } from "@loggi/shared";
 import { Button, Input, Kicker } from "./ui";
 
 /**

@@ -3,7 +3,7 @@ import { View, Text, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { tzOffsetMinutes } from "@mealio/shared";
+import { tzOffsetMinutes } from "@loggi/shared";
 import { fetchJson } from "../../lib/api";
 import { Card, Skeleton, Kicker, SegmentedToggle, Alert, Button } from "../../components/ui";
 import { LogWeightDrawer } from "../../components/log-weight-drawer";

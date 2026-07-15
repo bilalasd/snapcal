@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { scalePortion, type DraftItem } from "@mealio/shared";
+import { scalePortion, type DraftItem } from "@loggi/shared";
 import { Card, Input, Button } from "./ui";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;

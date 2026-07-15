@@ -25,7 +25,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { generateObject, gateway } from "ai";
-import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT, type Analysis } from "@mealio/shared";
+import { analysisSchema, sumItems, NUTRITION_SYSTEM_PROMPT, type Analysis } from "@loggi/shared";
 // ONE vision call per image scores raw (model as-is) and usda (production
 // grounding). Grounding is deterministic post-processing, so no re-running the
 // vision call. Set GROUND=raw to skip the DB (and the usda column) entirely.

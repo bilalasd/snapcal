@@ -30,7 +30,7 @@ export function SsoRow() {
     try {
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy: kind === "google" ? "oauth_google" : "oauth_apple",
-        redirectUrl: Linking.createURL("/", { scheme: "mealio" }),
+        redirectUrl: Linking.createURL("/", { scheme: "loggi" }),
       });
       if (createdSessionId && setActive) await setActive({ session: createdSessionId });
       // If no session, Clerk needs more steps (e.g. new-account MFA) — rare for

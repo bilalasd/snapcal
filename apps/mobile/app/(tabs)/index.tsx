@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Bevi } from "../../components/bevi";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { localDateString, mealTotals, type ApiMeal, type Goals } from "@mealio/shared";
+import Animated, { FadeInDown, LinearTransition, runOnJS } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { localDateString, mealTotals, type ApiMeal, type Goals } from "@loggi/shared";
 import { fetchJson, fetchMealsForDate, fetchMealsRange } from "../../lib/api";
+import { getCachedMeals, setCachedMeals, getCachedGoals, setCachedGoals } from "../../lib/cache";
 import { Button, Card, Badge, Skeleton, Kicker } from "../../components/ui";
 import { ProgressRing } from "../../components/progress-ring";
 import { MealListItem } from "../../components/meal-list-item";
@@ -35,16 +39,23 @@ export default function Today() {
   const router = useRouter();
   const [today] = useState(() => localDateString());
   const [date, setDate] = useState(today);
-  const [meals, setMeals] = useState<ApiMeal[] | null>(null);
-  const [goals, setGoals] = useState<Goals | null>(null);
+  const [meals, setMeals] = useState<ApiMeal[] | null>(() => getCachedMeals(localDateString()) ?? null);
+  const [goals, setGoals] = useState<Goals | null>(() => getCachedGoals());
   const [streak, setStreak] = useState<number | null>(null);
   const [selected, setSelected] = useState<ApiMeal | null>(null);
 
   const isToday = date === today;
 
   const load = useCallback((forDate: string, showLoading = true) => {
-    if (showLoading) setMeals(null);
-    fetchMealsForDate(forDate).then(setMeals).catch(() => setMeals([]));
+    const cached = getCachedMeals(forDate);
+    if (cached) setMeals(cached); // instant — stale-while-revalidate
+    else if (showLoading) setMeals(null); // skeleton only when we have nothing
+    fetchMealsForDate(forDate)
+      .then((m) => {
+        setMeals(m);
+        setCachedMeals(forDate, m);
+      })
+      .catch(() => setMeals(cached ?? []));
   }, []);
 
   useEffect(() => load(date), [load, date]);
@@ -56,7 +67,10 @@ export default function Today() {
     fetchJson<Goals>("/api/goals")
       .then((g) => {
         if (!g.onboarded) router.replace("/onboarding");
-        else setGoals(g);
+        else {
+          setGoals(g);
+          setCachedGoals(g);
+        }
       })
       .catch(() => {});
     const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
@@ -89,8 +103,20 @@ export default function Today() {
   const dateLabel = new Date(`${date}T12:00:00`).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   const goAdd = () => router.push(isToday ? "/add" : { pathname: "/add", params: { date } });
 
+  const goPrev = useCallback(() => setDate((d) => addDays(d, -1)), []);
+  const goNext = useCallback(() => setDate((d) => (d < today ? addDays(d, 1) : d)), [today]);
+  // Swipe left/right to page days (activeOffsetX keeps vertical scroll working).
+  const swipeDays = Gesture.Pan()
+    .activeOffsetX([-24, 24])
+    .failOffsetY([-14, 14])
+    .onEnd((e) => {
+      if (e.translationX < -60) runOnJS(goNext)();
+      else if (e.translationX > 60) runOnJS(goPrev)();
+    });
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+      <GestureDetector gesture={swipeDays}>
       <ScrollView contentContainerClassName="p-5 gap-5">
         <View className="flex-row items-start justify-between gap-4">
           <View className="flex-1">
@@ -107,13 +133,13 @@ export default function Today() {
 
         {/* Day navigation */}
         <View className="flex-row items-center justify-between border-t border-border pt-3">
-          <Button variant="outline" size="icon" onPress={() => setDate((d) => addDays(d, -1))}>
+          <Button variant="outline" size="icon" onPress={goPrev}>
             <Feather name="chevron-left" size={20} color="#000" />
           </Button>
           <Text className="text-muted-foreground text-xs font-extrabold uppercase tracking-[2px]">
             {isToday ? "Tap arrows for past days" : dayHeading(date, today)}
           </Text>
-          <Button variant="outline" size="icon" disabled={isToday} onPress={() => setDate((d) => (d < today ? addDays(d, 1) : d))}>
+          <Button variant="outline" size="icon" disabled={isToday} onPress={goNext}>
             <Feather name="chevron-right" size={20} color="#000" />
           </Button>
         </View>
@@ -167,9 +193,7 @@ export default function Today() {
 
             {meals.length === 0 ? (
               <Card className="items-center gap-3 p-8">
-                <View className="h-12 w-12 items-center justify-center rounded-full bg-muted">
-                  <Feather name="plus" size={22} color="#000" />
-                </View>
+                <Bevi pose="standing" size={120} />
                 <Text className="text-lg font-black tracking-tight text-foreground">
                   {isToday ? "Nothing logged yet" : "No meals this day"}
                 </Text>
@@ -189,14 +213,21 @@ export default function Today() {
                     </Pressable>
                   ) : null}
                 </View>
-                {meals.map((meal) => (
-                  <MealListItem key={meal.id} meal={meal} onPress={() => setSelected(meal)} />
+                {meals.map((meal, i) => (
+                  <Animated.View
+                    key={meal.id}
+                    entering={FadeInDown.delay(i * 40).springify().damping(18)}
+                    layout={LinearTransition.springify()}
+                  >
+                    <MealListItem meal={meal} onPress={() => setSelected(meal)} />
+                  </Animated.View>
                 ))}
               </View>
             )}
           </>
         )}
       </ScrollView>
+      </GestureDetector>
 
       <MealDrawer meal={selected} onClose={() => setSelected(null)} onChanged={() => load(date, false)} />
     </SafeAreaView>

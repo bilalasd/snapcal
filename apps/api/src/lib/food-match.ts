@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db, foods } from "@/db";
 import { foodToItem } from "@/lib/usda";
-import type { Analysis } from "@mealio/shared";
+import type { Analysis } from "@loggi/shared";
 
 type AnalyzedItem = Analysis["items"][number];
 export type GroundedItem = AnalyzedItem & { usda_match?: string };

@@ -7,7 +7,7 @@ import {
   computeRateKgPerWeek,
   computeTrend,
   type WeightPoint,
-} from "@mealio/shared";
+} from "@loggi/shared";
 
 export const maxDuration = 60;
 

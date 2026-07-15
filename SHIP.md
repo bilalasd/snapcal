@@ -1,4 +1,4 @@
-# Shipping Mealio (Phases 6–7)
+# Shipping Loggi (Phases 6–7)
 
 Everything below needs an account/login I can't do for you. The code and config are ready.
 
@@ -9,7 +9,7 @@ Deployed: **https://mealio-api-five.vercel.app** (project `mealio-api`).
 How it was done (monorepo notes, for redeploys):
 - Project `rootDirectory` is set to `apps/api` (Vercel installs the whole Yarn
   workspace and builds the app — a plain `apps/api`-only upload can't resolve
-  `@mealio/shared`, and a local `--prebuilt` deploy fails on hoisted
+  `@loggi/shared`, and a local `--prebuilt` deploy fails on hoisted
   `node_modules`). Deploy from the **repo root**: `npx vercel deploy --prod`.
 - Env vars already set (production): `DATABASE_URL`, `CLERK_SECRET_KEY`,
   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`,
@@ -55,7 +55,7 @@ internal APKs need no account).
 The web app synced weight from Google Health via an OAuth web-redirect (`/api/health/*`).
 On native this needs one of:
 
-- **Google Health**: `expo-web-browser` `openAuthSessionAsync` + a `mealio://` deep-link
+- **Google Health**: `expo-web-browser` `openAuthSessionAsync` + a `loggi://` deep-link
   callback, and the API's OAuth redirect URI updated to accept it. Moderate work.
 - **Apple HealthKit** (iOS): `expo-health` / a HealthKit config plugin for native weight
   sync — a genuine native win, but requires a dev client (not Expo Go) to test.

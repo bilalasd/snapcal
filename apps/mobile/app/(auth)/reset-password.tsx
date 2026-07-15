@@ -46,7 +46,7 @@ export default function ResetPassword() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <KeyboardAvoidingView className="flex-1 justify-center px-6" behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <Text className="text-muted-foreground text-xs font-bold uppercase tracking-[3px]">Mealio</Text>
+        <Text className="text-muted-foreground text-xs font-bold uppercase tracking-[3px]">Loggi</Text>
         <Text className="mt-1 text-5xl font-black tracking-tighter text-foreground">
           {sent ? "Check your email" : "Reset password"}
         </Text>

@@ -1,5 +1,5 @@
 {
-  "name": "@mealio/api",
+  "name": "@loggi/api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -22,7 +22,7 @@
     "@anthropic-ai/sdk": "^0.110.0",
     "@base-ui/react": "^1.6.0",
     "@clerk/nextjs": "^7.5.14",
-    "@mealio/shared": "*",
+    "@loggi/shared": "*",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.6.0",
     "class-variance-authority": "^0.7.1",

@@ -1,4 +1,4 @@
-import type { MealDraft } from "@mealio/shared";
+import type { MealDraft } from "@loggi/shared";
 
 // Hand-off between "Log again" and the Add screen. In-memory is fine — it's an
 // immediate same-session navigation. ponytail: AsyncStorage persistence in

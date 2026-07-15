@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Mealio",
-    "slug": "mealio",
+    "name": "Loggi",
+    "slug": "loggi",
     "version": "0.1.0",
-    "scheme": "mealio",
+    "scheme": "loggi",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "com.mealio.app",
+      "bundleIdentifier": "com.loggi.app",
       "supportsTablet": true
     },
     "android": {
-      "package": "com.mealio.app"
+      "package": "com.loggi.app"
     },
     "plugins": [
       "expo-router",
@@ -20,14 +20,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Mealio uses your photos to log meals.",
-          "cameraPermission": "Mealio uses the camera to snap your meals."
+          "photosPermission": "Loggi uses your photos to log meals.",
+          "cameraPermission": "Loggi uses the camera to snap your meals."
         }
       ],
       "expo-web-browser",
       [
         "expo-camera",
-        { "cameraPermission": "Mealio uses the camera to scan barcodes." }
+        { "cameraPermission": "Loggi uses the camera to scan barcodes." }
       ]
     ],
     "experiments": {

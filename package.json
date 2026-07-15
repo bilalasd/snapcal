@@ -1,14 +1,14 @@
 {
-  "name": "mealio",
+  "name": "loggi",
   "private": true,
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "api": "yarn workspace @mealio/api",
-    "mobile": "yarn workspace @mealio/mobile",
-    "shared": "yarn workspace @mealio/shared",
+    "api": "yarn workspace @loggi/api",
+    "mobile": "yarn workspace @loggi/mobile",
+    "shared": "yarn workspace @loggi/shared",
     "test": "yarn workspaces run test"
   },
   "packageManager": "yarn@4.17.1"

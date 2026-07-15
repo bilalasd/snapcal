@@ -1,5 +1,5 @@
 {
-  "name": "@mealio/mobile",
+  "name": "@loggi/mobile",
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
@@ -14,7 +14,7 @@
     "@clerk/shared": "3.47.7",
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.1.6",
-    "@mealio/shared": "*",
+    "@loggi/shared": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "^54.0.0",
     "expo-auth-session": "~7.0.11",

@@ -9,7 +9,7 @@ import {
   computeVerdict,
   type DayIntake,
   type WeightPoint,
-} from "@mealio/shared";
+} from "@loggi/shared";
 
 export const maxDuration = 60;
 

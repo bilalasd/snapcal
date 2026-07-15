@@ -14,10 +14,11 @@ import {
   type ActivityLevel,
   type Sex,
   type Goals,
-} from "@mealio/shared";
+} from "@loggi/shared";
 import { fetchJson } from "../lib/api";
 import { tapSuccess } from "../lib/haptics";
 import { Card, Button, Input, Field, Kicker, Spinner } from "../components/ui";
+import { Bevi } from "../components/bevi";
 
 const KG_PER_LB = 0.453592;
 const CM_PER_IN = 2.54;
@@ -162,7 +163,10 @@ export default function Onboarding() {
 
         <ScrollView contentContainerClassName="gap-5" showsVerticalScrollIndicator={false}>
           {step === "units" && (
-            <StepShell title="Welcome to Mealio 👋" subtitle="A few quick questions and we'll work out exactly how much you should eat. First — which units do you use?">
+            <StepShell title="Welcome to Loggi 👋" subtitle="A few quick questions and we'll work out exactly how much you should eat. First — which units do you use?">
+              <View className="items-center">
+                <Bevi pose="clipboard" size={160} />
+              </View>
               <View className="flex-row gap-3">
                 <ChoiceCard className="flex-1" selected={!imperial} onPress={() => setImperial(false)} title="kg · cm" blurb="Kilograms & centimetres" />
                 <ChoiceCard className="flex-1" selected={imperial} onPress={() => setImperial(true)} title="lb · ft" blurb="Pounds, feet & inches" />
@@ -240,7 +244,7 @@ export default function Onboarding() {
           )}
 
           {step === "result" && plan && tdee !== null && macros ? (
-            <StepShell title="Your plan is ready 🎉" subtitle="Here's what the numbers say. Log your meals and Mealio will check this against your real results.">
+            <StepShell title="Your plan is ready 🎉" subtitle="Here's what the numbers say. Log your meals and Loggi will check this against your real results.">
               <Card className="border-transparent bg-block-lime p-4 gap-4">
                 <View className="flex-row items-center gap-3">
                   <View className="h-10 w-10 items-center justify-center rounded-full bg-muted">

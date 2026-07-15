@@ -3773,32 +3773,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mapbox/node-pre-gyp@npm:^2.0.0":
-  version: 2.0.3
-  resolution: "@mapbox/node-pre-gyp@npm:2.0.3"
-  dependencies:
-    consola: "npm:^3.2.3"
-    detect-libc: "npm:^2.0.0"
-    https-proxy-agent: "npm:^7.0.5"
-    node-fetch: "npm:^2.6.7"
-    nopt: "npm:^8.0.0"
-    semver: "npm:^7.5.3"
-    tar: "npm:^7.4.0"
-  bin:
-    node-pre-gyp: bin/node-pre-gyp
-  checksum: 10c0/6243c60f0d7327772c679aad20f17bcbf771b362fb7fbf1ae6dcf8dd379bb852e5af26180ab1e987a75dffa7cd5445414dc47e2acbcfe820cb08374deebecbc3
-  languageName: node
-  linkType: hard
-
-"@mealio/api@workspace:apps/api":
+"@loggi/api@workspace:apps/api":
   version: 0.0.0-use.local
-  resolution: "@mealio/api@workspace:apps/api"
+  resolution: "@loggi/api@workspace:apps/api"
   dependencies:
     "@anthropic-ai/sdk": "npm:^0.110.0"
     "@base-ui/react": "npm:^1.6.0"
     "@clerk/nextjs": "npm:^7.5.14"
     "@clerk/testing": "npm:^2.2.5"
-    "@mealio/shared": "npm:*"
+    "@loggi/shared": "npm:*"
     "@neondatabase/serverless": "npm:^1.1.0"
     "@playwright/test": "npm:^1.61.1"
     "@tailwindcss/postcss": "npm:^4"
@@ -3832,16 +3815,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@mealio/mobile@workspace:apps/mobile":
+"@loggi/mobile@workspace:apps/mobile":
   version: 0.0.0-use.local
-  resolution: "@mealio/mobile@workspace:apps/mobile"
+  resolution: "@loggi/mobile@workspace:apps/mobile"
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@clerk/clerk-expo": "npm:^2.14.0"
     "@clerk/shared": "npm:3.47.7"
     "@expo/vector-icons": "npm:^15.0.2"
     "@gorhom/bottom-sheet": "npm:^5.1.6"
-    "@mealio/shared": "npm:*"
+    "@loggi/shared": "npm:*"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@types/react": "npm:~19.1.0"
     "@types/react-dom": "npm:^19"
@@ -3873,15 +3856,32 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@mealio/shared@npm:*, @mealio/shared@workspace:packages/shared":
+"@loggi/shared@npm:*, @loggi/shared@workspace:packages/shared":
   version: 0.0.0-use.local
-  resolution: "@mealio/shared@workspace:packages/shared"
+  resolution: "@loggi/shared@workspace:packages/shared"
   dependencies:
     typescript: "npm:^5"
     vitest: "npm:^4.1.10"
     zod: "npm:^4.4.3"
   languageName: unknown
   linkType: soft
+
+"@mapbox/node-pre-gyp@npm:^2.0.0":
+  version: 2.0.3
+  resolution: "@mapbox/node-pre-gyp@npm:2.0.3"
+  dependencies:
+    consola: "npm:^3.2.3"
+    detect-libc: "npm:^2.0.0"
+    https-proxy-agent: "npm:^7.0.5"
+    node-fetch: "npm:^2.6.7"
+    nopt: "npm:^8.0.0"
+    semver: "npm:^7.5.3"
+    tar: "npm:^7.4.0"
+  bin:
+    node-pre-gyp: bin/node-pre-gyp
+  checksum: 10c0/6243c60f0d7327772c679aad20f17bcbf771b362fb7fbf1ae6dcf8dd379bb852e5af26180ab1e987a75dffa7cd5445414dc47e2acbcfe820cb08374deebecbc3
+  languageName: node
+  linkType: hard
 
 "@modelcontextprotocol/sdk@npm:^1.26.0":
   version: 1.29.0
@@ -14192,6 +14192,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"loggi@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "loggi@workspace:."
+  languageName: unknown
+  linkType: soft
+
 "loose-envify@npm:^1.0.0, loose-envify@npm:^1.4.0":
   version: 1.4.0
   resolution: "loose-envify@npm:1.4.0"
@@ -14296,12 +14302,6 @@ __metadata:
   checksum: 10c0/67241f8708c1e665a061d2b042d2d243366e93e5bf1f917693007f6d55111588b952dcbfd3ea9c2d0969fb754aad81b30fdcfdcc24546495fc3b24336b28d4bd
   languageName: node
   linkType: hard
-
-"mealio@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "mealio@workspace:."
-  languageName: unknown
-  linkType: soft
 
 "media-typer@npm:^1.1.0":
   version: 1.1.0

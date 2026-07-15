@@ -1,6 +1,7 @@
-import { View, Text, Image, Pressable } from "react-native";
+import { View, Text, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { mealTotals, type ApiMeal } from "@mealio/shared";
+import { mealTotals, type ApiMeal } from "@loggi/shared";
+import { PressableScale } from "./pressable-scale";
 
 // Time-of-day glyph on a pastel block so photo-less meals read at a glance.
 function mealGlyph(hour: number): { icon: keyof typeof Feather.glyphMap; block: string } {
@@ -17,9 +18,10 @@ export function MealListItem({ meal, onPress }: { meal: ApiMeal; onPress?: () =>
   const { icon, block } = mealGlyph(eaten.getHours());
 
   return (
-    <Pressable
+    <PressableScale
+      haptic
       onPress={onPress}
-      className="flex-row items-stretch gap-3 rounded-3xl border border-border bg-card p-3 active:opacity-70"
+      className="flex-row items-stretch gap-3 rounded-3xl border border-border bg-card p-3"
     >
       {meal.photos.length > 0 ? (
         <Image source={{ uri: meal.photos[0].url }} className="h-16 w-16 rounded-2xl" />
@@ -49,6 +51,6 @@ export function MealListItem({ meal, onPress }: { meal: ApiMeal; onPress?: () =>
           cal
         </Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }

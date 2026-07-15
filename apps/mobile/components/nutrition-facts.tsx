@@ -1,5 +1,5 @@
 import { View, Text } from "react-native";
-import type { DraftItem } from "@mealio/shared";
+import type { DraftItem } from "@loggi/shared";
 
 function sumField(items: DraftItem[], key: "sat_fat_g" | "fiber_g" | "sugar_g" | "sodium_mg"): number | null {
   if (!items.some((i) => i[key] != null)) return null;

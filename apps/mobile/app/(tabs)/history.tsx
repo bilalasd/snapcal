@@ -4,10 +4,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { fetchJson, fetchMealsRange } from "../../lib/api";
-import { localDateString, mealTotals, type ApiMeal, type Goals } from "@mealio/shared";
+import { getCachedRange, setCachedRange, getCachedGoals, setCachedGoals } from "../../lib/cache";
+import { localDateString, mealTotals, type ApiMeal, type Goals } from "@loggi/shared";
 import { Card, Skeleton, Kicker, SegmentedToggle } from "../../components/ui";
+import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 import { MealListItem } from "../../components/meal-list-item";
 import { MealDrawer } from "../../components/meal-drawer";
+import { Bevi } from "../../components/bevi";
 import { BarChart } from "../../components/charts";
 
 interface DayGroup {
@@ -34,12 +37,12 @@ function groupByDay(meals: ApiMeal[]): DayGroup[] {
 }
 
 export default function History() {
-  const [meals, setMeals] = useState<ApiMeal[] | null>(null);
-  const [goals, setGoals] = useState<Goals | null>(null);
+  const [meals, setMeals] = useState<ApiMeal[] | null>(() => getCachedRange());
+  const [goals, setGoals] = useState<Goals | null>(() => getCachedGoals());
   const [range, setRange] = useState<"7" | "30">("7");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<ApiMeal | null>(null);
-  const [today, setToday] = useState<string | null>(null);
+  const [today, setToday] = useState<string | null>(() => localDateString());
 
   const load = useCallback(() => {
     const now = new Date();
@@ -47,14 +50,20 @@ export default function History() {
     fetchMealsRange(from, now)
       .then((rows) => {
         setMeals(rows);
+        setCachedRange(rows);
         setToday(localDateString(now));
       })
-      .catch(() => setMeals([]));
+      .catch(() => setMeals((m) => m ?? []));
   }, []);
 
   useEffect(() => {
     load();
-    fetchJson<Goals>("/api/goals").then(setGoals).catch(() => {});
+    fetchJson<Goals>("/api/goals")
+      .then((g) => {
+        setGoals(g);
+        setCachedGoals(g);
+      })
+      .catch(() => {});
   }, [load]);
   useFocusEffect(useCallback(() => load(), [load]));
 
@@ -89,6 +98,7 @@ export default function History() {
           </View>
         ) : days.length === 0 ? (
           <Card className="items-center gap-2 p-8">
+            <Bevi pose="standing" size={120} />
             <Text className="text-lg font-black text-foreground">No meals yet</Text>
             <Text className="text-center text-muted-foreground">Your logged days — and a calorie chart — show up here once you log a meal.</Text>
           </Card>
@@ -115,23 +125,27 @@ export default function History() {
                 const isOpen = expanded === day.date;
                 const overGoal = goals !== null && day.calories > goals.daily_calories;
                 return (
-                  <Card key={day.date} className="p-4">
-                    <Pressable className="min-h-11 flex-row items-center gap-2" onPress={() => setExpanded(isOpen ? null : day.date)}>
-                      <Text className="flex-1 text-lg font-black tracking-tight text-foreground">{day.label}</Text>
-                      <View className="flex-row items-center gap-1">
-                        {overGoal ? <Feather name="trending-up" size={13} color="#d92d20" /> : null}
-                        <Text className={`text-sm font-semibold tabular-nums ${overGoal ? "text-destructive" : "text-foreground"}`}>{day.calories} cal</Text>
-                      </View>
-                      <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#565656" />
-                    </Pressable>
-                    {isOpen ? (
-                      <View className="mt-2 gap-2">
-                        {day.meals.map((meal) => (
-                          <MealListItem key={meal.id} meal={meal} onPress={() => setSelected(meal)} />
-                        ))}
-                      </View>
-                    ) : null}
-                  </Card>
+                  <Animated.View key={day.date} layout={LinearTransition.springify().damping(20)}>
+                    <Card className="p-4">
+                      <Pressable className="min-h-11 flex-row items-center gap-2" onPress={() => setExpanded(isOpen ? null : day.date)}>
+                        <Text className="flex-1 text-lg font-black tracking-tight text-foreground">{day.label}</Text>
+                        <View className="flex-row items-center gap-1">
+                          {overGoal ? <Feather name="trending-up" size={13} color="#d92d20" /> : null}
+                          <Text className={`text-sm font-semibold tabular-nums ${overGoal ? "text-destructive" : "text-foreground"}`}>{day.calories} cal</Text>
+                        </View>
+                        <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#565656" />
+                      </Pressable>
+                      {isOpen ? (
+                        <View className="mt-2 gap-2">
+                          {day.meals.map((meal, i) => (
+                            <Animated.View key={meal.id} entering={FadeIn.delay(i * 30)}>
+                              <MealListItem meal={meal} onPress={() => setSelected(meal)} />
+                            </Animated.View>
+                          ))}
+                        </View>
+                      ) : null}
+                    </Card>
+                  </Animated.View>
                 );
               })}
             </View>

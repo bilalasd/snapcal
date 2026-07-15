@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal, View, Text, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from "react-native-reanimated";
+import { Bevi } from "./bevi";
 
 const STEPS = ["Identifying foods", "Estimating portions", "Checking the database", "Adding up the macros"];
 
@@ -33,6 +34,7 @@ export function AnalyzingOverlay({ photoUri }: { photoUri?: string }) {
         </View>
 
         <View className="items-center gap-5">
+          <Bevi pose="clipboard" size={110} />
           <Text className="text-2xl font-semibold tracking-tight text-foreground">Reading your plate…</Text>
           <View className="gap-2.5">
             {STEPS.map((label, i) => {

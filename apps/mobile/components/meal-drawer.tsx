@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView, Image, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { itemsToDraft, localDateString, type ApiMeal, type DraftItem } from "@mealio/shared";
+import { itemsToDraft, localDateString, type ApiMeal, type DraftItem } from "@loggi/shared";
 import { fetchJson } from "../lib/api";
 import { tapSuccess } from "../lib/haptics";
 import { stashDraft } from "../lib/draft";

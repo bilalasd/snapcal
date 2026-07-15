@@ -9,7 +9,7 @@ import {
   macroPercents,
   type ActivityLevel,
   type Goals,
-} from "@mealio/shared";
+} from "@loggi/shared";
 import { fetchJson } from "../../lib/api";
 import { Card, Button, Input, Field, Kicker, Skeleton, Spinner } from "../../components/ui";
 

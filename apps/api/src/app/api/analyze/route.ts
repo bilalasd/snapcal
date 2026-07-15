@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, gateway } from "ai";
-import { analysisSchema, NUTRITION_SYSTEM_PROMPT } from "@mealio/shared";
+import { analysisSchema, NUTRITION_SYSTEM_PROMPT } from "@loggi/shared";
 import { groundWithUsda } from "@/lib/food-match";
 
 export const maxDuration = 60;

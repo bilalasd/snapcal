@@ -50,7 +50,7 @@ export default function SignUp() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <Text className="text-muted-foreground text-xs font-bold uppercase tracking-[3px]">
-          Mealio
+          Loggi
         </Text>
         <Text className="mt-1 text-5xl font-black tracking-tighter text-foreground">
           {pendingCode ? "Check your email" : "Create account"}

@@ -1,4 +1,4 @@
-import type { DraftItem } from "@mealio/shared";
+import type { DraftItem } from "@loggi/shared";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -9,7 +9,7 @@ export async function lookupBarcode(code: string): Promise<DraftItem | null> {
   const url = `https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,serving_size,nutriments`;
   let body: any;
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "Mealio/0.1 (barcode)" } });
+    const res = await fetch(url, { headers: { "User-Agent": "Loggi/0.1 (barcode)" } });
     if (!res.ok) return null;
     body = await res.json();
   } catch {

@@ -1,5 +1,5 @@
 import { uploadAsync, FileSystemUploadType } from "expo-file-system/legacy";
-import type { ApiMeal, DraftPhoto } from "@mealio/shared";
+import type { ApiMeal, DraftPhoto } from "@loggi/shared";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
