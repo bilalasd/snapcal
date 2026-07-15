@@ -21,6 +21,24 @@ intake against a personalized target and a smoothed weight trend.
   "CONTROL ROOM", "PLATE INDEX").
 - **Tone words:** warm, tactile, print-editorial, decisive, trustworthy.
 
+### 1.1 Interaction principles
+
+- **Very low friction.** Every core action (log a meal, weigh in, check today)
+  is reachable in one or two taps from anywhere. Never add a step, screen, or
+  confirmation that isn't strictly earning its keep — friction is the #1
+  churn driver in food logging.
+- **Encouraging and warm.** The app roots for the user. Feedback celebrates
+  what they did ("logged", "streak kept") and never scolds what they didn't.
+  Empty states invite, errors reassure, Bevi cheers — warmth in copy and
+  motion, not confetti spam.
+- **Gesture-encouraged, never gesture-required.** Gestures are the fast lane
+  (swipe to delete/edit a meal, pull to refresh, swipe between days), but every
+  gesture has a visible tap equivalent — a button, a menu, a row that opens a
+  sheet. A user who never discovers a single gesture can still do everything.
+- **No learning curve.** Zero tutorials, coach marks, or invented interaction
+  patterns. If a screen needs explaining, redesign the screen. First-time use
+  should feel like the second time.
+
 ---
 
 ## 2. Design theme
