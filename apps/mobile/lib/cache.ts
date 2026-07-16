@@ -1,4 +1,6 @@
 import { localDateString, type ApiMeal, type DraftItem, type DraftPhoto, type Goals } from "@loggi/shared";
+import { fetchJson, fetchMealsRange, tzOffsetMinutes } from "./api";
+import { syncWidget } from "./widget";
 
 // In-memory stale-while-revalidate cache: screens show the last data instantly
 // on focus, then refresh in the background — no skeleton flash on tab switches.
@@ -9,7 +11,11 @@ export const getCachedMeals = (date: string): ApiMeal[] | undefined => mealsByDa
 export const getCachedGoals = (): Goals | null => goals;
 export const setCachedGoals = (g: Goals) => {
   goals = g;
+  syncWidgetFromCache();
 };
+
+// Mirror today's cached state to the iOS home/lock-screen widgets.
+const syncWidgetFromCache = () => syncWidget(mealsByDate[localDateString()], goals);
 
 // History's rolling 30-day range (one slot — the query is always the same).
 let historyRange: ApiMeal[] | null = null;
@@ -18,6 +24,14 @@ export const getCachedRange = (): ApiMeal[] | null => historyRange;
 // ponytail: 30s freshness window to skip refetch-on-every-tab-focus; optimistic
 // edits update the cache directly so skipping is safe.
 export const rangeIsFresh = () => Date.now() - rangeFetchedAt < 30_000;
+
+// Weight tab's trends response — warmed by prefetch below so the tab paints
+// current data even right after logging. Shape is owned by weight.tsx.
+let trends: unknown = null;
+export const getCachedTrends = <T>(): T | null => trends as T | null;
+export const setCachedTrends = (t: unknown) => {
+  trends = t;
+};
 
 // Add-screen lists, cached so the speed-dial sheets paint instantly.
 let favorites: ApiMeal[] | null = null;
@@ -50,6 +64,7 @@ export function reconcileMeals(date: string, server: ApiMeal[]): ApiMeal[] {
     ...overlay(server),
   ];
   mealsByDate[date] = merged;
+  syncWidgetFromCache();
   return merged;
 }
 
@@ -66,6 +81,22 @@ export function settleMeal(id: string) {
   pendingNew.delete(id);
   pendingEdit.delete(id);
   pendingDelete.delete(id);
+  prefetchAfterMutation();
+}
+
+// A settled meal mutation changes History and the weight-trend math — warm
+// both caches now so those tabs paint current data instead of refetching on
+// focus. Fire-and-forget; failures just mean the tab fetches as before.
+function prefetchAfterMutation() {
+  const now = new Date();
+  const from = new Date(now);
+  from.setDate(from.getDate() - 30);
+  fetchMealsRange(from, now)
+    .then((meals) => reconcileRange(meals))
+    .catch(() => {});
+  fetchJson(`/api/trends?days=90&tz_offset=${tzOffsetMinutes()}`)
+    .then((t) => setCachedTrends(t))
+    .catch(() => {});
 }
 
 const stripFromCaches = (id: string) => {
@@ -77,6 +108,7 @@ const stripFromCaches = (id: string) => {
 export function applyMealDelete(id: string) {
   pendingDelete.add(id);
   stripFromCaches(id);
+  syncWidgetFromCache();
 }
 
 /** Optimistic edit: replace the meal in every cached list (moving days if the date changed). */
@@ -86,12 +118,14 @@ export function applyMealEdit(meal: ApiMeal) {
   const date = localDateString(new Date(meal.eatenAt));
   mealsByDate[date] = [meal, ...(mealsByDate[date] ?? [])];
   if (historyRange) historyRange = [meal, ...historyRange];
+  syncWidgetFromCache();
 }
 
 /** A failed optimistic save: drop the stand-in meal entirely. */
 export function discardOptimistic(id: string) {
   pendingNew.delete(id);
   stripFromCaches(id);
+  syncWidgetFromCache();
 }
 
 export function draftItemsToApi(items: DraftItem[], mealId: string): ApiMeal["items"] {
@@ -114,7 +148,7 @@ export function draftItemsToApi(items: DraftItem[], mealId: string): ApiMeal["it
 /** Build an ApiMeal-shaped stand-in from a draft so a just-saved meal can show
  *  on Today instantly, before the network round-trip finishes. */
 export function optimisticMeal(
-  draft: { name: string; items: DraftItem[]; source: string; photos: DraftPhoto[] },
+  draft: { name: string; items: DraftItem[]; source: string; photos: DraftPhoto[]; planned?: boolean },
   eatenAt: string,
   localPhotoUris: string[],
 ): ApiMeal {
@@ -126,6 +160,7 @@ export function optimisticMeal(
     note: null,
     isFavorite: false,
     source: draft.source,
+    planned: draft.planned ?? false,
     createdAt: eatenAt,
     items: draftItemsToApi(draft.items, id),
     photos: [
@@ -142,4 +177,5 @@ export function addOptimisticMeal(meal: ApiMeal) {
   const date = localDateString(new Date(meal.eatenAt));
   mealsByDate[date] = [meal, ...(mealsByDate[date] ?? [])];
   if (historyRange) historyRange = [meal, ...historyRange];
+  syncWidgetFromCache();
 }

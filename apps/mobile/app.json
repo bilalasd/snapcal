@@ -11,13 +11,18 @@
     "ios": {
       "bundleIdentifier": "com.loggi.app",
       "supportsTablet": true,
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.loggi.app"]
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "Loggi uses the camera to snap meals and scan barcodes and nutrition labels."
       }
     },
     "android": {
       "package": "com.loggi.app",
-      "permissions": ["android.permission.CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ff3d8b"
@@ -43,13 +48,21 @@
       ],
       "expo-web-browser",
       [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Loggi listens while you describe a meal out loud.",
+          "speechRecognitionPermission": "Loggi transcribes your voice on this device so you can log meals by speaking."
+        }
+      ],
+      [
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "Loggi reads your weigh-ins from Apple Health to keep your weight trend current.",
           "NSHealthUpdateUsageDescription": false,
           "background-delivery": false
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
