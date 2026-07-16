@@ -6,3 +6,4 @@ export * from "./bmr";
 export * from "./trend";
 export * from "./clarify";
 export * from "./usual";
+export * from "./widget";
