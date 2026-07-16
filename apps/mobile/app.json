@@ -38,6 +38,7 @@
         }
       ],
       "expo-router",
+      "@bacons/apple-targets",
       "expo-secure-store",
       [
         "expo-image-picker",
