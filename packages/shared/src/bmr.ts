@@ -71,6 +71,35 @@ export function estimatedTdee(bmr: number, activity: ActivityLevel): number {
   return Math.round(bmr * (level?.multiplier ?? 1.2));
 }
 
+export interface TdeeProfile {
+  sex: string | null;
+  age: number | null;
+  heightCm: number | null;
+  activityLevel: string | null;
+}
+
+/**
+ * Formula TDEE from a stored (nullable) profile, for the Monday-note audit.
+ * Null whenever the profile can't support an estimate — callers hide the
+ * audit rather than guess.
+ */
+export function computeFormulaTdee(
+  profile: TdeeProfile,
+  weightKg: number,
+): number | null {
+  const { sex, age, heightCm, activityLevel } = profile;
+  if (sex !== "male" && sex !== "female") return null;
+  if (!age || age <= 0 || !heightCm || heightCm <= 0 || !(weightKg > 0)) {
+    return null;
+  }
+  const level = ACTIVITY_LEVELS.find((l) => l.value === activityLevel);
+  if (!level) return null;
+  return estimatedTdee(
+    bmrMifflinStJeor(sex, weightKg, heightCm, age),
+    level.value,
+  );
+}
+
 /** Daily deficit (positive) or surplus (negative) needed for a kg/week rate. */
 export function deficitForRate(targetRateKgPerWk: number): number {
   // + 0 normalizes -0 (from rounding a tiny negative) to +0

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bmrMifflinStJeor,
+  computeFormulaTdee,
   deficitForRate,
   estimatedTdee,
   gramsFromPercents,
@@ -113,5 +114,52 @@ describe("macroPercents / gramsFromPercents", () => {
       carbs_pct: 0,
       fat_pct: 0,
     });
+  });
+});
+
+describe("computeFormulaTdee", () => {
+  const profile = {
+    sex: "male",
+    age: 30,
+    heightCm: 180,
+    activityLevel: "sedentary",
+  };
+
+  it("composes Mifflin-St Jeor × activity for a male profile", () => {
+    // BMR = 10*80 + 6.25*180 − 5*30 + 5 = 1780; ×1.2 = 2136
+    expect(computeFormulaTdee(profile, 80)).toBe(2136);
+  });
+
+  it("composes for a female profile", () => {
+    // BMR = 10*65 + 6.25*165 − 5*40 − 161 = 1320.25 → 1320; ×1.55 = 2046
+    expect(
+      computeFormulaTdee(
+        { sex: "female", age: 40, heightCm: 165, activityLevel: "moderate" },
+        65,
+      ),
+    ).toBe(2046);
+  });
+
+  it("is null when any profile field is missing", () => {
+    expect(computeFormulaTdee({ ...profile, sex: null }, 80)).toBeNull();
+    expect(computeFormulaTdee({ ...profile, age: null }, 80)).toBeNull();
+    expect(computeFormulaTdee({ ...profile, heightCm: null }, 80)).toBeNull();
+    expect(
+      computeFormulaTdee({ ...profile, activityLevel: null }, 80),
+    ).toBeNull();
+  });
+
+  it("is null on unknown sex or activity strings", () => {
+    expect(computeFormulaTdee({ ...profile, sex: "other" }, 80)).toBeNull();
+    expect(
+      computeFormulaTdee({ ...profile, activityLevel: "heroic" }, 80),
+    ).toBeNull();
+  });
+
+  it("is null on non-positive weight, age, or height", () => {
+    expect(computeFormulaTdee(profile, 0)).toBeNull();
+    expect(computeFormulaTdee(profile, -70)).toBeNull();
+    expect(computeFormulaTdee({ ...profile, age: 0 }, 80)).toBeNull();
+    expect(computeFormulaTdee({ ...profile, heightCm: 0 }, 80)).toBeNull();
   });
 });

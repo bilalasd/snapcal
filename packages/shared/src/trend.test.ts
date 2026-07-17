@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeAuditStats,
   computeEnergyBalance,
   computeRateKgPerWeek,
   computeTrend,
@@ -196,5 +197,35 @@ describe("computeVerdict", () => {
     const balance = computeEnergyBalance(trend, intake);
     const verdict = computeVerdict(balance, trend, 0.25);
     expect(verdict.status).toBe("on_track");
+  });
+});
+
+describe("computeAuditStats", () => {
+  const balance = {
+    avgIntakeKcal: 1850,
+    tdeeKcal: 2380,
+    actualDeficitKcal: 530,
+    loggedDays: 12,
+    weighIns: 6,
+    windowDays: 13,
+  };
+
+  it("passes figures through and rounds drift to the nearest 10", () => {
+    const stats = computeAuditStats(balance, 2634);
+    expect(stats).toEqual({
+      avgIntakeKcal: 1850,
+      measuredTdeeKcal: 2380,
+      formulaTdeeKcal: 2634,
+      driftKcal: 250, // 2634 − 2380 = 254 → 250
+    });
+  });
+
+  it("drift is negative when the formula underestimates the measured burn", () => {
+    // 2196 − 2380 = −184 → −180
+    expect(computeAuditStats(balance, 2196).driftKcal).toBe(-180);
+  });
+
+  it("keeps small agreement gaps honest instead of zeroing them", () => {
+    expect(computeAuditStats(balance, 2420).driftKcal).toBe(40);
   });
 });

@@ -204,6 +204,27 @@ export function computeVerdict(
   };
 }
 
+export interface AuditStats {
+  avgIntakeKcal: number;
+  measuredTdeeKcal: number;
+  formulaTdeeKcal: number;
+  /** formula − measured, rounded to the nearest 10. */
+  driftKcal: number;
+}
+
+/** The Monday-note audit: logged vs measured vs formula (spec 2026-07-16). */
+export function computeAuditStats(
+  balance: EnergyBalance,
+  formulaTdeeKcal: number,
+): AuditStats {
+  return {
+    avgIntakeKcal: balance.avgIntakeKcal,
+    measuredTdeeKcal: balance.tdeeKcal,
+    formulaTdeeKcal,
+    driftKcal: Math.round((formulaTdeeKcal - balance.tdeeKcal) / 10) * 10,
+  };
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
