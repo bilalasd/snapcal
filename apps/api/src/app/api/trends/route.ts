@@ -3,7 +3,9 @@ import { and, desc, eq, gte } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { db, goals, meals, mealItems, weights, weeklyRecaps } from "@/db";
 import {
+  computeAuditStats,
   computeEnergyBalance,
+  computeFormulaTdee,
   computeRateKgPerWeek,
   computeTrend,
   computeVerdict,
@@ -61,7 +63,13 @@ export async function GET(request: NextRequest) {
       })
       .from(meals)
       .innerJoin(mealItems, eq(mealItems.mealId, meals.id))
-      .where(and(eq(meals.userId, userId), gte(meals.eatenAt, intakeStart))),
+      .where(
+        and(
+          eq(meals.userId, userId),
+          gte(meals.eatenAt, intakeStart),
+          eq(meals.planned, false), // reserved-but-unconfirmed meals aren't intake
+        ),
+      ),
     db.select().from(goals).where(eq(goals.userId, userId)),
     db
       .select()
@@ -108,6 +116,31 @@ export async function GET(request: NextRequest) {
         )
       : null;
 
+  // The audit (Monday-note honesty report): logged vs measured vs formula,
+  // from the SAME week-frozen balance the adaptive goal used — so "your
+  // target used the measured number" is the same computation, not a claim.
+  const lastWeekTrend = trendAsOfWeek[trendAsOfWeek.length - 1];
+  const formulaTdee =
+    goalsRow?.adaptiveGoal &&
+    weekVerdict.status !== "collecting" &&
+    weekBalance &&
+    lastWeekTrend
+      ? computeFormulaTdee(
+          {
+            sex: goalsRow.sex,
+            age: goalsRow.age,
+            heightCm:
+              goalsRow.heightCm == null ? null : Number(goalsRow.heightCm),
+            activityLevel: goalsRow.activityLevel,
+          },
+          lastWeekTrend.trendKg,
+        )
+      : null;
+  const audit =
+    formulaTdee != null && weekBalance
+      ? computeAuditStats(weekBalance, formulaTdee)
+      : null;
+
   const chartStart = new Date(Date.now() - chartDays * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
@@ -118,6 +151,7 @@ export async function GET(request: NextRequest) {
     balance,
     verdict,
     adaptive_goal_kcal: adaptiveGoalKcal,
+    audit,
     target_rate_kg_per_wk: targetRate,
     goal_weight_kg:
       goalsRow?.goalWeightKg == null ? null : Number(goalsRow.goalWeightKg),
