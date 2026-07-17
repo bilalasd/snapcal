@@ -1,3 +1,4 @@
+import ActivityKit
 import WidgetKit
 import SwiftUI
 
@@ -232,10 +233,90 @@ struct QuickLogWidget: Widget {
   }
 }
 
+// MARK: - Dinner-out Live Activity
+
+// Must stay byte-compatible with the copy in WidgetBridgeModule.swift —
+// ActivityKit matches attributes across targets by type name + encoding.
+struct DinnerActivityAttributes: ActivityAttributes {
+  struct ContentState: Codable, Hashable {
+    var reservedKcal: Int
+    var remainingKcal: Int
+  }
+  var label: String
+}
+
+private let lilac = Color(red: 197 / 255, green: 176 / 255, blue: 244 / 255)
+
+struct DinnerActivityView: View {
+  let context: ActivityViewContext<DinnerActivityAttributes>
+
+  var body: some View {
+    HStack(alignment: .center, spacing: 12) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text("DINNER OUT · \(context.attributes.label.uppercased())")
+          .font(.system(size: 10, weight: .heavy))
+          .tracking(1)
+          .foregroundStyle(.black.opacity(0.6))
+          .lineLimit(1)
+        Text("\(context.state.reservedKcal) cal reserved")
+          .font(.system(size: 22, weight: .black))
+          .foregroundStyle(.black)
+        Text("\(max(0, context.state.remainingKcal)) cal still available after")
+          .font(.system(size: 12, weight: .semibold))
+          .foregroundStyle(.black.opacity(0.7))
+      }
+      Spacer()
+      Image(systemName: "fork.knife")
+        .font(.system(size: 24, weight: .bold))
+        .foregroundStyle(.black)
+    }
+    .padding(16)
+    .activityBackgroundTint(lilac)
+    .activitySystemActionForegroundColor(.black)
+  }
+}
+
+struct DinnerActivityWidget: Widget {
+  var body: some WidgetConfiguration {
+    ActivityConfiguration(for: DinnerActivityAttributes.self) { context in
+      DinnerActivityView(context: context)
+        .widgetURL(URL(string: "loggi://"))
+    } dynamicIsland: { context in
+      DynamicIsland {
+        DynamicIslandExpandedRegion(.leading) {
+          Text("DINNER OUT")
+            .font(.system(size: 10, weight: .heavy))
+            .tracking(1)
+            .foregroundStyle(.secondary)
+        }
+        DynamicIslandExpandedRegion(.center) {
+          Text("\(context.state.reservedKcal) cal reserved")
+            .font(.system(size: 18, weight: .black))
+        }
+        DynamicIslandExpandedRegion(.bottom) {
+          Text("\(max(0, context.state.remainingKcal)) cal still available after")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.secondary)
+        }
+      } compactLeading: {
+        Image(systemName: "fork.knife")
+      } compactTrailing: {
+        Text("\(context.state.reservedKcal)")
+          .font(.system(size: 13, weight: .black))
+      } minimal: {
+        Image(systemName: "fork.knife")
+      }
+    }
+  }
+}
+
 @main
 struct LoggiWidgets: WidgetBundle {
   var body: some Widget {
     ProgressWidget()
     QuickLogWidget()
+    if #available(iOS 16.2, *) {
+      DinnerActivityWidget()
+    }
   }
 }
