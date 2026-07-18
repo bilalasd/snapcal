@@ -2,6 +2,7 @@ import { uploadAsync, FileSystemUploadType } from "expo-file-system/legacy";
 import type { ApiMeal, DraftPhoto } from "@loggi/shared";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+const TIMEOUT_MS = 15_000;
 
 // Clerk's getToken lives behind a hook, so a component registers it once
 // (see AuthTokenBridge in _layout) and the plain fetch client reads it here.
@@ -10,17 +11,47 @@ export function setTokenGetter(fn: () => Promise<string | null>) {
   getToken = fn;
 }
 
+/** The request never reached the server (offline, DNS, timeout) — safe to
+ *  retry or queue. Server-returned errors stay plain Errors. */
+export class NetworkError extends Error {
+  constructor() {
+    super("No connection — check your internet and try again.");
+    this.name = "NetworkError";
+  }
+}
+export const isNetworkError = (e: unknown): e is NetworkError =>
+  e instanceof NetworkError;
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch {
+    // fetch only rejects for transport-level failures (or our abort) —
+    // anything the server actually answered resolves, even 5xx.
+    throw new NetworkError();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Upload one resized photo (local file uri) to /api/photos as raw bytes. */
 export async function uploadPhoto(uri: string): Promise<DraftPhoto> {
   const token = getToken ? await getToken() : null;
-  const res = await uploadAsync(`${BASE_URL}/api/photos`, uri, {
-    httpMethod: "POST",
-    uploadType: FileSystemUploadType.BINARY_CONTENT,
-    headers: {
-      "content-type": "image/jpeg",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  let res: Awaited<ReturnType<typeof uploadAsync>>;
+  try {
+    res = await uploadAsync(`${BASE_URL}/api/photos`, uri, {
+      httpMethod: "POST",
+      uploadType: FileSystemUploadType.BINARY_CONTENT,
+      headers: {
+        "content-type": "image/jpeg",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  } catch {
+    throw new NetworkError();
+  }
   if (res.status < 200 || res.status >= 300) {
     throw new Error(`Upload ${res.status}: ${(res.body || "").slice(0, 200)}`);
   }
@@ -32,14 +63,26 @@ export async function fetchJson<T = unknown>(
   init?: RequestInit,
 ): Promise<T> {
   const token = getToken ? await getToken() : null;
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  });
+  const doFetch = () =>
+    fetchWithTimeout(`${BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    });
+
+  let res: Response;
+  try {
+    res = await doFetch();
+  } catch (err) {
+    // Reads are idempotent — one immediate retry papers over blips.
+    // Writes are the queue's job (lib/queue.ts), never blind-retried here.
+    const method = (init?.method ?? "GET").toUpperCase();
+    if (method !== "GET") throw err;
+    res = await doFetch();
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(
@@ -49,7 +92,7 @@ export async function fetchJson<T = unknown>(
   return res.json();
 }
 
-function tzOffsetMinutes(): number {
+export function tzOffsetMinutes(): number {
   return new Date().getTimezoneOffset();
 }
 

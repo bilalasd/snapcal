@@ -63,7 +63,7 @@ export default function SignIn() {
               onChangeText={setPassword}
             />
           </Field>
-          {error && <Text className="text-destructive text-sm">{error}</Text>}
+          {error && <Text accessibilityLiveRegion="polite" accessibilityRole="alert" className="text-destructive text-sm">{error}</Text>}
           <Button className="mt-2" disabled={busy} onPress={onSubmit}>
             {busy ? "Signing in…" : "Sign in"}
           </Button>

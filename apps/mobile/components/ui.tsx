@@ -31,7 +31,7 @@ const BTN_SIZE: Record<ButtonSize, string> = {
   icon: "h-12 w-12",
 };
 const BTN_TEXT: Record<ButtonVariant, string> = {
-  default: "text-white",
+  default: "text-primary-foreground",
   outline: "text-foreground",
   ghost: "text-foreground",
 };
@@ -43,20 +43,28 @@ export function Button({
   className = "",
   textClassName = "",
   disabled,
+  loading = false,
   ...props
 }: PressableProps & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
   textClassName?: string;
+  loading?: boolean;
 }) {
+  const colors = useColors();
+  // Spinner rides the label color: on-primary for the filled variant, foreground otherwise.
+  const spinnerColor = variant === "default" ? colors.background : colors.foreground;
+  const isDisabled = disabled || loading;
   return (
     <Pressable
-      className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${disabled ? "opacity-40" : ""} ${className}`}
-      disabled={disabled}
+      className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${isDisabled ? "opacity-40" : ""} ${className}`}
+      disabled={isDisabled}
       {...props}
     >
-      {typeof children === "string" ? (
+      {loading ? (
+        <Spinner color={spinnerColor} />
+      ) : typeof children === "string" ? (
         <Text className={`text-base font-bold ${BTN_TEXT[variant]} ${textClassName}`}>
           {children}
         </Text>
@@ -150,14 +158,17 @@ export function PasswordInput({ className = "", ...props }: TextInputProps & { c
 
 export function Field({
   label,
+  labelClassName = "",
   children,
 }: {
   label: string;
+  /** Override the kicker color when the field sits on a fixed (pastel) surface. */
+  labelClassName?: string;
   children: React.ReactNode;
 }) {
   return (
     <View className="gap-1.5">
-      <Kicker>{label}</Kicker>
+      <Kicker className={labelClassName}>{label}</Kicker>
       {children}
     </View>
   );
@@ -212,7 +223,7 @@ export function SegmentedToggle<T extends string>({
           accessibilityState={{ selected: value === o.value }}
           className={`rounded-lg px-3 py-1.5 active:opacity-70 ${value === o.value ? "bg-primary" : ""}`}
         >
-          <Text className={`text-xs font-bold ${value === o.value ? "text-white" : "text-muted-foreground"}`}>
+          <Text className={`text-xs font-bold ${value === o.value ? "text-primary-foreground" : "text-muted-foreground"}`}>
             {o.label}
           </Text>
         </Pressable>

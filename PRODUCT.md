@@ -132,6 +132,9 @@ logging. Loggi's position is the intersection, plus trust.
 - "Your target comes from your scale, not a formula."
 - "Looks like your usual breakfast — log it?"
 - "Export everything. Delete everything. No tricks."
+- "Didn't finish? Snap the empty plate — Bevi subtracts the leftovers."
+- "Eating out tonight? Reserve the calories before you go."
+- "Bevi's Monday note: your week's verdict, every Monday morning."
 
 **What Loggi deliberately does NOT compete on** (entrenched moats or crowded
 lanes — spending here violates principle 6):
@@ -143,7 +146,23 @@ lanes — spending here violates principle 6):
   all-time chains, guilt loops). Soft rolling counters that reset weekly and
   can't "shatter" are fine — they encourage without a funeral (principle 5).
 
-## 6. The test
+## 6. Pricing
+
+**$4.99/month or $49.99/year, 15-day free trial.** Decided 2026-07-15.
+
+- The monthly/annual gap is narrow (~17%, "two months free") **on purpose** — a
+  screaming "SAVE 60%!" spread is the dark-pattern anchor trick this product
+  positions against. Annual is a convenience, not a trap.
+- The trial is time-based, not scan-capped: 15 days of the real product. A full
+  trial costs ~$0.35 in AI calls — recovered in the first paid month at any
+  sane conversion rate. Revisit only on abuse or conversion well under 5%.
+- Cost basis: ~$0.75/month marginal per active user (Gemini analysis is ~90%
+  of it), ~$2/month assumed all-in → ~53% (monthly) / ~44% (annual) margin
+  after Apple's Small Business 15% cut.
+- Every re-log, barcode scan, and "usual meal" tap is served free — the UX
+  push toward one-tap logging is also the cost lever.
+
+## 7. The test
 
 Before shipping a feature or a sentence, it should pass:
 
@@ -153,11 +172,12 @@ Before shipping a feature or a sentence, it should pass:
    patterns, no hidden math.)
 3. Would Bevi say it to a friend? (Warm, brief, no guilt.)
 
-## 7. Parked — deliberate not-nows
+## 8. Parked — deliberate not-nows
 
 Ideas that passed the test but lost the priority fight. Revisit when the core
 loop is shipped and stable; don't build them speculatively.
 
-- **Dark mode.** Deferred 2026-07-15. The app is pinned light
-  (`userInterfaceStyle: "light"`) so system-dark users don't get mismatched
-  chrome. Doing it properly means a full `dark:` pass over every screen.
+- ~~**Dark mode.**~~ Un-parked 2026-07-15: the app now follows the system
+  appearance with an independently authored dark token set (see DESIGN.md
+  §2.2/§4.5). The rule that made it scary stands as the rule that makes it
+  work: no hardcoded hex — every color routes through tokens or `useColors()`.

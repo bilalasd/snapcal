@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, Alert, Pressable } from "react-native";
+import Animated, { FadeInUp, FadeOutDown, useReducedMotion } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -13,9 +14,10 @@ import {
   type DraftPhoto,
   type MealDraft,
 } from "@loggi/shared";
-import { fetchJson, uploadPhoto } from "../lib/api";
+import { fetchJson, uploadPhoto, isNetworkError } from "../lib/api";
+import { queueMealSave } from "../lib/queue";
 import { tapSuccess } from "../lib/haptics";
-import { popDraft } from "../lib/draft";
+import { popDraft, persistDraft, clearPersistedDraft } from "../lib/draft";
 import {
   addOptimisticMeal,
   discardOptimistic,
@@ -27,14 +29,17 @@ import {
   settleMeal,
 } from "../lib/cache";
 import { pickPhotos, resizeToPhoto, type PickedPhoto } from "../lib/image";
+import { useColors } from "../lib/colors";
 import { lookupBarcode } from "../lib/barcode";
 import { Bevi } from "../components/bevi";
 import { CameraCapture } from "../components/camera-capture";
+import { SpeakCapture } from "../components/speak-capture";
 import { Button, Card, Input, Kicker } from "../components/ui";
 import { Photo } from "../components/photo";
 import { AnalyzingOverlay } from "../components/analyzing-overlay";
 import { QuestionsStep } from "../components/questions-step";
 import { MealReview } from "../components/meal-review";
+import { TimePickerSheet, formatTime } from "../components/time-picker-sheet";
 import { MealListItem } from "../components/meal-list-item";
 import { NutritionFacts } from "../components/nutrition-facts";
 
@@ -47,13 +52,16 @@ interface Draft {
 }
 
 // No chooser screen anymore — the tab bar's speed dial picks the entry:
-// camera (default), search (food database), or saved foods.
+// camera (default), speak (dictate), search (food database), or saved foods.
 export default function Add() {
   const router = useRouter();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
+  const reduce = useReducedMotion();
   const params = useLocalSearchParams<{ date?: string; intent?: string }>();
   const targetDate = params.date ?? null;
-  const initialMode = params.intent === "search" ? "search" : params.intent === "saved" ? "saved" : "camera";
+  const initialMode =
+    params.intent === "search" ? "search" : params.intent === "saved" ? "saved" : params.intent === "speak" ? "speak" : "camera";
   // Stateful so a failed camera analysis can hand off to describe-by-text.
   const [mode, setMode] = useState(initialMode);
 
@@ -80,10 +88,23 @@ export default function Add() {
       : null;
   });
   const [cameraOpen, setCameraOpen] = useState(mode === "camera" && !draft);
+  // Bumping the key remounts SpeakCapture, which restarts recognition fresh.
+  const [speakKey, setSpeakKey] = useState(0);
   const [lookupBusy, setLookupBusy] = useState(false);
+  // Pre-log: save as "planned" — reserves today's calories, confirmed later.
+  const [planned, setPlanned] = useState(false);
+  // When it was eaten: null = the default (now, or noon for a backdated day).
+  const [eatenTime, setEatenTime] = useState<{ h: number; m: number } | null>(null);
+  const [timeOpen, setTimeOpen] = useState(false);
   // Barcode misses surface as an inline card over the viewfinder (not an
   // Alert), so the scanner stays live for an immediate retry or snap.
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  // The miss card auto-dismisses like a toast — 5s, or the ✕, whichever first.
+  useEffect(() => {
+    if (!scanNotice) return;
+    const timer = setTimeout(() => setScanNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [scanNotice]);
 
   async function runAnalysis(
     fullText: string,
@@ -105,17 +126,20 @@ export default function Add() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Try a clearer photo or a quick description.";
-      if (mode === "camera" && !draft) {
-        // Principle 6: the log never dead-ends — a failed photo hands off to words.
+      if ((mode === "camera" || mode === "speak") && !draft) {
+        // Principle 6: the log never dead-ends — a failed photo/dictation hands off to words.
         Alert.alert("That one stumped Bevi", msg, [
           {
             text: "Describe it instead",
             onPress: () => {
               setPhotos([]);
+              setSearch(fullText);
               setMode("search");
             },
           },
-          { text: "Retry photo", onPress: () => setCameraOpen(true) },
+          mode === "camera"
+            ? { text: "Retry photo", onPress: () => setCameraOpen(true) }
+            : { text: "Say it again", onPress: () => setSpeakKey((k) => k + 1) },
         ]);
       } else {
         Alert.alert("That one stumped Bevi", msg);
@@ -171,6 +195,16 @@ export default function Add() {
       setScanNotice("The lookup didn't go through — scan again, or snap the food.");
     }
   }
+
+  // Crash net: mirror the open review draft to disk. Cleared on normal
+  // unmount (save or close), so only a crash/kill leaves a file — which
+  // hydrateDraft() turns back into a stashed draft on next launch.
+  useEffect(() => {
+    // eaten_at is only to satisfy MealDraft — the save path re-dates on save.
+    if (draft) persistDraft({ ...draft, eaten_at: new Date().toISOString() });
+    else clearPersistedDraft();
+  }, [draft]);
+  useEffect(() => () => clearPersistedDraft(), []);
 
   useEffect(() => {
     fetchJson<ApiMeal[]>("/api/meals?favorites=true")
@@ -255,6 +289,16 @@ export default function Add() {
     })
       .then(() => settleMeal(optimistic.id))
       .catch((err) => {
+        if (isNetworkError(err)) {
+          // Offline: the meal stays on Today and syncs when the network returns.
+          queueMealSave({
+            id: optimistic.id,
+            meal: optimistic,
+            body: { name: meal.name || "Meal", eaten_at: eatenAt, source: "copy", items, photos: photosPayload },
+            photoUris: [],
+          });
+          return;
+        }
         discardOptimistic(optimistic.id);
         Alert.alert("Couldn't log that", err instanceof Error ? err.message : "Try again.");
       });
@@ -266,10 +310,12 @@ export default function Add() {
     if (!draft) return;
     const items = draft.items.filter((i) => i.name.trim());
     if (items.length === 0) return Alert.alert("Add at least one item");
-    const eatenAt = targetDate ? new Date(`${targetDate}T12:00:00`).toISOString() : new Date().toISOString();
+    const base = targetDate ? new Date(`${targetDate}T12:00:00`) : new Date();
+    if (eatenTime) base.setHours(eatenTime.h, eatenTime.m, 0, 0);
+    const eatenAt = base.toISOString();
 
     // 1. Stash into the cache + navigate right away.
-    const optimistic = optimisticMeal({ ...draft, items }, eatenAt, photos.map((p) => p.uri));
+    const optimistic = optimisticMeal({ ...draft, items, planned }, eatenAt, photos.map((p) => p.uri));
     addOptimisticMeal(optimistic);
     tapSuccess();
     router.replace("/");
@@ -285,12 +331,31 @@ export default function Add() {
             eaten_at: eatenAt,
             note: text || undefined,
             source: draft.source,
+            planned,
             items,
             photos: [...draft.photos, ...captured],
           }),
         });
         settleMeal(optimistic.id);
       } catch (err) {
+        if (isNetworkError(err)) {
+          // Offline: keep the optimistic meal, upload+POST later from the queue.
+          queueMealSave({
+            id: optimistic.id,
+            meal: optimistic,
+            body: {
+              name: draft.name || "Meal",
+              eaten_at: eatenAt,
+              note: text || undefined,
+              source: draft.source,
+              planned,
+              items,
+              photos: draft.photos,
+            },
+            photoUris: photos.map((p) => p.uri),
+          });
+          return;
+        }
         discardOptimistic(optimistic.id);
         Alert.alert("Meal didn't save", err instanceof Error ? err.message : "Check your connection and try again.");
       }
@@ -367,6 +432,42 @@ export default function Add() {
             items={draft.items}
             onItemsChange={(items) => setDraft({ ...draft, items })}
           />
+
+          {/* When it was eaten — a forgotten breakfast shouldn't land as lunch */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Change the time this was eaten"
+            onPress={() => setTimeOpen(true)}
+            className="min-h-11 flex-row items-center gap-3 rounded-3xl border border-border bg-card p-3 active:opacity-70"
+          >
+            <Feather name="clock" size={18} color={colors.foreground} />
+            <Text className="flex-1 font-bold text-foreground">Eaten at</Text>
+            <Text className="font-semibold text-muted-foreground">
+              {eatenTime ? formatTime(eatenTime.h, eatenTime.m) : targetDate ? formatTime(12, 0) : "Just now"}
+            </Text>
+            <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+          </Pressable>
+
+          {/* Pre-log: only for today — planning a past day makes no sense */}
+          {!targetDate ? (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: planned }}
+              onPress={() => setPlanned(!planned)}
+              className="min-h-11 flex-row items-center gap-3 rounded-3xl border border-border bg-card p-3 active:opacity-70"
+            >
+              <View className={`h-6 w-6 items-center justify-center rounded-lg border ${planned ? "border-transparent bg-primary" : "border-border"}`}>
+                {planned ? <Feather name="check" size={14} color={colors.background} /> : null}
+              </View>
+              <View className="flex-1">
+                <Text className="font-bold text-foreground">Haven't eaten this yet</Text>
+                <Text className="text-xs text-muted-foreground">
+                  Reserve the calories now — confirm in the journal once you've eaten it.
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
+
           <NutritionFacts items={draft.items} />
 
           {canReanalyze ? (
@@ -396,10 +497,42 @@ export default function Add() {
             Back
           </Button>
           <Button className="flex-[2]" onPress={save}>
-            <Text className="text-base font-bold text-white">Save meal</Text>
+            <Text className="text-base font-bold text-white">{planned ? "Reserve it" : "Save meal"}</Text>
           </Button>
         </View>
+
+        <TimePickerSheet
+          open={timeOpen}
+          onClose={() => setTimeOpen(false)}
+          hour={eatenTime?.h ?? (targetDate ? 12 : new Date().getHours())}
+          minute={eatenTime?.m ?? (targetDate ? 0 : new Date().getMinutes())}
+          capNow={!targetDate && !planned}
+          onChange={(h, m) => setEatenTime({ h, m })}
+        />
       </SafeAreaView>
+    );
+  }
+
+  // Speak entry — starts transcribing immediately; the transcript goes through
+  // the same analyze endpoint as a typed description.
+  if (mode === "speak") {
+    return (
+      <View className="flex-1 bg-background">
+        {screenOptions}
+        {analyzing ? <AnalyzingOverlay /> : null}
+        <SpeakCapture
+          key={speakKey}
+          onTranscript={(t) => {
+            setText(t);
+            runAnalysis(t);
+          }}
+          onClose={() => router.back()}
+          onFallback={() => {
+            setSearch(text);
+            setMode("search");
+          }}
+        />
+      </View>
     );
   }
 
@@ -415,28 +548,32 @@ export default function Add() {
           onPhoto={onPhoto}
           onBarcode={onBarcode}
           onLibrary={onLibrary}
+          onMenuScout={() => router.replace("/menu-scout")}
           busy={lookupBusy}
         />
         {scanNotice && cameraOpen && !analyzing ? (
-          <View
-            className="absolute inset-x-5 flex-row items-center gap-3 rounded-2xl bg-background p-4"
-            style={{ bottom: Math.max(insets.bottom, 16) + 148 }}
+          <Animated.View
+            entering={reduce ? undefined : FadeInUp.duration(130)}
+            exiting={reduce ? undefined : FadeOutDown.duration(130)}
+            style={{ position: "absolute", left: 20, right: 20, bottom: Math.max(insets.bottom, 16) + 148 }}
           >
-            <Bevi pose="clipboard" size={48} />
-            <View className="flex-1">
-              <Text className="text-base font-black text-foreground">That one stumped Bevi</Text>
-              <Text className="mt-0.5 text-sm text-foreground">{scanNotice}</Text>
+            <View className="flex-row items-center gap-3 rounded-2xl bg-background p-4">
+              <Bevi pose="clipboard" size={48} />
+              <View className="flex-1">
+                <Text className="text-base font-black text-foreground">That one stumped Bevi</Text>
+                <Text className="mt-0.5 text-sm text-foreground">{scanNotice}</Text>
+              </View>
+              <Pressable
+                onPress={() => setScanNotice(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                className="h-8 w-8 items-center justify-center active:opacity-60"
+                hitSlop={8}
+              >
+                <Feather name="x" size={18} color="#565656" />
+              </Pressable>
             </View>
-            <Pressable
-              onPress={() => setScanNotice(null)}
-              accessibilityRole="button"
-              accessibilityLabel="Dismiss"
-              className="h-8 w-8 items-center justify-center active:opacity-60"
-              hitSlop={8}
-            >
-              <Feather name="x" size={18} color="#565656" />
-            </Pressable>
-          </View>
+          </Animated.View>
         ) : null}
       </View>
     );

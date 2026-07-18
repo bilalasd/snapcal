@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform, Linking } from "react-native";
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInLeft,
+  FadeInRight,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useCameraPermissions } from "expo-camera";
 import {
   ACTIVITY_LEVELS,
   macroPercents,
@@ -16,89 +27,34 @@ import {
   type Goals,
 } from "@loggi/shared";
 import { fetchJson } from "../lib/api";
+import { useColors, block } from "../lib/colors";
 import { setCachedGoals } from "../lib/cache";
 import { tapSuccess } from "../lib/haptics";
-import { Card, Button, Input, Field, Kicker, Spinner } from "../components/ui";
+import { appleHealthSupported, connectAppleHealth } from "../lib/apple-health";
+import { enableMondayNote } from "../lib/monday-note";
+import { Card, Button, Input, Field, Kicker } from "../components/ui";
 import { Bevi } from "../components/bevi";
+import { PressableScale } from "../components/pressable-scale";
+
+const TIMING = { duration: 130, easing: Easing.out(Easing.quad) };
 
 const KG_PER_LB = 0.453592;
 const CM_PER_IN = 2.54;
 
-type Step = "units" | "you" | "body" | "activity" | "goal" | "result";
-const STEPS: Step[] = ["units", "you", "body", "activity", "goal", "result"];
+type Step = "you" | "body" | "activity" | "goal" | "permissions" | "result";
+const STEPS: Step[] = ["you", "body", "activity", "goal", "permissions", "result"];
 
-const INTRO_SCREENS = [
-  {
-    pose: "camera" as const,
-    kicker: "Meet Loggi",
-    title: "Point it at anything edible.",
-    body: "Plate, nutrition label, or barcode — one camera reads them all. A meal takes seconds to log, so you'll actually keep logging.",
-  },
-  {
-    pose: "scale" as const,
-    kicker: "The smart part",
-    title: "Your target comes from your scale, not a formula.",
-    body: "We'll start with a good estimate today. As you log and weigh in, I measure what your body actually burns and adjust your target every Monday — so you always know if the plan is working.",
-  },
-  {
-    pose: "promise" as const,
-    kicker: "The deal",
-    title: "No tricks.",
-    body: "I'll tell you when I'm guessing on a portion. And your data is yours — never sold, never used for ads. Export everything or delete everything, one tap in Settings.",
-  },
-];
-
-function IntroCarousel({ onDone }: { onDone: () => void }) {
-  const { width } = useWindowDimensions();
-  const scrollRef = useRef<ScrollView>(null);
-  const [page, setPage] = useState(0);
-  const last = page === INTRO_SCREENS.length - 1;
-
-  const goTo = (i: number) => {
-    scrollRef.current?.scrollTo({ x: i * width, animated: true });
-    setPage(i);
-  };
-
-  return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="h-11 flex-row items-center justify-end px-5">
-        <Pressable onPress={onDone} accessibilityRole="button" hitSlop={10} className="active:opacity-60">
-          <Text className="text-sm font-bold text-muted-foreground">Skip</Text>
-        </Pressable>
-      </View>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
-      >
-        {INTRO_SCREENS.map((s) => (
-          <View key={s.title} style={{ width }} className="justify-center gap-5 px-5">
-            <View className="items-center">
-              <Bevi pose={s.pose} size={180} />
-            </View>
-            <View>
-              <Kicker>{s.kicker}</Kicker>
-              <Text className="mt-1 text-4xl font-black tracking-tighter text-foreground">{s.title}</Text>
-              <Text className="mt-4 text-sm font-semibold text-muted-foreground">{s.body}</Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-      <View className="gap-6 px-5 pb-6">
-        <View className="flex-row justify-center gap-1.5">
-          {INTRO_SCREENS.map((s, i) => (
-            <View key={s.title} className={`h-1.5 rounded-full ${i === page ? "w-6 bg-primary" : "w-1.5 bg-muted"}`} />
-          ))}
-        </View>
-        <Button onPress={() => (last ? onDone() : goTo(page + 1))}>
-          {last ? "Build my starting plan" : "Next"}
-        </Button>
-      </View>
-    </SafeAreaView>
-  );
+// Default units from the device region (US, Liberia, Myanmar are imperial);
+// the body step keeps a toggle for everyone the guess misses.
+function localeImperial(): boolean {
+  try {
+    const region = Intl.DateTimeFormat().resolvedOptions().locale.split("-").pop() ?? "";
+    return ["US", "LR", "MM"].includes(region.toUpperCase());
+  } catch {
+    return false;
+  }
 }
+
 type GoalKind = "lose" | "maintain" | "gain";
 
 const KG = { gentle: -0.25, steady: -0.5, ambitious: -0.75, leanGain: 0.125, fastGain: 0.25 };
@@ -124,12 +80,14 @@ const kgToDisplay = (kg: number, imperial: boolean) => `${Math.round((imperial ?
 
 export default function Onboarding() {
   const router = useRouter();
-  const [intro, setIntro] = useState(true);
+  const colors = useColors();
+  const reduce = useReducedMotion();
+  const direction = useRef<1 | -1>(1);
   const [goals, setGoals] = useState<Goals | null>(null);
-  const [step, setStep] = useState<Step>("units");
+  const [step, setStep] = useState<Step>("you");
   const [saving, setSaving] = useState(false);
 
-  const [imperial, setImperial] = useState(false);
+  const [imperial, setImperial] = useState(localeImperial);
   const [sex, setSex] = useState<Sex | null>(null);
   const [age, setAge] = useState("");
   const [heightCm, setHeightCm] = useState("");
@@ -140,11 +98,20 @@ export default function Onboarding() {
   const [goalKind, setGoalKind] = useState<GoalKind | null>(null);
   const [rate, setRate] = useState<number | null>(null);
 
+  // Permission asks (all optional). Camera state lives in the hook; the other
+  // two are request-and-remember.
+  const [camPerm, requestCamPerm] = useCameraPermissions();
+  const [notif, setNotif] = useState<"idle" | "granted" | "denied">("idle");
+  const [health, setHealth] = useState<"idle" | "granted" | "denied">("idle");
+  const cameraState = camPerm?.granted ? "granted" : camPerm && !camPerm.canAskAgain ? "denied" : "idle";
+
   useEffect(() => {
     fetchJson<Goals>("/api/goals")
       .then((g) => {
         setGoals(g);
-        setImperial(g.unit_system === "imperial");
+        // Only a finished onboarding has deliberately chosen units — for new
+        // users the server default would clobber the locale guess.
+        if (g.onboarded) setImperial(g.unit_system === "imperial");
         if (g.sex) setSex(g.sex);
         if (g.age) setAge(String(g.age));
         if (g.height_cm) {
@@ -171,23 +138,31 @@ export default function Onboarding() {
 
   const stepIndex = STEPS.indexOf(step);
   const canContinue: Record<Step, boolean> = {
-    units: true,
     you: sex !== null && Number(age) >= 10 && Number(age) <= 120,
     body: resolvedHeightCm >= 80 && weightKg >= 25,
     activity: activity !== null,
     goal: goalKind === "maintain" || (goalKind !== null && rate !== null),
+    permissions: true,
     result: true,
   };
   const stepHint: Record<Step, string> = {
-    units: "",
-    you: "Pick your sex and enter an age between 10 and 120.",
-    body: "Enter your height and current weight to continue.",
-    activity: "Choose the option that best matches your week.",
-    goal: "Pick a goal — and a pace if you're losing or gaining.",
+    you: "Sex and age set the size of the estimate — I need both.",
+    body: "Height and today's weight — that weigh-in starts your trend.",
+    activity: "Pick whichever sounds most like your week.",
+    goal: "Pick a direction — and a pace, if you're losing or gaining.",
+    permissions: "",
     result: "",
   };
 
-  const next = () => setStep(step === "goal" ? "result" : STEPS[stepIndex + 1]);
+  const next = () => {
+    direction.current = 1;
+    setStep(STEPS[stepIndex + 1]);
+  };
+  const back = () => {
+    if (stepIndex === 0) return;
+    direction.current = -1;
+    setStep(STEPS[stepIndex - 1]);
+  };
 
   async function finish() {
     if (!goals || !plan || !macros) return;
@@ -221,171 +196,255 @@ export default function Onboarding() {
 
   const rates = ratePresets(imperial, goalKind === "gain" ? "gain" : "lose");
 
-  if (intro) return <IntroCarousel onDone={() => setIntro(false)} />;
+  async function askNotifications() {
+    if (notif === "granted") return;
+    if (notif === "denied") return void Linking.openSettings();
+    const ok = await enableMondayNote();
+    setNotif(ok ? "granted" : "denied");
+  }
+
+  async function askHealth() {
+    if (health !== "idle") return;
+    const ok = await connectAppleHealth();
+    setHealth(ok ? "granted" : "denied");
+  }
+
+  function askCamera() {
+    if (cameraState === "granted") return;
+    if (cameraState === "denied") return void Linking.openSettings();
+    void requestCamPerm();
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-1 px-5 pb-6 pt-2">
-        <View className="mb-6 flex-row items-center gap-3">
-          <Pressable
-            onPress={() => (stepIndex === 0 ? setIntro(true) : setStep(STEPS[stepIndex - 1]))}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            className="-ml-2 h-11 w-11 items-center justify-center active:opacity-60"
-          >
-            <Feather name="arrow-left" size={22} color="#000" />
-          </Pressable>
-          <View className="flex-1 flex-row gap-1.5">
-            {STEPS.map((s, i) => (
-              <View key={s} className={`h-1.5 flex-1 ${i <= stepIndex ? "bg-primary" : "bg-muted"}`} />
-            ))}
-          </View>
-        </View>
-
-        <ScrollView contentContainerClassName="gap-5" showsVerticalScrollIndicator={false}>
-          {step === "units" && (
-            <StepShell title="First — your units" subtitle="Six quick questions and I'll work out your starting numbers. Which units do you think in?">
-              <View className="flex-row gap-3">
-                <ChoiceCard className="flex-1" selected={!imperial} onPress={() => setImperial(false)} title="kg · cm" blurb="Kilograms & centimetres" />
-                <ChoiceCard className="flex-1" selected={imperial} onPress={() => setImperial(true)} title="lb · ft" blurb="Pounds, feet & inches" />
-              </View>
-            </StepShell>
-          )}
-
-          {step === "you" && (
-            <StepShell title="About you" subtitle="Your body burns calories all day, even asleep. Sex and age help me estimate how many.">
-              <View className="flex-row gap-3">
-                <ChoiceCard className="flex-1" selected={sex === "male"} onPress={() => setSex("male")} title="Male" />
-                <ChoiceCard className="flex-1" selected={sex === "female"} onPress={() => setSex("female")} title="Female" />
-              </View>
-              <Field label="Age">
-                <Input keyboardType="number-pad" placeholder="e.g. 32" value={age} onChangeText={setAge} />
-              </Field>
-            </StepShell>
-          )}
-
-          {step === "body" && (
-            <StepShell title="Your body" subtitle="Bigger bodies burn more calories. This weigh-in also becomes the first point on your trend.">
-              {imperial ? (
-                <Field label="Height (ft / in)">
-                  <View className="flex-row gap-2">
-                    <Input keyboardType="number-pad" placeholder="feet" value={heightFt} onChangeText={setHeightFt} className="flex-1" />
-                    <Input keyboardType="number-pad" placeholder="inches" value={heightIn} onChangeText={setHeightIn} className="flex-1" />
-                  </View>
-                </Field>
+      <Animated.View entering={reduce ? undefined : FadeIn.duration(130)} style={{ flex: 1 }}>
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View className="flex-1 px-5 pb-6 pt-2">
+            <View className="mb-6 flex-row items-center gap-3">
+              {stepIndex > 0 ? (
+                <Pressable
+                  onPress={back}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                  className="-ml-2 h-11 w-11 items-center justify-center active:opacity-60"
+                >
+                  <Feather name="arrow-left" size={22} color={colors.foreground} />
+                </Pressable>
               ) : (
-                <Field label="Height (cm)">
-                  <Input keyboardType="number-pad" placeholder="e.g. 175" value={heightCm} onChangeText={setHeightCm} />
-                </Field>
+                <View className="-ml-2 h-11 w-11" />
               )}
-              <Field label={`Current weight (${imperial ? "lb" : "kg"})`}>
-                <Input keyboardType="decimal-pad" placeholder={imperial ? "e.g. 176" : "e.g. 80"} value={weight} onChangeText={setWeight} />
-              </Field>
-            </StepShell>
-          )}
-
-          {step === "activity" && (
-            <StepShell title="How active are you?" subtitle="Be honest — most people pick one level too high, and an honest pick means a target you can trust. Being on your feet counts too.">
-              <View className="gap-2">
-                {ACTIVITY_LEVELS.map((level) => (
-                  <ChoiceCard key={level.value} selected={activity === level.value} onPress={() => setActivity(level.value)} title={level.label} blurb={level.description} />
+              <View className="flex-1 flex-row gap-1.5">
+                {STEPS.map((s, i) => (
+                  <ProgressSegment key={s} filled={i <= stepIndex} />
                 ))}
               </View>
-            </StepShell>
-          )}
+            </View>
 
-          {step === "goal" && (
-            <StepShell title="What's your goal?" subtitle="Pick a direction and a pace you can live with — the gentler the pace, the easier it is to keep.">
-              <View className="flex-row gap-2">
-                {(["lose", "maintain", "gain"] as const).map((kind) => (
-                  <ChoiceCard
-                    key={kind}
-                    className="flex-1"
-                    selected={goalKind === kind}
-                    onPress={() => {
-                      setGoalKind(kind);
-                      setRate(null);
-                    }}
-                    title={kind[0].toUpperCase() + kind.slice(1)}
-                  />
-                ))}
-              </View>
-              {goalKind && goalKind !== "maintain" ? (
-                <View className="gap-2">
-                  <Text className="text-sm font-medium text-muted-foreground">How fast?</Text>
-                  {rates.map((option) => (
-                    <ChoiceCard key={option.rate} selected={rate === option.rate} onPress={() => setRate(option.rate)} title={option.title} blurb={option.blurb} badge={option.recommended ? "Recommended" : undefined} />
-                  ))}
-                </View>
-              ) : null}
-            </StepShell>
-          )}
-
-          {step === "result" && plan && tdee !== null && macros ? (
-            <StepShell title="Your starting plan is ready 🎉" subtitle="Here's what the formula says. Log your meals and weigh in when you can — in about two weeks, your scale takes over.">
-              <View className="items-center">
-                <Bevi pose="celebrate" size={140} />
-              </View>
-              <Card className="border-transparent bg-block-lime p-4 gap-4">
-                <View className="flex-row items-center gap-3">
-                  <View className="h-10 w-10 items-center justify-center rounded-full bg-muted">
-                    <Feather name="zap" size={20} color="#000" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-bold text-foreground">Your body burns about</Text>
-                    <Text className="text-xs text-muted-foreground">resting + daily activity</Text>
-                  </View>
-                  <Text className="text-2xl font-black tracking-tight tabular-nums text-foreground">{tdee.toLocaleString()} cal</Text>
-                </View>
-                <View className="flex-row items-center gap-3">
-                  <View className="h-10 w-10 items-center justify-center rounded-full bg-primary">
-                    <Feather name="target" size={20} color="#fff" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-bold text-foreground">So you should eat</Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {goalKind === "maintain"
-                        ? "to hold steady"
-                        : `a ${Math.abs(deficitForRate(effectiveRate)).toLocaleString()} cal/day ${effectiveRate < 0 ? "deficit" : "surplus"} to ${goalKind} ${kgToDisplay(Math.abs(effectiveRate), imperial)}/week`}
-                    </Text>
-                  </View>
-                  <Text className="text-2xl font-black tracking-tight tabular-nums text-foreground">{plan.intake.toLocaleString()} cal</Text>
-                </View>
-                <View className="flex-row gap-2 bg-muted p-3">
-                  {([["Protein", macros.protein_g, splitPcts.protein_pct], ["Carbs", macros.carbs_g, splitPcts.carbs_pct], ["Fat", macros.fat_g, splitPcts.fat_pct]] as const).map(([label, grams, pct]) => (
-                    <View key={label} className="flex-1 items-center">
-                      <Text className="text-xs text-muted-foreground">{label}</Text>
-                      <Text className="font-bold tabular-nums text-foreground">{pct}%</Text>
-                      <Text className="text-[10px] text-muted-foreground">{grams}g</Text>
+            <ScrollView contentContainerClassName="gap-5" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Animated.View
+                key={step}
+                entering={
+                  reduce
+                    ? undefined
+                    : (direction.current === 1 ? FadeInRight : FadeInLeft).duration(130).easing(Easing.out(Easing.quad))
+                }
+              >
+                {step === "you" && (
+                  <StepShell title="About you" subtitle="A few quick questions and I'll work out your starting numbers. Sex and age first — your body burns calories all day, even asleep, and they size that estimate.">
+                    <View className="flex-row gap-3">
+                      <ChoiceCard className="flex-1" selected={sex === "male"} onPress={() => setSex("male")} title="Male" />
+                      <ChoiceCard className="flex-1" selected={sex === "female"} onPress={() => setSex("female")} title="Female" />
                     </View>
-                  ))}
-                </View>
-                <Text className="text-xs text-muted-foreground">
-                  These numbers are my starting guess. Once there's ~2 weeks of real data, the Weight screen measures your actual burn and I'll tell you if this needs adjusting.
-                </Text>
-              </Card>
-            </StepShell>
-          ) : null}
-        </ScrollView>
+                    <Text className="text-xs font-medium text-muted-foreground">
+                      The formula only knows these two — pick whichever is closest.
+                    </Text>
+                    <Field label="Age">
+                      <Input keyboardType="number-pad" placeholder="e.g. 32" value={age} onChangeText={setAge} />
+                    </Field>
+                  </StepShell>
+                )}
 
-        <View className="pt-6">
-          {step === "result" ? (
-            <Button onPress={finish} disabled={saving}>
-              {saving ? <Spinner /> : <Text className="text-base font-bold text-white">Start tracking</Text>}
-            </Button>
-          ) : (
-            <>
-              {!canContinue[step] && stepHint[step] ? (
-                <Text className="mb-2 text-center text-xs font-medium text-muted-foreground">{stepHint[step]}</Text>
-              ) : null}
-              <Button onPress={next} disabled={!canContinue[step]}>
-                Continue
-              </Button>
-            </>
-          )}
-        </View>
-      </View>
+                {step === "body" && (
+                  <StepShell title="Your body" subtitle="Bigger bodies burn more calories. This weigh-in also becomes the first point on your trend.">
+                    <View className="flex-row gap-3">
+                      <ChoiceCard className="flex-1" selected={!imperial} onPress={() => setImperial(false)} title="kg · cm" />
+                      <ChoiceCard className="flex-1" selected={imperial} onPress={() => setImperial(true)} title="lb · ft" />
+                    </View>
+                    {imperial ? (
+                      <Field label="Height (ft / in)">
+                        <View className="flex-row gap-2">
+                          <Input keyboardType="number-pad" placeholder="feet" value={heightFt} onChangeText={setHeightFt} className="flex-1" />
+                          <Input keyboardType="number-pad" placeholder="inches" value={heightIn} onChangeText={setHeightIn} className="flex-1" />
+                        </View>
+                      </Field>
+                    ) : (
+                      <Field label="Height (cm)">
+                        <Input keyboardType="number-pad" placeholder="e.g. 175" value={heightCm} onChangeText={setHeightCm} />
+                      </Field>
+                    )}
+                    <Field label={`Current weight (${imperial ? "lb" : "kg"})`}>
+                      <Input keyboardType="decimal-pad" placeholder={imperial ? "e.g. 176" : "e.g. 80"} value={weight} onChangeText={setWeight} />
+                    </Field>
+                  </StepShell>
+                )}
+
+                {step === "activity" && (
+                  <StepShell title="How active are you?" subtitle="Be honest — most people pick one level too high, and an honest pick means a target you can trust. Being on your feet counts too.">
+                    <View className="gap-2">
+                      {ACTIVITY_LEVELS.map((level) => (
+                        <ChoiceCard key={level.value} selected={activity === level.value} onPress={() => setActivity(level.value)} title={level.label} blurb={level.description} />
+                      ))}
+                    </View>
+                  </StepShell>
+                )}
+
+                {step === "goal" && (
+                  <StepShell title="What's your goal?" subtitle="Pick a direction and a pace you can live with — the gentler the pace, the easier it is to keep.">
+                    <View className="flex-row gap-2">
+                      {(["lose", "maintain", "gain"] as const).map((kind) => (
+                        <ChoiceCard
+                          key={kind}
+                          className="flex-1"
+                          selected={goalKind === kind}
+                          onPress={() => {
+                            setGoalKind(kind);
+                            setRate(null);
+                          }}
+                          title={kind[0].toUpperCase() + kind.slice(1)}
+                        />
+                      ))}
+                    </View>
+                    {goalKind && goalKind !== "maintain" ? (
+                      <Animated.View key={goalKind} entering={reduce ? undefined : FadeIn.duration(130)} style={{ gap: 8 }}>
+                        <Text className="text-sm font-medium text-muted-foreground">How fast?</Text>
+                        {rates.map((option) => (
+                          <ChoiceCard key={option.rate} selected={rate === option.rate} onPress={() => setRate(option.rate)} title={option.title} blurb={option.blurb} badge={option.recommended ? "Recommended" : undefined} />
+                        ))}
+                      </Animated.View>
+                    ) : null}
+                  </StepShell>
+                )}
+
+                {step === "permissions" && (
+                  <StepShell title="A few quick asks" subtitle="All optional — everything works without them. Each yes just removes a step later, and Settings can flip any of these anytime.">
+                    <View className="gap-2">
+                      <PermissionRow
+                        icon="camera"
+                        title="Camera"
+                        blurb="The front door — point it at plates, labels, and barcodes."
+                        state={cameraState}
+                        deniedNote="No problem — you can turn it on in Settings whenever."
+                        onPress={askCamera}
+                      />
+                      <PermissionRow
+                        icon="bell"
+                        title="Bevi's Monday note"
+                        blurb="One notification a week: your verdict and the new target, Monday morning."
+                        state={notif}
+                        deniedNote="No problem — Settings can turn it on whenever."
+                        onPress={() => void askNotifications()}
+                      />
+                      {appleHealthSupported() ? (
+                        <PermissionRow
+                          icon="heart"
+                          title="Apple Health"
+                          blurb="I read new weigh-ins automatically, so the trend stays current."
+                          state={health}
+                          deniedNote="No problem — connect it later from Settings."
+                          onPress={() => void askHealth()}
+                        />
+                      ) : null}
+                    </View>
+                  </StepShell>
+                )}
+
+                {step === "result" && plan && tdee !== null && macros ? (
+                  <StepShell title="Your starting plan is ready" subtitle="Here's what the formula says. Log your meals and weigh in when you can — in about two weeks, your scale takes over.">
+                    <View className="items-center">
+                      <Bevi pose="celebrate" size={140} />
+                    </View>
+                    <Card style={{ backgroundColor: block.lime, borderColor: "transparent" }} className="p-4 gap-4">
+                      <View className="flex-row items-center gap-3">
+                        <View className="h-10 w-10 items-center justify-center rounded-full bg-muted">
+                          <Feather name="zap" size={20} color={colors.foreground} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-sm font-bold text-foreground">Your body burns about</Text>
+                          <Text className="text-xs text-muted-foreground">resting + daily activity</Text>
+                        </View>
+                        <Text className="text-2xl font-black tracking-tight tabular-nums text-foreground">{tdee.toLocaleString()} cal</Text>
+                      </View>
+                      <View className="flex-row items-center gap-3">
+                        <View className="h-10 w-10 items-center justify-center rounded-full bg-primary">
+                          <Feather name="target" size={20} color={colors.background} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-sm font-bold text-foreground">So you should eat</Text>
+                          <Text className="text-xs text-muted-foreground">
+                            {goalKind === "maintain"
+                              ? "to hold steady"
+                              : `a ${Math.abs(deficitForRate(effectiveRate)).toLocaleString()} cal/day ${effectiveRate < 0 ? "deficit" : "surplus"} to ${goalKind} ${kgToDisplay(Math.abs(effectiveRate), imperial)}/week`}
+                          </Text>
+                        </View>
+                        <Text className="text-2xl font-black tracking-tight tabular-nums text-foreground">{plan.intake.toLocaleString()} cal</Text>
+                      </View>
+                      <View className="flex-row gap-2 bg-muted p-3">
+                        {([["Protein", macros.protein_g, splitPcts.protein_pct], ["Carbs", macros.carbs_g, splitPcts.carbs_pct], ["Fat", macros.fat_g, splitPcts.fat_pct]] as const).map(([label, grams, pct]) => (
+                          <View key={label} className="flex-1 items-center">
+                            <Text className="text-xs text-muted-foreground">{label}</Text>
+                            <Text className="font-bold tabular-nums text-foreground">{pct}%</Text>
+                            <Text className="text-[10px] text-muted-foreground">{grams}g</Text>
+                          </View>
+                        ))}
+                      </View>
+                      <Text className="text-xs text-muted-foreground">
+                        These numbers are my starting guess. Once there's ~2 weeks of real data, the Weight screen measures your actual burn and I'll tell you if this needs adjusting.
+                      </Text>
+                    </Card>
+                  </StepShell>
+                ) : null}
+              </Animated.View>
+            </ScrollView>
+
+            <View className="pt-6">
+              {step === "result" ? (
+                <Button onPress={finish} loading={saving}>Start tracking</Button>
+              ) : (
+                <>
+                  {!canContinue[step] && stepHint[step] ? (
+                    <Animated.View entering={reduce ? undefined : FadeIn.duration(130)}>
+                      <Text className="mb-2 text-center text-xs font-medium text-muted-foreground">{stepHint[step]}</Text>
+                    </Animated.View>
+                  ) : null}
+                  <Button onPress={next} disabled={!canContinue[step]}>
+                    Continue
+                  </Button>
+                </>
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Animated.View>
     </SafeAreaView>
+  );
+}
+
+/** One bar of the step progress track — the fill cross-fades in (130ms) instead
+ *  of snapping, per the "determinate fills ease" motion rule. Initializes at the
+ *  current value so mounting never plays a sweep. */
+function ProgressSegment({ filled }: { filled: boolean }) {
+  const reduce = useReducedMotion();
+  const fill = useSharedValue(filled ? 1 : 0);
+  useEffect(() => {
+    fill.value = withTiming(filled ? 1 : 0, { ...TIMING, duration: reduce ? 0 : TIMING.duration });
+  }, [filled, reduce, fill]);
+  const style = useAnimatedStyle(() => ({ opacity: fill.value }));
+  return (
+    <View className="h-1.5 flex-1 bg-muted">
+      <Animated.View style={[{ flex: 1 }, style]}>
+        <View className="flex-1 bg-primary" />
+      </Animated.View>
+    </View>
   );
 }
 
@@ -418,21 +477,66 @@ function ChoiceCard({
   className?: string;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`rounded-2xl border-2 p-3 active:opacity-70 ${selected ? "border-primary bg-primary" : "border-border bg-card"} ${className}`}
+      className={`rounded-2xl border-2 p-3 ${selected ? "border-primary bg-primary" : "border-border bg-card"} ${className}`}
     >
       <View className="flex-row items-center gap-2">
-        <Text className={`font-black tracking-tight ${selected ? "text-white" : "text-foreground"}`}>{title}</Text>
+        <Text className={`font-black tracking-tight ${selected ? "text-primary-foreground" : "text-foreground"}`}>{title}</Text>
         {badge ? (
           <View className="rounded-full bg-background px-2 py-0.5">
             <Text className="text-[10px] font-extrabold text-foreground">{badge}</Text>
           </View>
         ) : null}
       </View>
-      {blurb ? <Text className={`mt-0.5 text-xs font-semibold ${selected ? "text-white/80" : "text-muted-foreground"}`}>{blurb}</Text> : null}
-    </Pressable>
+      {blurb ? <Text className={`mt-0.5 text-xs font-semibold ${selected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{blurb}</Text> : null}
+    </PressableScale>
+  );
+}
+
+/** One optional permission ask: icon, why-one-liner, and a live state — granted
+ *  flips the card primary (like a selected ChoiceCard), a system "no" swaps the
+ *  blurb for a no-guilt pointer to Settings. */
+function PermissionRow({
+  icon,
+  title,
+  blurb,
+  state,
+  deniedNote,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  title: string;
+  blurb: string;
+  state: "idle" | "granted" | "denied";
+  deniedNote: string;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  const granted = state === "granted";
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: granted }}
+      className={`flex-row items-center gap-3 rounded-2xl border-2 p-3 ${granted ? "border-primary bg-primary" : "border-border bg-card"}`}
+    >
+      <View className={`h-10 w-10 items-center justify-center rounded-full ${granted ? "bg-background" : "bg-muted"}`}>
+        <Feather name={icon} size={18} color={colors.foreground} />
+      </View>
+      <View className="flex-1">
+        <Text className={`font-black tracking-tight ${granted ? "text-primary-foreground" : "text-foreground"}`}>{title}</Text>
+        <Text className={`mt-0.5 text-xs font-semibold ${granted ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+          {state === "denied" ? deniedNote : blurb}
+        </Text>
+      </View>
+      <Feather
+        name={granted ? "check" : "chevron-right"}
+        size={18}
+        color={granted ? colors.background : colors.mutedForeground}
+      />
+    </PressableScale>
   );
 }

@@ -25,6 +25,7 @@ export const mealInput = z.object({
   eaten_at: z.string().datetime({ offset: true }),
   note: z.string().optional(),
   source: z.enum(["photo", "text", "favorite", "copy"]).default("photo"),
+  planned: z.boolean().optional(),
   items: z.array(mealItemInput).min(1),
   photos: z.array(mealPhotoInput).optional(),
 });
@@ -63,6 +64,7 @@ export async function createMeal(userId: string, input: MealInput) {
       eatenAt: new Date(input.eaten_at),
       note: input.note ?? null,
       source: input.source,
+      planned: input.planned ?? false,
     })
     .returning();
   const insertItems = db

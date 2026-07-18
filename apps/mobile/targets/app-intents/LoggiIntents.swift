@@ -5,6 +5,16 @@ import Foundation
 // capture. Logging speed is retention — this owns pocket-to-viewfinder time.
 // Both intents just deep-link; the add screen's `intent` param does the rest.
 
+// ExtensionKit extensions are standalone executables — without an @main the
+// binary has no __swift5_entry section and iOS refuses to install the app.
+// Deliberately NOT @available-gated: AppIntentsExtension is iOS 17+, so this
+// stays valid even if tooling resets the target floor from 18.0 back to 17.0.
+@main
+struct LoggiIntentsExtension: AppIntentsExtension {}
+
+// OpenURLIntent is iOS 18+; the target floor stays 17.0 (bacons hardcodes it),
+// so gate everything on 18 — below that the extension ships empty.
+@available(iOS 18.0, *)
 struct LogMealIntent: AppIntent {
   static var title: LocalizedStringResource = "Log a Meal"
   static var description = IntentDescription(
@@ -18,6 +28,7 @@ struct LogMealIntent: AppIntent {
   }
 }
 
+@available(iOS 18.0, *)
 struct SpeakMealIntent: AppIntent {
   static var title: LocalizedStringResource = "Speak a Meal"
   static var description = IntentDescription(
@@ -31,6 +42,7 @@ struct SpeakMealIntent: AppIntent {
   }
 }
 
+@available(iOS 18.0, *)
 struct LoggiShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(
