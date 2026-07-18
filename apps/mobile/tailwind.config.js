@@ -19,7 +19,20 @@ module.exports = {
         "primary-strong": "rgb(var(--primary-strong) / <alpha-value>)",
         destructive: "rgb(var(--destructive) / <alpha-value>)",
         border: "rgb(var(--border) / <alpha-value>)",
-        magenta: "#ff3d8b", // shared across themes: 5.9:1 on dark, brand accent
+        "accent-log": {
+          50: "#fcf5f2",
+          100: "#f9eae6",
+          200: "#f4d2c7",
+          300: "#eda791",
+          400: "#e87754",
+          500: "#e64a19",
+          600: "#b83a14", // text-on-accent shade: 5.8:1 on white
+          700: "#973011",
+          800: "#7c270e",
+          900: "#5c1d0a",
+          950: "#2e0f05",
+          DEFAULT: "#e64a19", // shared across themes: 5.0:1 on dark, brand accent
+        },
 
         block: {
           lime: "#dceeb1",

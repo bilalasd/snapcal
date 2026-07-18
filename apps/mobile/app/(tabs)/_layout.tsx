@@ -1,24 +1,30 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View, Pressable, Text, Easing as RNEasing } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS, useReducedMotion } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { tapLight } from "../../lib/haptics";
+import { stashTranscript } from "../../lib/draft";
 import { useColors } from "../../lib/colors";
+import { ToastHost } from "../../components/toast";
+import { QueueBanner } from "../../components/queue-banner";
 
 // dx/dy are the action-circle centers relative to the + button center —
 // they drive both the fan-out animation and the drag hit-testing.
 const ACTIONS = [
-  { icon: "search", label: "Search", intent: "search", dx: -92, dy: -64 },
-  { icon: "camera", label: "Camera", intent: "camera", dx: 0, dy: -108 },
-  { icon: "bookmark", label: "Saved", intent: "saved", dx: 92, dy: -64 },
+  { icon: "search", label: "Search", intent: "search", dx: -104, dy: -44 },
+  { icon: "camera", label: "Camera", intent: "camera", dx: -38, dy: -106 },
+  { icon: "mic", label: "Speak", intent: "speak", dx: 38, dy: -106 },
+  { icon: "bookmark", label: "Saved", intent: "saved", dx: 104, dy: -44 },
 ] as const;
 // Drags select by direction (pie-menu style): past this distance, the action
 // whose bearing is within ~60° of the drag wins — no need to reach the icon.
 const MIN_DRAG = 24;
 const MIN_DOT = 0.5; // cos 60°
+const MIC_INDEX = ACTIONS.findIndex((a) => a.intent === "speak");
 
 export default function TabsLayout() {
   const colors = useColors();
@@ -40,6 +46,92 @@ export default function TabsLayout() {
     toggleFab(false);
     router.push(`/add?intent=${intent}`);
   }
+
+  // Hold-to-talk: sliding onto the mic starts transcribing right there in the
+  // dial; releasing stops and hands the words to /add for analysis. Sliding
+  // away cancels. A plain tap on the mic still opens the full speak screen —
+  // the gesture is the fast lane, not the only lane.
+  const [dictState, setDictState] = useState<"idle" | "live" | "finishing">("idle");
+  const [heard, setHeard] = useState("");
+  const dictRef = useRef<"idle" | "live" | "finishing">("idle");
+  const finalRef = useRef("");
+  const interimRef = useRef("");
+  const recActive = useRef(false);
+
+  function setDict(s: "idle" | "live" | "finishing") {
+    dictRef.current = s;
+    setDictState(s);
+  }
+
+  function startDictation() {
+    if (dictRef.current !== "idle") return;
+    finalRef.current = "";
+    interimRef.current = "";
+    setHeard("");
+    setDict("live");
+    // Only transcribe mid-gesture if the mic is already granted — a permission
+    // dialog under a held finger is chaos. First-timers get the speak screen,
+    // which asks properly.
+    ExpoSpeechRecognitionModule.getPermissionsAsync().then(({ granted }) => {
+      if (granted && dictRef.current === "live") {
+        ExpoSpeechRecognitionModule.start({ interimResults: true, continuous: true });
+      }
+    });
+  }
+
+  function cancelDictation() {
+    if (dictRef.current === "idle") return;
+    setDict("idle");
+    setHeard("");
+    ExpoSpeechRecognitionModule.abort();
+  }
+
+  function finishDictation() {
+    if (dictRef.current !== "live") return;
+    if (!recActive.current) {
+      // Recognition never started (no permission yet / still warming up with
+      // nothing heard) — the speak screen takes over and listens properly.
+      setDict("idle");
+      ExpoSpeechRecognitionModule.abort();
+      go("speak");
+      return;
+    }
+    setDict("finishing");
+    ExpoSpeechRecognitionModule.stop(); // final result + "end" follow
+  }
+
+  // Fires on "end" (and defensively on "error") while finishing: pass whatever
+  // was heard to /add. Empty transcript just opens the speak screen to listen.
+  function settleDictation() {
+    if (dictRef.current !== "finishing") return;
+    setDict("idle");
+    const text = [finalRef.current, interimRef.current].filter(Boolean).join(" ").trim();
+    setHeard("");
+    if (text) stashTranscript(text);
+    go("speak");
+  }
+
+  useSpeechRecognitionEvent("start", () => {
+    recActive.current = true;
+  });
+  useSpeechRecognitionEvent("result", (e) => {
+    if (dictRef.current === "idle") return; // speak screen's session, not ours
+    const transcript = e.results[0]?.transcript ?? "";
+    if (e.isFinal) {
+      finalRef.current = [finalRef.current, transcript].filter(Boolean).join(" ");
+      interimRef.current = "";
+    } else {
+      interimRef.current = transcript;
+    }
+    setHeard([finalRef.current, interimRef.current].filter(Boolean).join(" "));
+  });
+  useSpeechRecognitionEvent("end", () => {
+    recActive.current = false;
+    settleDictation();
+  });
+  useSpeechRecognitionEvent("error", () => {
+    settleDictation();
+  });
 
   // One gesture does it all: touch-down opens the dial instantly; drag onto an
   // action and release to trigger it; release in place keeps it open for
@@ -66,16 +158,25 @@ export default function TabsLayout() {
           }
         }
       }
-      if (idx !== activeSv.value) {
+      const prev = activeSv.value;
+      if (idx !== prev) {
         activeSv.value = idx;
         if (idx >= 0) runOnJS(tapLight)();
+        // Entering the mic starts transcribing under the held finger;
+        // sliding off it throws the words away.
+        if (idx === MIC_INDEX) runOnJS(startDictation)();
+        else if (prev === MIC_INDEX) runOnJS(cancelDictation)();
       }
     })
     .onFinalize((e) => {
       const idx = activeSv.value;
       activeSv.value = -1;
-      if (idx >= 0) runOnJS(go)(ACTIONS[idx].intent);
-      else if (wasOpen.value && Math.hypot(e.translationX, e.translationY) < 10) runOnJS(toggleFab)(false);
+      if (idx === MIC_INDEX) runOnJS(finishDictation)();
+      else if (idx >= 0) runOnJS(go)(ACTIONS[idx].intent);
+      else {
+        runOnJS(cancelDictation)();
+        if (wasOpen.value && Math.hypot(e.translationX, e.translationY) < 10) runOnJS(toggleFab)(false);
+      }
     });
 
   const plusStyle = useAnimatedStyle(() => ({
@@ -151,6 +252,25 @@ export default function TabsLayout() {
         />
       </Animated.View>
 
+      {/* Live transcript while the mic is held (hold-to-talk) */}
+      {dictState !== "idle" ? (
+        <View
+          pointerEvents="none"
+          className="absolute inset-x-5 rounded-2xl border border-border bg-background p-4"
+          style={{ bottom: barTop + 96 }}
+        >
+          <View className="flex-row items-center gap-2">
+            <View className="h-2.5 w-2.5 rounded-full bg-accent-log" />
+            <Text className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+              {dictState === "finishing" ? "Got it…" : "Listening — release when done"}
+            </Text>
+          </View>
+          <Text numberOfLines={3} className="mt-2 text-lg font-bold leading-6 tracking-tight text-foreground">
+            {heard || "Say what you ate…"}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Speed-dial actions fanning out of the + button */}
       {ACTIONS.map((a, i) => (
         <Animated.View
@@ -166,7 +286,7 @@ export default function TabsLayout() {
             accessibilityRole="button"
             accessibilityLabel={a.label}
           >
-            <Animated.View style={circleStyles[i]} className="h-14 w-14 items-center justify-center rounded-full bg-magenta">
+            <Animated.View style={circleStyles[i]} className="h-14 w-14 items-center justify-center rounded-full bg-accent-log">
               <Feather name={a.icon} size={24} color="#fff" />
             </Animated.View>
             {/* Chip behind the label so it stays legible over whatever the scrim dims */}
@@ -193,13 +313,17 @@ export default function TabsLayout() {
           accessibilityLabel="Log a meal"
           accessibilityState={{ expanded: fabOpen }}
         >
-          <View className="h-14 w-14 items-center justify-center rounded-full bg-magenta">
+          <View className="h-14 w-14 items-center justify-center rounded-full bg-accent-log">
             <Animated.View style={plusStyle}>
               <Feather name="plus" size={26} color="#fff" />
             </Animated.View>
           </View>
         </View>
       </GestureDetector>
+
+      {/* Floating overlays: undo toast above the FAB, offline pill up top */}
+      <ToastHost bottomOffset={barTop + 56} />
+      <QueueBanner />
     </View>
   );
 }

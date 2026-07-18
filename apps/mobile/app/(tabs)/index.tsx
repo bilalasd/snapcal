@@ -1,14 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Bevi } from "../../components/bevi";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import Animated, { Easing, FadeInDown, LinearTransition, runOnJS } from "react-native-reanimated";
+import Animated, {
+  Easing,
+  FadeInDown,
+  LinearTransition,
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { bucketOfHour, itemsToDraft, localDateString, mealTotals, tzOffsetMinutes, type ApiMeal, type Goals } from "@loggi/shared";
+import { bucketOfHour, itemsToDraft, localDateString, mealTotals, tzOffsetMinutes, type ApiMeal, type AuditStats, type Goals } from "@loggi/shared";
 import { fetchJson, fetchMealsForDate, fetchMealsRange } from "../../lib/api";
-import { tapSuccess } from "../../lib/haptics";
+import { tapSuccess, tapLight } from "../../lib/haptics";
+import { goalForDate, recordDailyGoal } from "../../lib/goal-history";
 import {
   addOptimisticMeal,
   discardOptimistic,
@@ -24,10 +34,38 @@ import { Button, Card, Badge, Skeleton, Kicker } from "../../components/ui";
 import { ProgressRing } from "../../components/progress-ring";
 import { MealListItem } from "../../components/meal-list-item";
 import { MealDrawer } from "../../components/meal-drawer";
+import { DayPickerSheet } from "../../components/day-picker-sheet";
+import { MondayNoteCard } from "../../components/monday-note-card";
+import { MilestoneCard } from "../../components/milestone-card";
+import { checkMilestones, markMilestoneSeen, type Milestone } from "../../lib/milestones";
+import { useColors, block } from "../../lib/colors";
 
-const MACRO_BG: Record<string, string> = { Protein: "bg-chart-5", Carbs: "bg-chart-3", Fat: "bg-chart-2" };
+// Fixed dark inks — these bars always sit on the pastel lime hero card, so they
+// must not track the theme (a themed fill goes dark-on-dark in dark mode).
+const MACRO_INK: Record<string, string> = { Protein: "#000000", Carbs: "rgba(0,0,0,0.7)", Fat: "rgba(0,0,0,0.5)" };
+
+// Fill bar that eases to its new width on data changes (130ms, reduced-motion
+// aware) instead of snapping.
+function MacroFill({ pct, color }: { pct: number; color: string }) {
+  const reduce = useReducedMotion();
+  const width = useSharedValue(pct);
+  useEffect(() => {
+    width.value = reduce ? pct : withTiming(pct, { duration: 130, easing: Easing.out(Easing.quad) });
+  }, [pct, reduce, width]);
+  const style = useAnimatedStyle(() => ({ width: `${width.value}%` }));
+  return <Animated.View style={[{ height: "100%", backgroundColor: color }, style]} />;
+}
 
 const BUCKET_MEAL: Record<string, string> = { morning: "breakfast", midday: "lunch", evening: "dinner", night: "snack" };
+
+// The slice of /api/trends that Today uses: smart goal + the Monday note.
+interface Trends {
+  adaptive_goal_kcal: number | null;
+  verdict: { status: "collecting" | "on_track" | "adjust" };
+  recap: { week_start: string; content: string } | null;
+  audit: AuditStats | null;
+  weights: Array<{ date: string }>;
+}
 
 // ponytail: in-memory dismiss — a restart resurfacing the card is fine.
 let usualDismissedOn: string | null = null;
@@ -53,16 +91,21 @@ function dayHeading(date: string, today: string): string {
 
 export default function Today() {
   const router = useRouter();
+  const colors = useColors();
+  const reduce = useReducedMotion();
   const [today] = useState(() => localDateString());
   const [date, setDate] = useState(today);
   const [meals, setMeals] = useState<ApiMeal[] | null>(() => getCachedMeals(localDateString()) ?? null);
   const [goals, setGoals] = useState<Goals | null>(() => getCachedGoals());
   const [streak, setStreak] = useState<number | null>(null);
   const [daySums, setDaySums] = useState<Map<string, number> | null>(null);
-  const [trendGoal, setTrendGoal] = useState<number | null>(null);
+  const [trends, setTrends] = useState<Trends | null>(null);
+  const [mondayVisible, setMondayVisible] = useState(false);
   const [selected, setSelected] = useState<ApiMeal | null>(null);
   const [usual, setUsual] = useState<ApiMeal | null>(null);
   const [longGap, setLongGap] = useState(false);
+  const [dayPickerOpen, setDayPickerOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isToday = date === today;
 
@@ -70,7 +113,7 @@ export default function Today() {
     const cached = getCachedMeals(forDate);
     if (cached) setMeals(cached); // instant — stale-while-revalidate
     else setMeals(null); // skeleton only when we have nothing
-    fetchMealsForDate(forDate)
+    return fetchMealsForDate(forDate)
       .then((m) => {
         setMeals(reconcileMeals(forDate, m));
         // Prefetch the previous day so swiping back never hits a skeleton.
@@ -83,7 +126,7 @@ export default function Today() {
   }, []);
 
   // Covers mount, date changes, and returning to the tab (e.g. after saving).
-  useFocusEffect(useCallback(() => load(date), [load, date]));
+  useFocusEffect(useCallback(() => void load(date), [load, date]));
 
   // "Your usual" is time-of-day dependent, so refresh it on every focus.
   useFocusEffect(
@@ -143,7 +186,7 @@ export default function Today() {
     const countStreak = (rows: ApiMeal[]) => {
       const sums = new Map<string, number>();
       for (const m of rows) {
-        if (new Date(m.eatenAt) < weekAgo) continue;
+        if (m.planned || new Date(m.eatenAt) < weekAgo) continue;
         const d = localDateString(new Date(m.eatenAt));
         sums.set(d, (sums.get(d) ?? 0) + mealTotals(m).calories);
       }
@@ -160,25 +203,51 @@ export default function Today() {
     else fetchMealsRange(weekAgo, new Date()).then(countStreak).catch(() => {});
   }, [router]);
 
-  // Smart goal: server-computed weekly (frozen each Monday from the weight
-  // trend). Stays null (→ manual goal) until the trend has enough data.
+  // One trends fetch feeds both the smart goal (server-computed weekly, frozen
+  // each Monday from the weight trend) and the Monday note (verdict + recap).
+  const loadTrends = useCallback(
+    () =>
+      fetchJson<Trends>(`/api/trends?days=30&tz_offset=${tzOffsetMinutes()}`)
+        .then(setTrends)
+        .catch(() => {}),
+    [],
+  );
   useEffect(() => {
-    if (!goals?.adaptive_goal) {
-      setTrendGoal(null);
-      return;
-    }
-    fetchJson<{ adaptive_goal_kcal: number | null }>(`/api/trends?days=30&tz_offset=${tzOffsetMinutes()}`)
-      .then((t) => setTrendGoal(t.adaptive_goal_kcal))
-      .catch(() => setTrendGoal(null));
-  }, [goals?.adaptive_goal]);
+    void loadTrends();
+  }, [loadTrends]);
+  const trendGoal = goals?.adaptive_goal ? (trends?.adaptive_goal_kcal ?? null) : null;
+
+  // Milestones ride the trends load, off the critical path — one card at a
+  // time, dismissed forever once seen.
+  const [milestone, setMilestone] = useState<Milestone | null>(null);
+  useEffect(() => {
+    if (!trends) return;
+    let alive = true;
+    checkMilestones(trends).then((m) => {
+      if (alive) setMilestone(m);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [trends]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([load(date), loadTrends()]);
+    setRefreshing(false);
+  }, [load, loadTrends, date]);
 
   const totals = (meals ?? []).reduce(
     (acc, meal) => {
+      if (meal.planned) return acc; // reserved, not eaten
       const t = mealTotals(meal);
       return { calories: acc.calories + t.calories, protein: acc.protein + t.protein, carbs: acc.carbs + t.carbs, fat: acc.fat + t.fat };
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 },
   );
+  // Pre-logged meals reserve budget: they reduce "still available" without
+  // counting as eaten until confirmed.
+  const reserved = (meals ?? []).reduce((s, m) => s + (m.planned ? mealTotals(m).calories : 0), 0);
 
   const macros = goals
     ? [
@@ -191,17 +260,39 @@ export default function Today() {
   const dailyGoal = trendGoal ?? goals?.daily_calories ?? 0;
   // Soft rolling counter, not a breakable chain: completed logged days this
   // week at or under target. Today is excluded — a half-logged day isn't a win.
-  // ponytail: judges past days by the current goal; per-day goal history if it matters.
+  // Each day is judged by the goal that was in effect then (lib/goal-history),
+  // so Monday's smart-goal change doesn't rewrite last week's wins.
   const onTarget = daySums
-    ? Array.from(daySums.entries()).filter(([d, c]) => d !== today && c > 0 && c <= dailyGoal).length
+    ? Array.from(daySums.entries()).filter(([d, c]) => d !== today && c > 0 && c <= goalForDate(d, dailyGoal)).length
     : 0;
-  const remaining = goals ? dailyGoal - totals.calories : 0;
+  const remaining = goals ? dailyGoal - totals.calories - reserved : 0;
+  // Gate the usual-meal card so it never double-stacks with the empty-state
+  // Bevi (one Bevi per screen): the card owns the Bevi when both would show.
+  const showUsual =
+    meals !== null &&
+    isToday &&
+    !!usual &&
+    usualDismissedOn !== today &&
+    !meals.some((m) => m.name.trim().toLowerCase() === usual.name.trim().toLowerCase());
   const headline = isToday ? greetingFor(new Date().getHours()) : dayHeading(date, today);
   const dateLabel = new Date(`${date}T12:00:00`).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   const goAdd = () => router.push(isToday ? "/add" : { pathname: "/add", params: { date } });
 
-  const goPrev = useCallback(() => setDate((d) => addDays(d, -1)), []);
-  const goNext = useCallback(() => setDate((d) => (d < today ? addDays(d, 1) : d)), [today]);
+  // The day the screen is showing is the goal the user is aiming at — record
+  // it so future Mondays can't re-grade this day (see lib/goal-history).
+  useEffect(() => {
+    if (goals && dailyGoal > 0) recordDailyGoal(today, dailyGoal);
+  }, [goals, dailyGoal, today]);
+
+  const goPrev = useCallback(() => {
+    tapLight();
+    setDate((d) => addDays(d, -1));
+  }, []);
+  const goNext = useCallback(() => {
+    if (date >= today) return;
+    tapLight();
+    setDate(addDays(date, 1));
+  }, [date, today]);
   // Swipe left/right to page days (activeOffsetX keeps vertical scroll working).
   const swipeDays = Gesture.Pan()
     .activeOffsetX([-24, 24])
@@ -214,7 +305,10 @@ export default function Today() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
       <GestureDetector gesture={swipeDays}>
-      <ScrollView contentContainerClassName="p-5 pb-16 gap-5">
+      <ScrollView
+        contentContainerClassName="p-5 pb-28 gap-5"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.mutedForeground} />}
+      >
         <View className="flex-row items-start justify-between gap-4">
           <View className="flex-1">
             <Kicker>{dateLabel}</Kicker>
@@ -222,14 +316,14 @@ export default function Today() {
           </View>
           {isToday && streak !== null && streak > 0 ? (
             <View className="items-end gap-1.5">
-              <Badge className="bg-magenta" accessibilityLabel={`${streak} of 7 days logged this week`}>
+              <Badge className="bg-accent-log" accessibilityLabel={`${streak} of 7 days logged this week`}>
                 <Feather name="zap" size={12} color="#fff" />
                 <Text className="text-xs font-bold uppercase text-white">{streak}/7</Text>
               </Badge>
               {onTarget > 0 ? (
                 <Badge className="bg-block-mint" accessibilityLabel={`${onTarget} days on target this week`}>
                   <Feather name="check" size={12} color="#000" />
-                  <Text className="text-xs font-bold uppercase text-foreground">{onTarget} on target</Text>
+                  <Text className="text-xs font-bold uppercase text-black">{onTarget} on target</Text>
                 </Badge>
               ) : null}
             </View>
@@ -239,13 +333,21 @@ export default function Today() {
         {/* Day navigation */}
         <View className="flex-row items-center justify-between border-t border-border pt-3">
           <Button variant="outline" size="icon" accessibilityLabel="Previous day" onPress={goPrev}>
-            <Feather name="chevron-left" size={20} color="#000" />
+            <Feather name="chevron-left" size={20} color={colors.foreground} />
           </Button>
-          <Text className="text-muted-foreground text-xs font-extrabold uppercase tracking-[2px]">
-            {isToday ? "Tap arrows for past days" : dayHeading(date, today)}
-          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Jump to a day"
+            onPress={() => setDayPickerOpen(true)}
+            className="min-h-11 flex-row items-center gap-1 active:opacity-60"
+          >
+            <Text className="text-muted-foreground text-xs font-extrabold uppercase tracking-[2px]">
+              {isToday ? "Today" : dayHeading(date, today)}
+            </Text>
+            <Feather name="chevron-down" size={12} color={colors.mutedForeground} />
+          </Pressable>
           <Button variant="outline" size="icon" accessibilityLabel="Next day" disabled={isToday} onPress={goNext}>
-            <Feather name="chevron-right" size={20} color="#000" />
+            <Feather name="chevron-right" size={20} color={colors.foreground} />
           </Button>
         </View>
 
@@ -256,24 +358,53 @@ export default function Today() {
           </View>
         ) : (
           <>
-            <Card className="border-transparent bg-block-lime p-4">
+            {isToday && trends?.recap ? (
+              <MondayNoteCard
+                note={{
+                  weekStart: trends.recap.week_start,
+                  content: trends.recap.content,
+                  verdictStatus: trends.verdict.status,
+                  goalKcal: goals.adaptive_goal ? trends.adaptive_goal_kcal : null,
+                  audit: trends.audit ?? null,
+                }}
+                showBevi={!showUsual}
+                onVisible={setMondayVisible}
+              />
+            ) : null}
+
+            {isToday && milestone ? (
+              <MilestoneCard
+                milestone={milestone}
+                onDone={() => {
+                  void markMilestoneSeen(milestone.id);
+                  setMilestone(null);
+                }}
+              />
+            ) : null}
+
+            <Card style={{ backgroundColor: block.lime, borderColor: "transparent" }} className="p-4">
               <View className="flex-row justify-between gap-4">
                 <View className="flex-1 justify-between">
                   <View>
-                    <Kicker className="text-foreground">{remaining >= 0 ? "Still available" : "Over target"}</Kicker>
-                    <Text className={`mt-1 text-6xl font-black tracking-tighter tabular-nums ${remaining < 0 ? "text-destructive" : "text-foreground"}`}>
+                    <Kicker className="text-black">{remaining >= 0 ? "Still available" : "Over target"}</Kicker>
+                    <Text className={`mt-1 text-6xl font-black tracking-tighter tabular-nums ${remaining < 0 ? "text-[#d92d20]" : "text-black"}`}>
                       {Math.abs(remaining).toLocaleString()}
                     </Text>
-                    <Text className="text-sm font-bold uppercase tracking-[2px] text-muted-foreground">
+                    <Text className="text-sm font-bold uppercase tracking-[2px] text-black/60">
                       cal {remaining >= 0 ? "left" : "over"}
                     </Text>
                   </View>
                   <View className="mt-4 gap-0.5">
-                    <Text className="text-xs font-semibold text-muted-foreground">
+                    <Text className="text-xs font-semibold text-black/60">
                       {totals.calories.toLocaleString()} of {dailyGoal.toLocaleString()} eaten
                     </Text>
+                    {reserved > 0 ? (
+                      <Text className="text-xs font-semibold text-black/60">
+                        {reserved.toLocaleString()} reserved for later
+                      </Text>
+                    ) : null}
                     {goals.adaptive_goal ? (
-                      <Text className="text-xs text-muted-foreground">
+                      <Text className="text-xs text-black/60">
                         {trendGoal !== null
                           ? "Smart goal — set from your weight trend, updates Mondays"
                           : "Smart goal needs more logging — using your manual target"}
@@ -290,14 +421,14 @@ export default function Today() {
                 />
               </View>
 
-              <View className="mt-4 gap-3 border-t border-foreground/15 pt-4">
+              <View className="mt-4 gap-3 border-t border-black/15 pt-4">
                 {macros.map(({ label, value, max }) => (
                   <View key={label} className="flex-row items-center gap-3">
-                    <Text numberOfLines={1} className="w-20 text-xs font-extrabold uppercase tracking-[1px] text-foreground">{label}</Text>
-                    <View className="h-2 flex-1 overflow-hidden bg-muted">
-                      <View className={`h-full ${MACRO_BG[label]}`} style={{ width: `${max > 0 ? Math.min((value / max) * 100, 100) : 0}%` }} />
+                    <Text numberOfLines={1} className="w-20 text-xs font-extrabold uppercase tracking-[1px] text-black">{label}</Text>
+                    <View className="h-2 flex-1 overflow-hidden bg-black/10">
+                      <MacroFill pct={max > 0 ? Math.min((value / max) * 100, 100) : 0} color={MACRO_INK[label]} />
                     </View>
-                    <Text className="w-24 text-right text-xs font-bold tabular-nums text-muted-foreground">
+                    <Text className="w-24 text-right text-xs font-bold tabular-nums text-black/60">
                       {Math.round(value)}/{max}g · {max > 0 ? Math.round((value / max) * 100) : 0}%
                     </Text>
                   </View>
@@ -305,21 +436,20 @@ export default function Today() {
               </View>
             </Card>
 
-            {isToday && usual && usualDismissedOn !== today &&
-            !meals.some((m) => m.name.trim().toLowerCase() === usual.name.trim().toLowerCase()) ? (
-              <Card className="border-transparent bg-block-cream p-4">
+            {showUsual && usual ? (
+              <Card style={{ backgroundColor: block.cream, borderColor: "transparent" }} className="p-4">
                 <View className="flex-row items-center gap-3">
                   <Bevi pose="clipboard" size={56} />
                   <View className="min-w-0 flex-1">
-                    <Kicker>Your usual {BUCKET_MEAL[bucketOfHour(new Date().getHours())]}?</Kicker>
-                    <Text numberOfLines={1} className="mt-0.5 text-base font-black tracking-tight text-foreground">
+                    <Kicker className="text-black/60">Your usual {BUCKET_MEAL[bucketOfHour(new Date().getHours())]}?</Kicker>
+                    <Text numberOfLines={1} className="mt-0.5 text-base font-black tracking-tight text-black">
                       {usual.name}
                     </Text>
-                    <Text className="text-xs font-bold tabular-nums text-muted-foreground">
+                    <Text className="text-xs font-bold tabular-nums text-black/60">
                       {mealTotals(usual).calories.toLocaleString()} cal
                     </Text>
                   </View>
-                  <Button size="sm" onPress={() => logUsual(usual)}>Log it</Button>
+                  <Button size="sm" hitSlop={8} onPress={() => logUsual(usual)}>Log it</Button>
                   <Button variant="ghost" size="icon" accessibilityLabel="Dismiss suggestion" onPress={dismissUsual}>
                     <Feather name="x" size={18} color="#000" />
                   </Button>
@@ -329,7 +459,7 @@ export default function Today() {
 
             {meals.length === 0 ? (
               <Card className="items-center gap-3 p-8">
-                <Bevi pose="standing" size={120} />
+                {!showUsual && !mondayVisible ? <Bevi pose="standing" size={120} /> : null}
                 <Text className="text-lg font-black tracking-tight text-foreground">
                   {isToday ? (longGap ? "Welcome back!" : "Nothing logged yet") : "No meals this day"}
                 </Text>
@@ -352,7 +482,7 @@ export default function Today() {
                       accessibilityRole="button"
                       onPress={() => router.push({ pathname: "/add", params: { date } })}
                     >
-                      <Feather name="plus" size={14} color="#000" />
+                      <Feather name="plus" size={14} color={colors.foreground} />
                       <Text className="font-bold text-foreground">Add to this day</Text>
                     </Pressable>
                   ) : null}
@@ -360,10 +490,10 @@ export default function Today() {
                 {meals.map((meal, i) => (
                   <Animated.View
                     key={meal.id}
-                    entering={FadeInDown.delay(i * 40).duration(130).easing(Easing.out(Easing.quad))}
-                    layout={LinearTransition.duration(130).easing(Easing.out(Easing.quad))}
+                    entering={reduce ? undefined : FadeInDown.delay(i * 40).duration(130).easing(Easing.out(Easing.quad))}
+                    layout={reduce ? undefined : LinearTransition.duration(130).easing(Easing.out(Easing.quad))}
                   >
-                    <MealListItem meal={meal} onPress={() => setSelected(meal)} />
+                    <MealListItem meal={meal} onPress={() => setSelected(meal)} onChanged={() => load(date)} />
                   </Animated.View>
                 ))}
               </View>
@@ -374,6 +504,7 @@ export default function Today() {
       </GestureDetector>
 
       <MealDrawer meal={selected} onClose={() => setSelected(null)} onChanged={() => load(date)} />
+      <DayPickerSheet open={dayPickerOpen} onClose={() => setDayPickerOpen(false)} value={date} today={today} onSelect={setDate} />
     </SafeAreaView>
   );
 }

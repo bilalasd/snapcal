@@ -6,8 +6,8 @@
    (bg-background/95 etc.) keep working. tailwind.config.js wraps these in
    rgb(var(--x) / <alpha-value>). Dark values are tonal variants, not naive
    inversions: near-black base (no pure #000 → OLED smear), off-white text,
-   lightened destructive so it clears 4.5:1 on dark. Magenta #ff3d8b is shared —
-   it reads 5.9:1 on the dark base. */
+   lightened destructive so it clears 4.5:1 on dark. Accent (accent-log)
+   #e64a19 is shared — it reads 5.0:1 on the dark base. */
 @layer base {
   :root {
     --background: 255 255 255;
