@@ -168,23 +168,26 @@ export default function Onboarding() {
     if (!goals || !plan || !macros) return;
     setSaving(true);
     try {
-      await fetchJson("/api/weights", { method: "POST", body: JSON.stringify({ weight_kg: Math.round(weightKg * 100) / 100 }) });
-      const saved = await fetchJson<Goals>("/api/goals", {
-        method: "PUT",
-        body: JSON.stringify({
-          daily_calories: plan.intake,
-          daily_protein_g: macros.protein_g,
-          daily_carbs_g: macros.carbs_g,
-          daily_fat_g: macros.fat_g,
-          target_rate_kg_per_wk: effectiveRate,
-          unit_system: imperial ? "imperial" : "metric",
-          sex,
-          age: Number(age),
-          height_cm: Math.round(resolvedHeightCm * 10) / 10,
-          activity_level: activity,
-          onboarded: true,
+      // Independent writes — the first weigh-in and the goals save in parallel.
+      const [, saved] = await Promise.all([
+        fetchJson("/api/weights", { method: "POST", body: JSON.stringify({ weight_kg: Math.round(weightKg * 100) / 100 }) }),
+        fetchJson<Goals>("/api/goals", {
+          method: "PUT",
+          body: JSON.stringify({
+            daily_calories: plan.intake,
+            daily_protein_g: macros.protein_g,
+            daily_carbs_g: macros.carbs_g,
+            daily_fat_g: macros.fat_g,
+            target_rate_kg_per_wk: effectiveRate,
+            unit_system: imperial ? "imperial" : "metric",
+            sex,
+            age: Number(age),
+            height_cm: Math.round(resolvedHeightCm * 10) / 10,
+            activity_level: activity,
+            onboarded: true,
+          }),
         }),
-      });
+      ]);
       setCachedGoals(saved);
       tapSuccess();
       router.replace("/");

@@ -79,17 +79,19 @@ export async function syncAppleHealth(): Promise<boolean> {
     if (!prev || at > prev.date) byDate.set(key, { date: at, kg: s.quantity });
   }
 
-  // ponytail: one POST per day (≤90 on first import, then ~1); a bulk endpoint
-  // is the upgrade path if that ever feels slow.
-  for (const [date, { kg }] of byDate) {
-    if (kg < 25 || kg > 400) continue; // mirrors the API's validation range
+  // One bulk POST for the whole backfill — the first import used to be ≤90
+  // sequential requests behind the connect spinner.
+  const entries = [...byDate.entries()]
+    .filter(([, { kg }]) => kg >= 25 && kg <= 400) // mirrors the API's validation range
+    .map(([date, { kg }]) => ({ date, weight_kg: Math.round(kg * 100) / 100 }));
+  if (entries.length > 0) {
     await fetchJson("/api/weights", {
       method: "POST",
-      body: JSON.stringify({ weight_kg: Math.round(kg * 100) / 100, date }),
+      body: JSON.stringify({ weights: entries }),
     });
   }
 
   await AsyncStorage.setItem(ANCHOR_KEY, newAnchor);
   await AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
-  return byDate.size > 0;
+  return entries.length > 0;
 }
