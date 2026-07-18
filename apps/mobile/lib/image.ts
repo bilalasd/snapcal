@@ -14,13 +14,23 @@ export interface PickedPhoto {
 /** Resize any local image uri to the upload format (768px wide JPEG + base64).
  *  768px chosen by the bench (WIDTH sweep): ~12% faster analysis, no accuracy
  *  loss. Used for both camera captures and library picks. */
-export async function resizeToPhoto(uri: string): Promise<PickedPhoto> {
-  const out = await manipulateAsync(uri, [{ resize: { width: 768 } }], {
+export async function resizeToPhoto(uri: string, width = 768): Promise<PickedPhoto> {
+  const out = await manipulateAsync(uri, [{ resize: { width } }], {
     compress: 0.8,
     format: SaveFormat.JPEG,
     base64: true,
   });
   return { encoded: { data: out.base64!, media_type: "image/jpeg" }, uri: out.uri };
+}
+
+/** One quick camera snap (system camera UI — used outside the logging viewfinder).
+ *  Null when the user cancels or denies camera access. */
+export async function snapPhoto(): Promise<PickedPhoto | null> {
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) return null;
+  const res = await ImagePicker.launchCameraAsync({ quality: 1 });
+  if (res.canceled || res.assets.length === 0) return null;
+  return resizeToPhoto(res.assets[0].uri);
 }
 
 /** Pick up to `limit` photos from the library. */

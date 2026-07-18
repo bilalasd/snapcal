@@ -228,31 +228,53 @@ makes every mask shape seamless).
 ## 4. Screen specs
 
 ### 4.1 Authentication
-- **Sign in** — Bevi (wave) + headline, email/password, Apple/Google SSO,
-  links to sign-up/reset. **Sign up / Reset** — same frame (Bevi presence TBD-
-  consistent with sign-in).
+- **Welcome** (`(auth)/welcome`) — the signed-out landing: the 3-slide intro
+  carousel runs *before* the account ask, so the pitch precedes the
+  commitment. Swipeable slides, top-right Skip, pager dots, bottom CTA
+  ("Next" → "Get started" → sign-up) with a persistent "Have an account?
+  Sign in" link:
+  1. "MEET BEVI / Point it at anything edible." (Bevi camera pose) — one
+     camera for plate, label, barcode.
+  2. "THE SMART PART / Your target comes from your scale, not a formula."
+  3. "THE DEAL / No tricks." — the data promise: export everything, delete
+     everything, stated plainly.
+- **Sign in** — Bevi (wave, 110) + headline, email/password, Apple/Google
+  SSO, links to sign-up/reset.
+- **Sign up** — Bevi (wave, 90) + headline; SSO row leads (one-tap path
+  first, "or" rule *below* the buttons via `SsoRow dividerBelow`), then
+  email/password with an "8 characters or more." helper, and the data
+  promise one-liner under the CTA. **Verify step** echoes the address ("I
+  sent a 6-digit code to ⟨email⟩."), auto-submits on 6 typed/autofilled
+  digits, and offers "Resend code" (→ "Code sent again") and "Wrong email?"
+  (back to the form, state kept) — no dead ends. **Reset** — same frame.
 
 ### 4.2 Onboarding
-**Intro carousel** — 3 swipeable slides, skippable, bottom-anchored CTA:
-1. "MEET LOGGI / Point it at anything edible." (Bevi phone-photo pose) — one
-   camera for plate, label, barcode.
-2. "THE SMART PART / Your target comes from your scale, not a formula."
-3. "THE DEAL / No tricks." — the data promise: export everything, delete
-   everything, stated plainly.
-
 **Plan builder** — "Plan desk" kicker, step headline + subtitle, bottom
-Continue: units → you (sex/age) → body (height/weight) → activity → goal
+Continue, `KeyboardAvoidingView` so Continue rides above the keyboard
+(taps pass through via `keyboardShouldPersistTaps="handled"`); back arrow
+hidden on the first step: you (sex/age; muted "the formula only knows these
+two" note) → body (kg·cm / lb·ft toggle — default guessed from device
+region, US/LR/MM → imperial — plus height/weight) → activity → goal
 (direction, then a pace list with a "Recommended" option and honest blurbs) →
-result ("Your plan is ready": estimated burn, target intake, macro split,
-note that the trend later measures actual burn).
+permissions → result ("Your starting plan is ready": estimated burn, target
+intake, macro split, note that the trend later measures actual burn).
+Validation hints are Bevi-voiced ("Height and today's weight — that weigh-in
+starts your trend."), not spec-speak.
+
+**Permissions step** — all optional, Continue never blocks. `PermissionRow`
+cards (icon circle + title + why-blurb + trailing chevron): Camera, Bevi's
+Monday note (grant schedules the weekly note), Apple Health (shown only where
+HealthKit exists). Granted flips the row to the selected-ChoiceCard look
+(primary fill + trailing check); a system "no" swaps the blurb for a no-guilt
+pointer to Settings and re-taps deep-link there.
 
 **Onboarding motion** (all 130ms, `Easing.out(quad)`, reduced-motion drops to
 instant): step content fades+slides in the direction of travel (forward from
 the right, back from the left; enter-only, no exit pass); progress-track
 segments cross-fade their fill instead of snapping (§2.8 determinate-fill
-rule); intro pager dots grow/shrink via layout transition; the intro ↔ plan
-builder swap cross-fades instead of hard-cutting; the goal-pace list and
-validation hints fade in; choice cards use `PressableScale` press feedback.
+rule); welcome pager dots grow/shrink via layout transition; the goal-pace
+list and validation hints fade in; choice cards use `PressableScale` press
+feedback.
 
 ### 4.3 Core app (tabs)
 
@@ -264,7 +286,9 @@ the API until the reader's local Monday); "STILL AVAILABLE / N CAL LEFT" metric 
 progress ring — planned meals reserve budget ("N reserved for later" line;
 remaining = goal − eaten − reserved); macro rows (eaten only); usual-meal
 card (Bevi clipboard, "Log it" one-tap, dismissable); meal journal list.
-Pull-to-refresh refetches meals + trends. States: skeleton · empty day (Bevi
+Pull-to-refresh refetches meals + trends. States: skeleton (first run and
+fresh sign-ins only — relaunches paint the last session's data instantly from
+the disk-persisted cache, then revalidate; `lib/cache.ts`) · empty day (Bevi
 standing, "Welcome back!" copy) · past-day (the "+" logs to that day). Soft
 rolling `x/7` on-target counter — never a breakable chain; each past day is
 graded by the goal that was in effect then (`lib/goal-history.ts`), so a
@@ -341,18 +365,28 @@ Danger actions visually separated.
 (dictation) · Search · Saved.
 
 - **Camera** — one viewfinder for food photos, nutrition labels, barcodes; no
-  mode picking (expo-camera). A barcode in frame auto-fires the Open Food
-  Facts lookup (native AVFoundation scanning, first detection wins) and a
-  yellow lock box (`#facc15`, 130ms fade-in, reduced-motion instant) marks
-  the fired code while the lookup runs; food and labels are snapped to AI
-  analyze, which reads both. Lookup misses surface inline, the camera stays
-  live. Library pick available in-frame. *(The
-  former vision-camera v5 corner-bracket reticle + hold-to-fire ring +
-  MLKit label detection is parked: v5's Nitro camera session corrupts the
-  Hermes heap on Expo 54/RN 0.81 — hard crash on device, with or without
-  frame worklets. That UI lives at commit `e01cac5` if the stack ever
-  stabilizes; §2.8's hold-ring linear-easing exception is dormant until
-  then.)*
+  mode picking (expo-camera). Walmart-style reticle (reference recording in
+  repo root), invisible until a code is found: yellow `#facc15` corner
+  brackets (30×30, 5px stroke) appear ~8% outside the barcode and contract
+  onto it (240ms `Easing.out(cubic)`), the screen dims to `rgba(0,0,0,0.45)`
+  outside a rounded clear window (r18, 22px pad), and both glide with the
+  code between detections (120ms `Easing.out(quad)` — short so the box never
+  visibly trails a moving code). Codes without bounds, or sitting within
+  24px of any screen edge, never lock or hold — a half-visible barcode is
+  one the user isn't aiming at. A thick yellow border (6px, round
+  caps) traces the box perimeter over 3s — linear (§2.8 determinate-progress
+  exception), with dash geometry frozen at hold start so the sweep never
+  rebases. Only a code held for the full 3s fires the Open Food Facts
+  lookup; losing it for 700ms fades everything out. No white/rest state —
+  the viewfinder stays clean until there's something to lock. Reduced
+  motion: eases drop to instant, the 3s hold stays (it's functional). Food and
+  labels are snapped to AI analyze, which reads both. Lookup misses surface
+  inline, the camera stays live. Library pick available in-frame. *(Decision 2026-07-17: expo-camera
+  is the capture layer. vision-camera v5 corrupted the Hermes heap on device
+  — four segfaults; a v4 rebuild ran but was judged not reliable. Live
+  nutrition-label detection is dropped with that call — the v5-era reticle
+  lives at commit `e01cac5`; §2.8's hold-ring linear-easing exception is
+  dormant.)*
 - **Speak** — live dictation → same analyze pipeline.
 - **Search / Saved** — search-first modal ("Search meals, or describe a new
   one"), recents/favorites lists with photo-or-glyph rows; describe-by-text

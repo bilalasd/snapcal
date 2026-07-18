@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const rows = await db
     .select()
     .from(meals)
-    .where(and(eq(meals.userId, userId), gte(meals.eatenAt, since)));
+    .where(and(eq(meals.userId, userId), gte(meals.eatenAt, since), eq(meals.planned, false)));
 
   const usualId = pickUsual(
     rows.map((m) => ({ id: m.id, name: m.name, eatenAt: m.eatenAt.toISOString() })),

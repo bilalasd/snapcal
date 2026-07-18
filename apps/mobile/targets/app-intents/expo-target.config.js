@@ -2,5 +2,6 @@
 module.exports = {
   type: "app-intent",
   name: "LoggiIntents",
-  deploymentTarget: "17.0",
+  // OpenURLIntent (used by both intents) requires iOS 18
+  deploymentTarget: "18.0",
 };

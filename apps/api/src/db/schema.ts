@@ -21,6 +21,9 @@ export const meals = pgTable(
     note: text("note"),
     isFavorite: boolean("is_favorite").notNull().default(false),
     source: text("source").notNull().default("photo"), // photo | text | favorite | copy
+    // Pre-logged ("I'll eat this later today"): reserves calories on Today but
+    // stays out of trend/recap math until confirmed eaten.
+    planned: boolean("planned").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -70,7 +70,7 @@ export default function ResetPassword() {
                 onChangeText={setPassword}
               />
             </Field>
-            {error && <Text className="text-destructive text-sm">{error}</Text>}
+            {error && <Text accessibilityLiveRegion="polite" accessibilityRole="alert" className="text-destructive text-sm">{error}</Text>}
             <Button className="mt-2" disabled={busy} onPress={reset}>
               {busy ? "Resetting…" : "Set new password"}
             </Button>
@@ -88,7 +88,7 @@ export default function ResetPassword() {
                 onChangeText={setEmail}
               />
             </Field>
-            {error && <Text className="text-destructive text-sm">{error}</Text>}
+            {error && <Text accessibilityLiveRegion="polite" accessibilityRole="alert" className="text-destructive text-sm">{error}</Text>}
             <Button className="mt-2" disabled={busy} onPress={sendCode}>
               {busy ? "Sending…" : "Send reset code"}
             </Button>

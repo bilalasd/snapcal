@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal, View, Text, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, useReducedMotion } from "react-native-reanimated";
+import { useColors } from "../lib/colors";
 import { Bevi } from "./bevi";
 
 const STEPS = ["Identifying foods", "Estimating portions", "Checking the database", "Adding up the macros"];
@@ -11,6 +12,7 @@ export function AnalyzingOverlay({ photoUri }: { photoUri?: string }) {
   const [step, setStep] = useState(0);
   const glow = useSharedValue(0.5);
   const reducedMotion = useReducedMotion();
+  const colors = useColors();
 
   useEffect(() => {
     // The checklist keeps ticking (that's progress info); only the pulse is decoration.
@@ -46,7 +48,7 @@ export function AnalyzingOverlay({ photoUri }: { photoUri?: string }) {
               return (
                 <View key={label} className={`flex-row items-center gap-2.5 ${active ? "opacity-100" : done ? "opacity-60" : "opacity-40"}`}>
                   <View className={`h-4 w-4 items-center justify-center rounded-full border ${done ? "border-transparent bg-foreground" : active ? "border-foreground" : "border-muted-foreground"}`}>
-                    {done ? <Feather name="check" size={10} color="#fff" /> : null}
+                    {done ? <Feather name="check" size={10} color={colors.background} /> : null}
                   </View>
                   <Text className="text-xs font-bold uppercase tracking-wider text-foreground">{label}</Text>
                 </View>

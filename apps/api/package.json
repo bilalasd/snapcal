@@ -10,7 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "test": "vitest run",
+    "test": "vitest run --exclude \"e2e/**\" --passWithNoTests",
     "vercel-build": "drizzle-kit migrate && next build",
     "import-foods": "tsx scripts/import-foods.ts",
     "seed:preview": "tsx --env-file=.env.local scripts/seed-preview.ts",

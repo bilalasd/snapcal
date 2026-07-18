@@ -48,7 +48,13 @@ export async function GET(request: NextRequest) {
       })
       .from(meals)
       .innerJoin(mealItems, eq(mealItems.mealId, meals.id))
-      .where(and(eq(meals.userId, userId), gte(meals.eatenAt, weekAgo)));
+      .where(
+        and(
+          eq(meals.userId, userId),
+          gte(meals.eatenAt, weekAgo),
+          eq(meals.planned, false), // reserved-but-unconfirmed meals aren't intake
+        ),
+      );
 
     const byDay = new Map<string, { calories: number; protein: number }>();
     for (const row of mealRows) {
@@ -65,7 +71,7 @@ export async function GET(request: NextRequest) {
         .values({
           userId,
           weekStart,
-          content: `Not enough logged days this week (${byDay.size}) for a recap — log at least ${MIN_LOGGED_DAYS_FOR_RECAP} days.`,
+          content: `Bevi couldn't get a full read on last week — about ${MIN_LOGGED_DAYS_FOR_RECAP} logged days is enough for one. This week starts fresh.`,
         })
         .onConflictDoNothing();
       results.push({ userId, skipped: true, loggedDays: byDay.size });

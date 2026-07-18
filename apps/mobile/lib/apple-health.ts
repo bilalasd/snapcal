@@ -26,12 +26,19 @@ function healthkit(): HealthKit | null {
 
 const ENABLED_KEY = "appleHealth.enabled";
 const ANCHOR_KEY = "appleHealth.anchor";
+const LAST_SYNC_KEY = "appleHealth.lastSync";
 const BACKFILL_DAYS = 90; // matches the trend engine's window
 
 export const appleHealthSupported = (): boolean => healthkit() !== null;
 
 export const isAppleHealthEnabled = async (): Promise<boolean> =>
   (await AsyncStorage.getItem(ENABLED_KEY)) === "1";
+
+/** When the last successful sync finished, or null if never. */
+export async function lastAppleHealthSync(): Promise<Date | null> {
+  const v = await AsyncStorage.getItem(LAST_SYNC_KEY);
+  return v ? new Date(v) : null;
+}
 
 /** Show the HealthKit permission sheet and, if granted, run the first sync. */
 export async function connectAppleHealth(): Promise<boolean> {
@@ -46,7 +53,7 @@ export async function connectAppleHealth(): Promise<boolean> {
 
 /** Stop syncing. Read permission itself can only be revoked in the Health app. */
 export async function disconnectAppleHealth(): Promise<void> {
-  await AsyncStorage.multiRemove([ENABLED_KEY, ANCHOR_KEY]);
+  await AsyncStorage.multiRemove([ENABLED_KEY, ANCHOR_KEY, LAST_SYNC_KEY]);
 }
 
 /** Push new HealthKit weigh-ins to the API. Incremental via HealthKit's query
@@ -83,5 +90,6 @@ export async function syncAppleHealth(): Promise<boolean> {
   }
 
   await AsyncStorage.setItem(ANCHOR_KEY, newAnchor);
+  await AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
   return byDate.size > 0;
 }

@@ -18,8 +18,9 @@ function useWarmBrowser() {
 }
 
 /** Google + Apple sign-in row. Clerk hosts the OAuth; we open it in a browser
- *  session and set the resulting session active. */
-export function SsoRow() {
+ *  session and set the resulting session active. `dividerBelow` flips the "or"
+ *  rule to sit under the buttons — for screens where SSO leads and email follows. */
+export function SsoRow({ dividerBelow = false }: { dividerBelow?: boolean }) {
   useWarmBrowser();
   const { startSSOFlow } = useSSO();
   const [busy, setBusy] = useState<null | "google" | "apple">(null);
@@ -42,13 +43,17 @@ export function SsoRow() {
     }
   }
 
+  const divider = (
+    <View className="flex-row items-center gap-3">
+      <View className="h-px flex-1 bg-border" />
+      <Text className="text-muted-foreground text-xs font-bold uppercase tracking-[2px]">or</Text>
+      <View className="h-px flex-1 bg-border" />
+    </View>
+  );
+
   return (
     <View className="gap-3">
-      <View className="flex-row items-center gap-3">
-        <View className="h-px flex-1 bg-border" />
-        <Text className="text-muted-foreground text-xs font-bold uppercase tracking-[2px]">or</Text>
-        <View className="h-px flex-1 bg-border" />
-      </View>
+      {!dividerBelow && divider}
       <View className="flex-row gap-3">
         <Pressable
           onPress={() => run("google")}
@@ -67,6 +72,7 @@ export function SsoRow() {
           <Text className="text-base font-bold text-white">Apple</Text>
         </Pressable>
       </View>
+      {dividerBelow && divider}
     </View>
   );
 }

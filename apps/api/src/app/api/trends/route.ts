@@ -103,7 +103,8 @@ export async function GET(request: NextRequest) {
   // Adaptive calorie goal, frozen per calendar week: computed only from data
   // before this week's local Monday, so the number holds still all week
   // instead of wobbling as days roll through the 14-day window.
-  const weekStart = mondayOf(localDateOf(new Date(), tzOffset));
+  const localToday = localDateOf(new Date(), tzOffset);
+  const weekStart = mondayOf(localToday);
   const trendAsOfWeek = trend.filter((p) => p.date < weekStart);
   const weekBalance = computeEnergyBalance(trendAsOfWeek, intake);
   const weekVerdict = computeVerdict(weekBalance, trendAsOfWeek, targetRate);
@@ -156,8 +157,13 @@ export async function GET(request: NextRequest) {
     goal_weight_kg:
       goalsRow?.goalWeightKg == null ? null : Number(goalsRow.goalWeightKg),
     unit_system: goalsRow?.unitSystem ?? "metric",
-    recap: latestRecap
-      ? { week_start: latestRecap.weekStart, content: latestRecap.content }
-      : null,
+    // Monday embargo: the cron writes it Sunday evening UTC (so it exists
+    // before the earliest timezone's Monday-9am push), but the card waits
+    // until the reader's local calendar has passed the day it was written.
+    recap:
+      latestRecap &&
+      localToday > latestRecap.createdAt.toISOString().slice(0, 10)
+        ? { week_start: latestRecap.weekStart, content: latestRecap.content }
+        : null,
   });
 }
