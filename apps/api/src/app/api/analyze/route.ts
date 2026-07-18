@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateObject, gateway } from "ai";
 import { z } from "zod";
 import { analysisSchema, NUTRITION_SYSTEM_PROMPT } from "@loggi/shared";
-import { groundWithUsda } from "@/lib/food-match";
+import { groundGroups } from "@/lib/food-match";
 
 export const maxDuration = 60;
 
@@ -100,20 +100,19 @@ export async function POST(request: NextRequest) {
     // Ground each item against the USDA reference database where confident.
     // Every question's options carry their own full item lists, so ground those
     // too — a single tapped answer applies its items directly with no re-call.
-    const [items, questions] = await Promise.all([
-      groundWithUsda(object.items),
-      Promise.all(
-        object.questions.map(async (q) => ({
-          question: q.question,
-          options: await Promise.all(
-            q.options.map(async (opt) => ({
-              label: opt.label,
-              items: await groundWithUsda(opt.items),
-            })),
-          ),
-        })),
-      ),
+    // One groundGroups call = one db round trip for the whole response.
+    const [items, ...optionGroups] = await groundGroups([
+      object.items,
+      ...object.questions.flatMap((q) => q.options.map((opt) => opt.items)),
     ]);
+    let cursor = 0;
+    const questions = object.questions.map((q) => ({
+      question: q.question,
+      options: q.options.map((opt) => ({
+        label: opt.label,
+        items: optionGroups[cursor++],
+      })),
+    }));
 
     return NextResponse.json({ meal_name: object.meal_name, items, questions });
   } catch (err) {

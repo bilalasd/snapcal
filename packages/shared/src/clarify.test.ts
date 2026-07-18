@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveAnswers, type ClarifyAnswer } from "./clarify";
-import type { DraftItem } from "./client";
+import type { DraftItem } from "./types";
 
 const item: DraftItem = {
   name: "Beef patty",

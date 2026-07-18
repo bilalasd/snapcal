@@ -228,3 +228,18 @@ export function computeAuditStats(
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/** Wire shape of GET /api/trends — the one type every consumer (Today,
+ *  Weight, Settings) and the client-side trends cache share. */
+export interface TrendsResponse {
+  weights: TrendPoint[];
+  rate_kg_per_week: number | null;
+  balance: EnergyBalance | null;
+  verdict: Verdict;
+  adaptive_goal_kcal: number | null;
+  audit: AuditStats | null;
+  target_rate_kg_per_wk: number;
+  goal_weight_kg: number | null;
+  unit_system: "metric" | "imperial";
+  recap: { week_start: string; content: string } | null;
+}

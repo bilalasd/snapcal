@@ -1,0 +1,1 @@
+CREATE INDEX "foods_description_fts_idx" ON "foods" USING gin (to_tsvector('english', "description"));
