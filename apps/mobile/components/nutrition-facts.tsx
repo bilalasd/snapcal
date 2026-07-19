@@ -42,7 +42,7 @@ export function NutritionFacts({ items }: { items: DraftItem[] }) {
       <Row label="Protein" value={fmt(protein, "g")} bold />
 
       {anyMissing && (
-        <Text className="text-muted-foreground mt-2 text-[10px]">
+        <Text className="text-muted-foreground mt-2 text-[11px]">
           — = not estimated. Values are AI estimates, not lab-measured.
         </Text>
       )}

@@ -149,7 +149,7 @@ export function ChoiceCard({
           <Text className={`font-black tracking-tight ${selected ? "text-primary-foreground" : "text-foreground"}`}>{title}</Text>
           {badge ? (
             <View className={`rounded-full px-2 py-0.5 ${selected ? "bg-background" : "border border-border bg-muted"}`}>
-              <Text className="text-[10px] font-extrabold text-foreground">{badge}</Text>
+              <Text className="text-[11px] font-extrabold text-foreground">{badge}</Text>
             </View>
           ) : null}
         </View>

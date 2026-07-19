@@ -435,7 +435,7 @@ export default function Onboarding() {
                           <View key={label} className="flex-1 items-center">
                             <Text className="text-xs text-black/60">{label}</Text>
                             <Text className="font-bold tabular-nums text-black">{pct}%</Text>
-                            <Text className="text-[10px] text-black/60">{grams}g</Text>
+                            <Text className="text-[11px] text-black/60">{grams}g</Text>
                           </View>
                         ))}
                       </View>

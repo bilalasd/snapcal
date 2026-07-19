@@ -212,7 +212,7 @@ export default function TabsLayout() {
           tabBarActiveTintColor: colors.foreground,
           tabBarInactiveTintColor: colors.mutedForeground,
           tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
-          tabBarLabelStyle: { fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: "800", textTransform: "uppercase" },
         }}
       >
         <Tabs.Screen
@@ -261,7 +261,7 @@ export default function TabsLayout() {
         >
           <View className="flex-row items-center gap-2">
             <View className="h-2.5 w-2.5 rounded-full bg-accent-log" />
-            <Text className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+            <Text className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
               {dictState === "finishing" ? "Got it…" : "Listening — release when done"}
             </Text>
           </View>
@@ -290,7 +290,7 @@ export default function TabsLayout() {
               <Feather name={a.icon} size={24} color="#fff" />
             </Animated.View>
             {/* Chip behind the label so it stays legible over whatever the scrim dims */}
-            <Text className="overflow-hidden rounded-full bg-background px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-foreground">
+            <Text className="overflow-hidden rounded-full bg-background px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-foreground">
               {a.label}
             </Text>
           </Pressable>

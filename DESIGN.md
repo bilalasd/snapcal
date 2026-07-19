@@ -139,12 +139,28 @@ tokens flip via `prefers-color-scheme` in `global.css`. No in-app toggle.
 | Kicker | `text-xs font-extrabold uppercase tracking-[2px] text-muted-foreground` | Desk eyebrows ("TREND DESK") |
 | Body | 16px regular–semibold, lh 1.5 | Paragraphs, list content |
 | Label | 12–14px medium–bold | Field labels, macro readouts |
-| Tab label | 10px `font-extrabold` uppercase | Bottom tab bar |
+| Tab label | 11px `font-extrabold` uppercase | Bottom tab bar |
+
+Minimum text size is 11px everywhere (HIG floor) — micro-captions that were
+10px (tab labels, "cal" caption, chart goal line, badge chips) now sit at 11px.
 
 ### 2.4 Spacing & layout
-- **Grid:** 4/8px rhythm; card padding 16px; section gaps 16/20/24px.
-- Screens are edge-to-edge with 16px gutters; safe-area insets respected top
-  and bottom; scroll content reserves bottom inset above the floating "+".
+
+4px base unit. These are the only named spacing roles — pick the role, use its
+class, don't reach for neighbors:
+
+| Role | Value | Class | Use |
+|---|---|---|---|
+| Screen gutter | 20px | `p-5` / `px-5` | Outer padding of every screen and full-screen overlay |
+| Section gap | 20px | `gap-5` | Between cards/sections in a screen's scroll stack |
+| Card padding | 16px | `p-4` | Inside cards, sheets, list rows |
+| Cluster gap | 12px | `gap-3` | Between elements inside a card |
+| Inline gap | 8px | `gap-2` | Icon + label, chip rows, tight pairs |
+| Micro gap | 4px | `gap-1` / `mt-1` | Label→value, caption under a number |
+
+- Safe-area insets respected top and bottom; tab screens reserve `pb-28` so
+  scroll content clears the floating "+".
+- Anything off this table is a deviation — flag it in review, don't copy it.
 
 ### 2.5 Shape & radius
 - **Rounded, not pill-everything:** cards `rounded-3xl`, inputs and rows
@@ -163,23 +179,27 @@ tokens flip via `prefers-color-scheme` in `global.css`. No in-app toggle.
 
 ### 2.8 Motion
 
-Doctrine (PRODUCT.md §4 "snappy but fluid"):
-- **~130ms, `Easing.out(cubic|quad)`** for everything: press scale
-  (`PressableScale`), speed-dial fan-out, Bevi `FadeIn`, tab cross-fade
-  (`animation: "shift"`), list item entrances.
+Doctrine (PRODUCT.md §4 "snappy but fluid"). Exact tiers — every animation in
+the app belongs to one:
+
+| Tier | Duration | Easing | Where |
+|---|---|---|---|
+| **Standard** | 130ms | `Easing.out(Easing.quad)` | Default for everything: entrances/fades, press scale, fill bars, ring arc, layout transitions, stagger beats |
+| **Tab bar** | 130ms | `Easing.out(Easing.cubic)` | Speed-dial fan, tab icon scale, tab cross-fade — the one place cubic is used |
+| **Screen push** | 200ms | native `simple_push` / splash fade | Stack pushes; launch cross-fade. Scene background themed so dark never flashes white |
+| **Functional** | as the mechanic requires | linear / `inOut(ease)` | Barcode hold ring (3000ms linear), analyzing pulse (1200ms loop), camera reticle tracking (240ms grow / 120ms shrink) — motion that *is* the feature, not styling |
+
+New animation? It's Standard unless it's literally one of the other three rows.
 - **No springs, no bounce, no decorative motion.** Exit ≤ enter.
-- Screen pushes: native `simple_push` at 200ms; scene background themed so
-  transitions never flash white in dark.
 - **Launch:** native splash is held until auth state is known, then
   cross-fades into the first screen (200ms, `expo-splash-screen` native fade;
   reduced motion hides it instantly). No hard cut, no custom splash overlay.
 - **Reduced motion:** durations drop to 0 via `useReducedMotion()` — required
   on every animation, not just the tab bar.
-- Exception: determinate progress (barcode hold-ring) may use linear easing.
 - **Determinate fills animate to data changes:** the progress ring arc and
-  macro fill bars ease to new values (130ms, `Easing.out(quad)`) instead of
-  snapping; they initialize at the current value so mounting never plays a
-  decorative sweep. Reduced motion sets them instantly.
+  macro fill bars ease to new values (Standard tier) instead of snapping;
+  they initialize at the current value so mounting never plays a decorative
+  sweep. Reduced motion sets them instantly.
 - **Entrance staggers:** a screen's first paint may land in 2–4 short beats
   (40–80ms apart, each a 130ms fade/rise) — orchestration, not decoration.
   One stagger per screen, on the moment that matters; reduced motion
@@ -202,7 +222,7 @@ makes every mask shape seamless).
 
 | Component | Description | States |
 |---|---|---|
-| **Tab bar** | Fixed bottom, 4 destinations (Today, History, Weight, Settings) + empty center slot. 10px uppercase labels + Feather icons. | active / inactive |
+| **Tab bar** | Fixed bottom, 4 destinations (Today, History, Weight, Settings) + empty center slot. 11px uppercase labels + Feather icons. | active / inactive |
 | **Speed dial ("+")** | 76px vermilion FAB seated in the bar's center socket. Tap or touch-down fans out 4 actions (Search, Camera, Speak, Saved) at 130ms; drag-to-select pie-menu style with haptics; tap-away scrim closes. Every action also plain-tappable. | closed / open / action-hover |
 | **Card** | Flat `bg-card`, hairline border, `rounded-3xl`, 16px padding. | — |
 | **Block tile** | Pastel `block-*` square, `rounded-2xl`, near-black Feather glyph. Meal-type/time glyphs. | — |

@@ -22,8 +22,8 @@ function useWarmBrowser() {
  *  session and set the resulting session active. `dividerBelow` flips the "or"
  *  rule to sit under the buttons — for screens where SSO leads and email follows. */
 export function SsoRow({ dividerBelow = false }: { dividerBelow?: boolean }) {
-  useWarmBrowser();
   const colors = useColors();
+  useWarmBrowser();
   const { startSSOFlow } = useSSO();
   const [busy, setBusy] = useState<null | "google" | "apple">(null);
 
@@ -56,16 +56,8 @@ export function SsoRow({ dividerBelow = false }: { dividerBelow?: boolean }) {
   return (
     <View className="gap-3">
       {!dividerBelow && divider}
+      {/* Apple leads: HIG requires Sign in with Apple ahead of other providers. */}
       <View className="flex-row gap-3">
-        <Pressable
-          onPress={() => run("google")}
-          disabled={!!busy}
-          accessibilityRole="button"
-          className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border py-4 active:opacity-70 ${busy ? "opacity-40" : ""}`}
-        >
-          <FontAwesome name="google" size={18} color={colors.foreground} />
-          <Text className="text-base font-bold text-foreground">Google</Text>
-        </Pressable>
         <Pressable
           onPress={() => run("apple")}
           disabled={!!busy}
@@ -74,6 +66,15 @@ export function SsoRow({ dividerBelow = false }: { dividerBelow?: boolean }) {
         >
           <FontAwesome name="apple" size={20} color={colors.background} />
           <Text className="text-base font-bold text-primary-foreground">Apple</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => run("google")}
+          disabled={!!busy}
+          accessibilityRole="button"
+          className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border py-4 active:opacity-70 ${busy ? "opacity-40" : ""}`}
+        >
+          <FontAwesome name="google" size={18} color={colors.foreground} />
+          <Text className="text-base font-bold text-foreground">Google</Text>
         </Pressable>
       </View>
       {dividerBelow && divider}
