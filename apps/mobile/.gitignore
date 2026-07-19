@@ -12,3 +12,4 @@ web-build/
 # Env
 .env*.local
 expo-env.d.ts
+build/
