@@ -3,7 +3,7 @@ import { View, Text, ScrollView, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { tzOffsetMinutes } from "@loggi/shared";
+import { tzOffsetMinutes, type TrendsResponse } from "@loggi/shared";
 import { fetchJson } from "../../lib/api";
 import { syncAppleHealth } from "../../lib/apple-health";
 import { getCachedGoals, getCachedTrends, setCachedTrends } from "../../lib/cache";
@@ -14,18 +14,6 @@ import { Bevi } from "../../components/bevi";
 import { useColors, block } from "../../lib/colors";
 
 const KG_PER_LB = 0.453592;
-
-interface TrendsResponse {
-  weights: { date: string; weightKg: number; trendKg: number }[];
-  rate_kg_per_week: number | null;
-  balance: { avgIntakeKcal: number; tdeeKcal: number; actualDeficitKcal: number; loggedDays: number; weighIns: number } | null;
-  verdict: { status: "collecting" | "on_track" | "adjust"; adjustKcal: number; neededDeficitKcal: number; actualDeficitKcal: number; missing: string[] };
-  adaptive_goal_kcal: number | null;
-  target_rate_kg_per_wk: number;
-  goal_weight_kg: number | null;
-  unit_system: "metric" | "imperial";
-  recap: { week_start: string; content: string } | null;
-}
 
 // Stale-while-revalidate, same as the meals caches: last response shows
 // instantly on focus, refresh happens in the background. Always fetches the

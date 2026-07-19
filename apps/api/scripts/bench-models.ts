@@ -183,7 +183,7 @@ async function runOne(
     // Score raw + usda off the SAME vision output (grounding is deterministic).
     const rawScore = await score(raw);
     const usda = GROUND_ENABLED
-      ? await score(raw, (i) => fm().then((m) => m.groundWithUsda(i)))
+      ? await score(raw, (i) => fm().then((m) => m.groundGroups([i]).then((g) => g[0])))
       : await score(null);
 
     return {

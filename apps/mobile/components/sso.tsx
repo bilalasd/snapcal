@@ -23,8 +23,8 @@ function useWarmBrowser() {
  *  rule to sit under the buttons — for screens where SSO leads and email follows. */
 export function SsoRow({ dividerBelow = false }: { dividerBelow?: boolean }) {
   useWarmBrowser();
-  const { startSSOFlow } = useSSO();
   const colors = useColors();
+  const { startSSOFlow } = useSSO();
   const [busy, setBusy] = useState<null | "google" | "apple">(null);
 
   async function run(kind: "google" | "apple") {

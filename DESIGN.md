@@ -83,11 +83,11 @@ modifiers work. Components never hardcode hex; non-className color props
 | Card | `--card` | `#ffffff` | Card surfaces (hairline-bordered) |
 | Primary | `--primary` | `#000000` | Filled buttons, selected segments |
 | Primary foreground | `--primary-foreground` | `#ffffff` | Text on primary |
-| Primary (strong) | `--primary-strong` | `#000000` | Emphasis text |
 | Muted | `--muted` | `#f7f7f5` | Input/track/skeleton surfaces |
 | Muted foreground | `--muted-foreground` | `#565656` | Kickers, secondary text |
 | Accent | `--accent` | `#f1f1f1` | Quiet fills |
 | Destructive | `--destructive` | `#d92d20` | Errors, over-target, delete |
+| Warning | `useColors().warning` | `#b45309` | Low-confidence guess marks (5.0:1) |
 | Border | `--border` | `#e6e6e6` | Hairlines, input borders |
 | Accent | `accent-log` (static) | `#e64a19` | Logging entry points ("+" FAB, speed dial), capture-state dots, streak badge |
 
@@ -99,28 +99,30 @@ modifiers work. Components never hardcode hex; non-className color props
 | Foreground | `#f5f5f5` | 17.9:1 |
 | Card | `#161616` | — |
 | Primary / on-primary | `#f5f5f5` / `#0c0c0c` | 17.9:1 |
-| Primary (strong) | `#ffffff` | — |
 | Muted / Muted foreground | `#1c1c1a` / `#a3a3a3` | 7.8:1 |
 | Accent | `#222222` | — |
 | Destructive | `#f97066` (lightened) | 7.0:1 |
+| Warning | `#d97706` (brightened) | 6.0:1 |
 | Border | `#2a2a2a` | — |
 | Accent | `#e64a19` (shared) | 5.0:1 |
 
 **Block pastels** (static, both themes): lime `#dceeb1`, lilac `#c5b0f4`,
-cream `#f4ecd6`, mint `#c8e6cd`, coral `#f3c9b6`, navy `#1f1d3d`, ink `#000000`.
+cream `#f4ecd6`, mint `#c8e6cd`, coral `#f3c9b6`.
 Text on pastel tiles is fixed near-black ink, never the themed foreground.
 Block-colored **cards** apply the pastel via inline `style` from
 `lib/colors.ts` `block` — stacking a second `bg-*` class on `Card` loses the
 class conflict against `bg-card`.
 
-**Chart ramp** (light): black `#000000` primary series, grays
-`#6b6b6b/#3d3d3d/#9a9a9a/#1f1f1f` secondary; destructive red for over-target.
-Dark mode requires the mirrored light-on-dark ramp.
+**Charts** route through `useColors()` — three roles, both themes: primary
+series/bars = foreground, secondary marks (dots, axes, dashed goal line) =
+muted-foreground, over-target = destructive.
 
 **Contrast rules (WCAG AA):** text ≥4.5:1, secondary text ≥3:1, chart
 geometry ≥3:1 — verified light **and** dark independently. The accent passes
-as a UI color in both (3.9:1 light, 5.0:1 dark) but is not body-text; text on
-an accent fill uses shade 600 `#b83a14` (5.8:1 on white).
+as a UI/graphical color in both themes (3.9:1 light, 5.0:1 dark) but never
+carries white body text: text **on** an accent-log fill is fixed black ink
+(5.4:1 — the streak badge), and accent-colored text **on white** uses shade
+600 `#b83a14` (5.8:1).
 
 **Theme switching:** follows the system (`userInterfaceStyle: "automatic"`);
 tokens flip via `prefers-color-scheme` in `global.css`. No in-app toggle.

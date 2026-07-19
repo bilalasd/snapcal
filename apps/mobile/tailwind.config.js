@@ -16,22 +16,11 @@ module.exports = {
         accent: "rgb(var(--accent) / <alpha-value>)",
         primary: "rgb(var(--primary) / <alpha-value>)",
         "primary-foreground": "rgb(var(--primary-foreground) / <alpha-value>)",
-        "primary-strong": "rgb(var(--primary-strong) / <alpha-value>)",
         destructive: "rgb(var(--destructive) / <alpha-value>)",
         border: "rgb(var(--border) / <alpha-value>)",
         "accent-log": {
-          50: "#fcf5f2",
-          100: "#f9eae6",
-          200: "#f4d2c7",
-          300: "#eda791",
-          400: "#e87754",
-          500: "#e64a19",
-          600: "#b83a14", // text-on-accent shade: 5.8:1 on white
-          700: "#973011",
-          800: "#7c270e",
-          900: "#5c1d0a",
-          950: "#2e0f05",
-          DEFAULT: "#e64a19", // shared across themes: 5.0:1 on dark, brand accent
+          DEFAULT: "#e64a19", // shared across themes: 3.9:1 on white, 5.0:1 on dark; text on it is fixed black ink
+          600: "#b83a14", // accent-colored text on white: 5.8:1
         },
 
         block: {
@@ -40,15 +29,6 @@ module.exports = {
           cream: "#f4ecd6",
           mint: "#c8e6cd",
           coral: "#f3c9b6",
-          navy: "#1f1d3d",
-          ink: "#000000",
-        },
-        chart: {
-          1: "#000000",
-          2: "#6b6b6b",
-          3: "#3d3d3d",
-          4: "#9a9a9a",
-          5: "#1f1f1f",
         },
       },
     },

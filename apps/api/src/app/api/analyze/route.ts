@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, gateway } from "ai";
+import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { analysisSchema, NUTRITION_SYSTEM_PROMPT } from "@loggi/shared";
-import { groundWithUsda } from "@/lib/food-match";
+import { groundGroups } from "@/lib/food-match";
 
 export const maxDuration = 60;
 
@@ -27,6 +28,12 @@ const leftoversSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // Defense in depth: the proxy middleware already gates this, but every other
+  // route re-checks in-handler so auth never rides on the matcher alone.
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = (await request.json().catch(() => null)) as AnalyzeBody | null;
   const images = (body?.images ?? []).slice(0, 3);
   const text = (body?.text ?? "").trim();
@@ -100,20 +107,19 @@ export async function POST(request: NextRequest) {
     // Ground each item against the USDA reference database where confident.
     // Every question's options carry their own full item lists, so ground those
     // too — a single tapped answer applies its items directly with no re-call.
-    const [items, questions] = await Promise.all([
-      groundWithUsda(object.items),
-      Promise.all(
-        object.questions.map(async (q) => ({
-          question: q.question,
-          options: await Promise.all(
-            q.options.map(async (opt) => ({
-              label: opt.label,
-              items: await groundWithUsda(opt.items),
-            })),
-          ),
-        })),
-      ),
+    // One groundGroups call = one db round trip for the whole response.
+    const [items, ...optionGroups] = await groundGroups([
+      object.items,
+      ...object.questions.flatMap((q) => q.options.map((opt) => opt.items)),
     ]);
+    let cursor = 0;
+    const questions = object.questions.map((q) => ({
+      question: q.question,
+      options: q.options.map((opt) => ({
+        label: opt.label,
+        items: optionGroups[cursor++],
+      })),
+    }));
 
     return NextResponse.json({ meal_name: object.meal_name, items, questions });
   } catch (err) {

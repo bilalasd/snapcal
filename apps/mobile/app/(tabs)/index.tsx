@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { bucketOfHour, itemsToDraft, localDateString, mealTotals, tzOffsetMinutes, type ApiMeal, type AuditStats, type Goals } from "@loggi/shared";
+import { bucketOfHour, itemsToDraft, localDateString, mealTotals, tzOffsetMinutes, type ApiMeal, type Goals, type TrendsResponse } from "@loggi/shared";
 import { fetchJson, fetchMealsForDate, fetchMealsRange } from "../../lib/api";
 import { tapSuccess, tapLight } from "../../lib/haptics";
 import { goalForDate, recordDailyGoal } from "../../lib/goal-history";
@@ -27,6 +27,8 @@ import {
   getCachedGoals,
   setCachedGoals,
   getCachedRange,
+  getCachedTrends,
+  setCachedTrends,
   optimisticMeal,
   settleMeal,
 } from "../../lib/cache";
@@ -58,17 +60,12 @@ function MacroFill({ pct, color }: { pct: number; color: string }) {
 
 const BUCKET_MEAL: Record<string, string> = { morning: "breakfast", midday: "lunch", evening: "dinner", night: "snack" };
 
-// The slice of /api/trends that Today uses: smart goal + the Monday note.
-interface Trends {
-  adaptive_goal_kcal: number | null;
-  verdict: { status: "collecting" | "on_track" | "adjust" };
-  recap: { week_start: string; content: string } | null;
-  audit: AuditStats | null;
-  weights: Array<{ date: string }>;
-}
-
 // ponytail: in-memory dismiss — a restart resurfacing the card is fine.
 let usualDismissedOn: string | null = null;
+// The suggestion only changes when the time-of-day bucket does, so remember
+// the last answer per (date, bucket) — tab focuses stop re-running the
+// server's 45-day meal scan.
+let usualMemo: { key: string; meal: ApiMeal | null } | null = null;
 
 function greetingFor(hour: number): string {
   if (hour < 5) return "Late night snack?";
@@ -99,7 +96,7 @@ export default function Today() {
   const [goals, setGoals] = useState<Goals | null>(() => getCachedGoals());
   const [streak, setStreak] = useState<number | null>(null);
   const [daySums, setDaySums] = useState<Map<string, number> | null>(null);
-  const [trends, setTrends] = useState<Trends | null>(null);
+  const [trends, setTrends] = useState<TrendsResponse | null>(() => getCachedTrends<TrendsResponse>());
   const [mondayVisible, setMondayVisible] = useState(false);
   const [selected, setSelected] = useState<ApiMeal | null>(null);
   const [usual, setUsual] = useState<ApiMeal | null>(null);
@@ -128,12 +125,21 @@ export default function Today() {
   // Covers mount, date changes, and returning to the tab (e.g. after saving).
   useFocusEffect(useCallback(() => void load(date), [load, date]));
 
-  // "Your usual" is time-of-day dependent, so refresh it on every focus.
+  // "Your usual" is time-of-day dependent: checked on focus, fetched only
+  // when the (date, bucket) actually changed since the last answer.
   useFocusEffect(
     useCallback(() => {
       if (!isToday || usualDismissedOn === today) return;
+      const key = `${today}:${bucketOfHour(new Date().getHours())}`;
+      if (usualMemo?.key === key) {
+        setUsual(usualMemo.meal);
+        return;
+      }
       fetchJson<{ meal: ApiMeal | null }>(`/api/meals/suggestions?tz_offset=${tzOffsetMinutes()}`)
-        .then((r) => setUsual(r.meal))
+        .then((r) => {
+          usualMemo = { key, meal: r.meal };
+          setUsual(r.meal);
+        })
         .catch(() => {}); // no suggestion is a fine outcome, never an error state
     }, [isToday, today]),
   );
@@ -212,12 +218,17 @@ export default function Today() {
     };
   }, [router]);
 
-  // One trends fetch feeds both the smart goal (server-computed weekly, frozen
-  // each Monday from the weight trend) and the Monday note (verdict + recap).
+  // One trends fetch feeds the smart goal (server-computed weekly, frozen
+  // each Monday from the weight trend) and the Monday note (verdict + recap) —
+  // through the same shared cache the Weight tab and post-save prefetch warm,
+  // so whichever screen fetched last saves everyone else the round trip.
   const loadTrends = useCallback(
     () =>
-      fetchJson<Trends>(`/api/trends?days=30&tz_offset=${tzOffsetMinutes()}`)
-        .then(setTrends)
+      fetchJson<TrendsResponse>(`/api/trends?days=90&tz_offset=${tzOffsetMinutes()}`)
+        .then((t) => {
+          setCachedTrends(t);
+          setTrends(t);
+        })
         .catch(() => {}),
     [],
   );
@@ -326,8 +337,8 @@ export default function Today() {
           {isToday && streak !== null && streak > 0 ? (
             <View className="items-end gap-1.5">
               <Badge className="bg-accent-log" accessibilityLabel={`${streak} of 7 days logged this week`}>
-                <Feather name="zap" size={12} color="#fff" />
-                <Text className="text-xs font-bold uppercase text-white">{streak}/7</Text>
+                <Feather name="zap" size={12} color="#000" />
+                <Text className="text-xs font-bold uppercase text-black">{streak}/7</Text>
               </Badge>
               {onTarget > 0 ? (
                 <Badge className="bg-block-mint" accessibilityLabel={`${onTarget} days on target this week`}>

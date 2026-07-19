@@ -66,37 +66,38 @@ export async function PUT(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid goals" }, { status: 400 });
   }
-  await getOrCreateGoals(userId);
+  const fields = {
+    dailyCalories: parsed.data.daily_calories,
+    dailyProteinG: parsed.data.daily_protein_g,
+    dailyCarbsG: parsed.data.daily_carbs_g,
+    dailyFatG: parsed.data.daily_fat_g,
+    targetRateKgPerWk: String(parsed.data.target_rate_kg_per_wk),
+    unitSystem: parsed.data.unit_system,
+    ...(parsed.data.sex !== undefined && { sex: parsed.data.sex }),
+    ...(parsed.data.age !== undefined && { age: parsed.data.age }),
+    ...(parsed.data.height_cm !== undefined && {
+      heightCm:
+        parsed.data.height_cm === null ? null : String(parsed.data.height_cm),
+    }),
+    ...(parsed.data.activity_level !== undefined && {
+      activityLevel: parsed.data.activity_level,
+    }),
+    ...(parsed.data.onboarded && { onboardedAt: new Date() }),
+    ...(parsed.data.adaptive_goal !== undefined && {
+      adaptiveGoal: parsed.data.adaptive_goal,
+    }),
+    ...(parsed.data.goal_weight_kg !== undefined && {
+      goalWeightKg:
+        parsed.data.goal_weight_kg === null
+          ? null
+          : String(parsed.data.goal_weight_kg),
+    }),
+  };
+  // Upsert: first save and every later save are the same single round trip.
   const [updated] = await db
-    .update(goals)
-    .set({
-      dailyCalories: parsed.data.daily_calories,
-      dailyProteinG: parsed.data.daily_protein_g,
-      dailyCarbsG: parsed.data.daily_carbs_g,
-      dailyFatG: parsed.data.daily_fat_g,
-      targetRateKgPerWk: String(parsed.data.target_rate_kg_per_wk),
-      unitSystem: parsed.data.unit_system,
-      ...(parsed.data.sex !== undefined && { sex: parsed.data.sex }),
-      ...(parsed.data.age !== undefined && { age: parsed.data.age }),
-      ...(parsed.data.height_cm !== undefined && {
-        heightCm:
-          parsed.data.height_cm === null ? null : String(parsed.data.height_cm),
-      }),
-      ...(parsed.data.activity_level !== undefined && {
-        activityLevel: parsed.data.activity_level,
-      }),
-      ...(parsed.data.onboarded && { onboardedAt: new Date() }),
-      ...(parsed.data.adaptive_goal !== undefined && {
-        adaptiveGoal: parsed.data.adaptive_goal,
-      }),
-      ...(parsed.data.goal_weight_kg !== undefined && {
-        goalWeightKg:
-          parsed.data.goal_weight_kg === null
-            ? null
-            : String(parsed.data.goal_weight_kg),
-      }),
-    })
-    .where(eq(goals.userId, userId))
+    .insert(goals)
+    .values({ userId, ...fields })
+    .onConflictDoUpdate({ target: goals.userId, set: fields })
     .returning();
   return NextResponse.json(serialize(updated));
 }

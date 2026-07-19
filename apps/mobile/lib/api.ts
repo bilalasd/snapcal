@@ -1,5 +1,5 @@
 import { uploadAsync, FileSystemUploadType } from "expo-file-system/legacy";
-import type { ApiMeal, DraftPhoto } from "@loggi/shared";
+import { tzOffsetMinutes, type ApiMeal, type DraftPhoto } from "@loggi/shared";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 const TIMEOUT_MS = 15_000;
@@ -92,9 +92,7 @@ export async function fetchJson<T = unknown>(
   return res.json();
 }
 
-export function tzOffsetMinutes(): number {
-  return new Date().getTimezoneOffset();
-}
+export { tzOffsetMinutes } from "@loggi/shared";
 
 export function fetchMealsForDate(date: string): Promise<ApiMeal[]> {
   return fetchJson(`/api/meals?date=${date}&tz_offset=${tzOffsetMinutes()}`);

@@ -5,7 +5,7 @@ const item = {
   name: "Cooked rice",
   portion: "1 cup",
   estimated_grams: 158,
-  confidence: "medium",
+  confidence: "medium" as const,
   calories: 205,
   protein_g: 4.3,
   carbs_g: 44.5,

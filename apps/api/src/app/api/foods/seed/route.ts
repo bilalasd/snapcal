@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 import { db, foods } from "@/db";
 import { toFoodRow, type UsdaFood } from "@/lib/usda";
 
@@ -47,6 +48,14 @@ async function total(): Promise<number> {
 }
 
 export async function POST(request: NextRequest) {
+  // Defense in depth: the proxy middleware already gates this, but every other
+  // route re-checks in-handler so auth never rides on the matcher alone. This
+  // one writes to the shared foods table and spends the USDA key, so the guard
+  // matters more here than most.
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const apiKey = process.env.FDC_API_KEY ?? "DEMO_KEY";
   const dataType = request.nextUrl.searchParams.get("dataType");
   const page = Number(request.nextUrl.searchParams.get("page") ?? "0");

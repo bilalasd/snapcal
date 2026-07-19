@@ -9,7 +9,8 @@
     "api": "yarn workspace @loggi/api",
     "mobile": "yarn workspace @loggi/mobile",
     "shared": "yarn workspace @loggi/shared",
-    "test": "yarn workspaces run test",
+    "test": "yarn workspaces foreach -A run test",
+    "typecheck": "yarn workspaces foreach -A run typecheck",
     "android": "yarn workspace @loggi/mobile android",
     "ios": "yarn workspace @loggi/mobile ios"
   },

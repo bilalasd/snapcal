@@ -35,7 +35,7 @@ export type MealInput = z.infer<typeof mealInput>;
 const numOrNull = (v: number | null | undefined) =>
   v === null || v === undefined ? null : String(v);
 
-function itemValues(mealId: string, item: z.infer<typeof mealItemInput>) {
+export function itemValues(mealId: string, item: z.infer<typeof mealItemInput>) {
   return {
     mealId,
     name: item.name,

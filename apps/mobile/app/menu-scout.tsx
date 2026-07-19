@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { localDateString, mealTotals, type DraftItem } from "@loggi/shared";
 import { fetchJson } from "../lib/api";
-import { resizeToPhoto, pickPhotos, type EncodedImage } from "../lib/image";
+import { resizeToPhoto, type EncodedImage } from "../lib/image";
 import { getCachedGoals, getCachedMeals, getCachedTrends } from "../lib/cache";
 import { Bevi } from "../components/bevi";
 import { Button, Badge, Kicker, Spinner } from "../components/ui";
@@ -93,9 +93,11 @@ export default function MenuScout() {
   }
 
   async function pickMenu() {
-    const photos = await pickPhotos(1);
-    if (photos.length === 0) return;
-    const photo = await resizeToPhoto(photos[0].uri, 1280);
+    // Raw pick, then one resize to 1280 — pickPhotos() would downscale to
+    // 768 first and the re-resize would upscale a blurry copy.
+    const res = await ImagePicker.launchImageLibraryAsync({ quality: 1 });
+    if (res.canceled || res.assets.length === 0) return;
+    const photo = await resizeToPhoto(res.assets[0].uri, 1280);
     void scan(photo.encoded);
   }
 

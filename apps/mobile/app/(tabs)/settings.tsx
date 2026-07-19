@@ -18,9 +18,10 @@ import {
   type ActivityLevel,
   type ApiMeal,
   type Goals,
+  type TrendsResponse,
 } from "@loggi/shared";
 import { fetchJson } from "../../lib/api";
-import { getCachedGoals, setCachedGoals, hasLoggedToday } from "../../lib/cache";
+import { getCachedGoals, setCachedGoals, getCachedTrends, setCachedTrends, hasLoggedToday } from "../../lib/cache";
 import {
   appleHealthSupported,
   connectAppleHealth,
@@ -44,6 +45,10 @@ const num = (s: string) => Number(s.replace(",", "."));
 
 /** Adaptive-goal + current-weight context pulled from /api/trends. */
 type TrendsLite = { adaptiveKcal: number | null; currentKg: number | null };
+const toTrendsLite = (t: TrendsResponse): TrendsLite => ({
+  adaptiveKcal: t.adaptive_goal_kcal,
+  currentKg: t.weights.at(-1)?.trendKg ?? null,
+});
 
 function OptionRow<T extends string>({
   value,
@@ -105,14 +110,20 @@ export default function Settings() {
   const [loadError, setLoadError] = useState(false);
   const [exporting, setExporting] = useState(false);
   // Context for the smart-goal status, "current weight" hints, and estimated
-  // burn. Loads in the background; every consumer degrades to nothing on null.
-  const [trends, setTrends] = useState<TrendsLite | null>(null);
+  // burn. Paints from the shared trends cache instantly, refreshes (and
+  // re-warms the cache for the other tabs) in the background; every consumer
+  // degrades to nothing on null.
+  const [trends, setTrends] = useState<TrendsLite | null>(() => {
+    const cached = getCachedTrends<TrendsResponse>();
+    return cached ? toTrendsLite(cached) : null;
+  });
 
   useEffect(() => {
-    fetchJson<{ adaptive_goal_kcal: number | null; weights: { trendKg: number }[] }>(
-      `/api/trends?days=90&tz_offset=${tzOffsetMinutes()}`,
-    )
-      .then((t) => setTrends({ adaptiveKcal: t.adaptive_goal_kcal, currentKg: t.weights.at(-1)?.trendKg ?? null }))
+    fetchJson<TrendsResponse>(`/api/trends?days=90&tz_offset=${tzOffsetMinutes()}`)
+      .then((t) => {
+        setCachedTrends(t);
+        setTrends(toTrendsLite(t));
+      })
       .catch(() => {});
   }, []);
 

@@ -8,6 +8,7 @@ import {
 } from "expo-speech-recognition";
 import { Bevi } from "./bevi";
 import { Button, Kicker } from "./ui";
+import { useColors } from "../lib/colors";
 
 // Dictate-a-meal: starts listening the moment it mounts (the speed dial's
 // slide-to-mic release lands here), shows the words live, and hands the final
@@ -22,6 +23,7 @@ export function SpeakCapture({
   onClose: () => void;
   onFallback: () => void; // hand off to describe-by-text
 }) {
+  const colors = useColors();
   const [status, setStatus] = useState<"starting" | "listening" | "denied" | "silent">("starting");
   const [finalText, setFinalText] = useState("");
   const [interim, setInterim] = useState("");
@@ -92,7 +94,7 @@ export function SpeakCapture({
   if (status === "denied") {
     return (
       <SafeAreaView className="flex-1 items-center justify-center gap-4 bg-background px-8">
-        <Feather name="mic-off" size={40} color="#565656" />
+        <Feather name="mic-off" size={40} color={colors.mutedForeground} />
         <Text className="text-center text-base text-foreground">
           Loggi needs the mic to hear your meal — everything is transcribed on your phone.
         </Text>
@@ -115,7 +117,7 @@ export function SpeakCapture({
           hitSlop={10}
           className="h-10 w-10 items-center justify-center active:opacity-60"
         >
-          <Feather name="x" size={22} color="#565656" />
+          <Feather name="x" size={22} color={colors.mutedForeground} />
         </Pressable>
       </View>
 
@@ -150,13 +152,13 @@ export function SpeakCapture({
       <View className="gap-2 border-t border-border bg-background px-5 pb-8 pt-3">
         {status === "silent" ? (
           <Button onPress={begin}>
-            <Feather name="mic" size={16} color="#fff" />
-            <Text className="text-base font-bold text-white">Try again</Text>
+            <Feather name="mic" size={16} color={colors.background} />
+            <Text className="text-base font-bold text-primary-foreground">Try again</Text>
           </Button>
         ) : (
           <Button onPress={() => ExpoSpeechRecognitionModule.stop()} disabled={!heard.trim()}>
-            <Feather name="check" size={16} color="#fff" />
-            <Text className="text-base font-bold text-white">Done — estimate it</Text>
+            <Feather name="check" size={16} color={colors.background} />
+            <Text className="text-base font-bold text-primary-foreground">Done — estimate it</Text>
           </Button>
         )}
         <Button variant="ghost" onPress={onFallback}>

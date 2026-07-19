@@ -18,8 +18,8 @@ export function MilestoneCard({
   milestone: Milestone;
   onDone: () => void;
 }) {
-  const shotRef = useRef<View>(null);
   const colors = useColors();
+  const shotRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
 
   async function share() {
