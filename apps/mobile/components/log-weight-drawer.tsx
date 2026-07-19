@@ -62,7 +62,7 @@ export function LogWeightDrawer({
           <Input value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
         </Field>
         <Button onPress={save} disabled={saving}>
-          {saving ? <Spinner /> : <Text className="text-base font-bold text-white">Save</Text>}
+          {saving ? <Spinner /> : <Text className="text-base font-bold text-primary-foreground">Save</Text>}
         </Button>
       </View>
     </Sheet>

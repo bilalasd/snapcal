@@ -18,7 +18,6 @@
     --accent: 241 241 241;
     --primary: 0 0 0;
     --primary-foreground: 255 255 255;
-    --primary-strong: 0 0 0;
     --border: 230 230 230;
     --destructive: 217 45 32;
   }
@@ -33,7 +32,6 @@
       --accent: 34 34 34;
       --primary: 245 245 245;
       --primary-foreground: 12 12 12;
-      --primary-strong: 255 255 255;
       --border: 42 42 42;
       --destructive: 249 112 102;
     }

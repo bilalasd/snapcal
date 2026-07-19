@@ -75,8 +75,11 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
                 </View>
                 {item.portion ? (
                   <View className="flex-row items-center gap-1">
-                    {item.confidence === "low" ? <Feather name="help-circle" size={12} color="#d97706" /> : null}
-                    <Text className={`text-xs ${item.confidence === "low" ? "font-semibold text-amber-600" : "text-muted-foreground"}`}>
+                    {item.confidence === "low" ? <Feather name="help-circle" size={12} color={colors.warning} /> : null}
+                    <Text
+                      className={`text-xs ${item.confidence === "low" ? "font-semibold" : "text-muted-foreground"}`}
+                      style={item.confidence === "low" ? { color: colors.warning } : undefined}
+                    >
                       {item.portion}
                     </Text>
                   </View>

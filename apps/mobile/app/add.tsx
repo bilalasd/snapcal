@@ -481,7 +481,7 @@ export default function Add() {
                 editable={!analyzing}
               />
               <Button variant="outline" size="sm" className="mt-2 self-end" onPress={reanalyze} disabled={analyzing || !refineText.trim()}>
-                <Feather name="refresh-cw" size={14} color="#000" />
+                <Feather name="refresh-cw" size={14} color={colors.foreground} />
                 <Text className="font-bold text-foreground">Re-analyze</Text>
               </Button>
             </Card>
@@ -497,7 +497,7 @@ export default function Add() {
             Back
           </Button>
           <Button className="flex-[2]" onPress={save}>
-            <Text className="text-base font-bold text-white">{planned ? "Reserve it" : "Save meal"}</Text>
+            <Text className="text-base font-bold text-primary-foreground">{planned ? "Reserve it" : "Save meal"}</Text>
           </Button>
         </View>
 
@@ -570,7 +570,7 @@ export default function Add() {
                 className="h-8 w-8 items-center justify-center active:opacity-60"
                 hitSlop={8}
               >
-                <Feather name="x" size={18} color="#565656" />
+                <Feather name="x" size={18} color={colors.mutedForeground} />
               </Pressable>
             </View>
           </Animated.View>
@@ -596,7 +596,7 @@ export default function Add() {
               <Input placeholder="Search meals, or describe a new one" value={search} onChangeText={setSearch} autoFocus />
             </View>
             <Button variant="ghost" size="icon" accessibilityLabel="Close" onPress={() => router.back()}>
-              <Feather name="x" size={22} color="#000" />
+              <Feather name="x" size={22} color={colors.foreground} />
             </Button>
           </View>
         ) : (
@@ -606,7 +606,7 @@ export default function Add() {
               <Text className="mt-1 text-4xl font-black tracking-tighter text-foreground">Saved foods</Text>
             </View>
             <Button variant="ghost" size="icon" accessibilityLabel="Close" onPress={() => router.back()}>
-              <Feather name="x" size={22} color="#000" />
+              <Feather name="x" size={22} color={colors.foreground} />
             </Button>
           </View>
         )}
@@ -624,7 +624,7 @@ export default function Add() {
 
         {mode === "search" && search.trim() ? (
           <Button variant="outline" onPress={describe} disabled={analyzing}>
-            <Feather name="edit-3" size={14} color="#000" />
+            <Feather name="edit-3" size={14} color={colors.foreground} />
             <Text className="font-bold text-foreground">Estimate "{search.trim()}" with Bevi</Text>
           </Button>
         ) : null}

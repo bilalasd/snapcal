@@ -337,8 +337,8 @@ export default function Today() {
           {isToday && streak !== null && streak > 0 ? (
             <View className="items-end gap-1.5">
               <Badge className="bg-accent-log" accessibilityLabel={`${streak} of 7 days logged this week`}>
-                <Feather name="zap" size={12} color="#fff" />
-                <Text className="text-xs font-bold uppercase text-white">{streak}/7</Text>
+                <Feather name="zap" size={12} color="#000" />
+                <Text className="text-xs font-bold uppercase text-black">{streak}/7</Text>
               </Badge>
               {onTarget > 0 ? (
                 <Badge className="bg-block-mint" accessibilityLabel={`${onTarget} days on target this week`}>

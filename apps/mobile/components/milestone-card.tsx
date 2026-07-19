@@ -5,7 +5,7 @@ import ViewShot, { captureRef } from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import { Bevi } from "./bevi";
 import { Button, Card, Kicker } from "../components/ui";
-import { block } from "../lib/colors";
+import { block, useColors } from "../lib/colors";
 import type { Milestone } from "../lib/milestones";
 
 /** A warm, building-themed milestone with a share offer. Nothing auto-posts —
@@ -18,6 +18,7 @@ export function MilestoneCard({
   milestone: Milestone;
   onDone: () => void;
 }) {
+  const colors = useColors();
   const shotRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -49,7 +50,7 @@ export function MilestoneCard({
         </View>
         <View className="mt-3 flex-row items-center gap-2">
           <Button size="sm" disabled={sharing} onPress={() => void share()}>
-            <Feather name="share" size={14} color="#fff" />
+            <Feather name="share" size={14} color={colors.background} />
             <Text className="font-bold text-primary-foreground">Share it</Text>
           </Button>
           <Button variant="ghost" size="sm" onPress={onDone}>
