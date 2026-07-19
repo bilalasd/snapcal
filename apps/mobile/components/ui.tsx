@@ -1,5 +1,12 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { Feather } from "@expo/vector-icons";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import {
   Pressable,
   Text,
@@ -11,6 +18,7 @@ import {
   type ViewProps,
 } from "react-native";
 import { useColors } from "../lib/colors";
+import { PressableScale } from "./pressable-scale";
 
 // Lean NativeWind primitives — the RN stand-ins for the web shadcn set. Only
 // what the screens actually use; grow as needed.
@@ -31,7 +39,7 @@ const BTN_SIZE: Record<ButtonSize, string> = {
   icon: "h-12 w-12",
 };
 const BTN_TEXT: Record<ButtonVariant, string> = {
-  default: "text-white",
+  default: "text-primary-foreground",
   outline: "text-foreground",
   ghost: "text-foreground",
 };
@@ -43,20 +51,28 @@ export function Button({
   className = "",
   textClassName = "",
   disabled,
+  loading = false,
   ...props
 }: PressableProps & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
   textClassName?: string;
+  loading?: boolean;
 }) {
+  const colors = useColors();
+  // Spinner rides the label color: on-primary for the filled variant, foreground otherwise.
+  const spinnerColor = variant === "default" ? colors.background : colors.foreground;
+  const isDisabled = disabled || loading;
   return (
     <Pressable
-      className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${disabled ? "opacity-40" : ""} ${className}`}
-      disabled={disabled}
+      className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${isDisabled ? "opacity-40" : ""} ${className}`}
+      disabled={isDisabled}
       {...props}
     >
-      {typeof children === "string" ? (
+      {loading ? (
+        <Spinner color={spinnerColor} />
+      ) : typeof children === "string" ? (
         <Text className={`text-base font-bold ${BTN_TEXT[variant]} ${textClassName}`}>
           {children}
         </Text>
@@ -99,6 +115,67 @@ export function Badge({
 
 export function Skeleton({ className = "" }: { className?: string }) {
   return <View className={`bg-muted ${className}`} />;
+}
+
+/** Selectable bordered card — title plus optional blurb and badge; selected
+ *  flips to the primary fill. The plan builder's answers and the pricing
+ *  screen's plans. */
+export function ChoiceCard({
+  selected,
+  onPress,
+  title,
+  blurb,
+  badge,
+  className = "",
+}: {
+  selected: boolean;
+  onPress: () => void;
+  title: string;
+  blurb?: string;
+  badge?: string;
+  className?: string;
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={className}
+    >
+      {/* Chrome lives on a plain View — className on the animated pressable
+          itself doesn't survive every reanimated/nativewind pairing. */}
+      <View className={`rounded-2xl border-2 p-3 ${selected ? "border-primary bg-primary" : "border-border bg-card"}`}>
+        <View className="flex-row items-center gap-2">
+          <Text className={`font-black tracking-tight ${selected ? "text-primary-foreground" : "text-foreground"}`}>{title}</Text>
+          {badge ? (
+            <View className={`rounded-full px-2 py-0.5 ${selected ? "bg-background" : "border border-border bg-muted"}`}>
+              <Text className="text-[10px] font-extrabold text-foreground">{badge}</Text>
+            </View>
+          ) : null}
+        </View>
+        {blurb ? <Text className={`mt-0.5 text-xs font-semibold ${selected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{blurb}</Text> : null}
+      </View>
+    </PressableScale>
+  );
+}
+
+/** One bar of a step progress track — the fill cross-fades in (130ms) instead
+ *  of snapping, per the determinate-fill motion rule. Initializes at the
+ *  current value so mounting never plays a sweep. */
+export function ProgressSegment({ filled }: { filled: boolean }) {
+  const reduce = useReducedMotion();
+  const fill = useSharedValue(filled ? 1 : 0);
+  useEffect(() => {
+    fill.value = withTiming(filled ? 1 : 0, { duration: reduce ? 0 : 130, easing: Easing.out(Easing.quad) });
+  }, [filled, reduce, fill]);
+  const style = useAnimatedStyle(() => ({ opacity: fill.value }));
+  return (
+    <View className="h-1.5 flex-1 bg-muted">
+      <Animated.View style={[{ flex: 1 }, style]}>
+        <View className="flex-1 bg-primary" />
+      </Animated.View>
+    </View>
+  );
 }
 
 export function Kicker({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -150,14 +227,17 @@ export function PasswordInput({ className = "", ...props }: TextInputProps & { c
 
 export function Field({
   label,
+  labelClassName = "",
   children,
 }: {
   label: string;
+  /** Override the kicker color when the field sits on a fixed (pastel) surface. */
+  labelClassName?: string;
   children: React.ReactNode;
 }) {
   return (
     <View className="gap-1.5">
-      <Kicker>{label}</Kicker>
+      <Kicker className={labelClassName}>{label}</Kicker>
       {children}
     </View>
   );
@@ -212,7 +292,7 @@ export function SegmentedToggle<T extends string>({
           accessibilityState={{ selected: value === o.value }}
           className={`rounded-lg px-3 py-1.5 active:opacity-70 ${value === o.value ? "bg-primary" : ""}`}
         >
-          <Text className={`text-xs font-bold ${value === o.value ? "text-white" : "text-muted-foreground"}`}>
+          <Text className={`text-xs font-bold ${value === o.value ? "text-primary-foreground" : "text-muted-foreground"}`}>
             {o.label}
           </Text>
         </Pressable>

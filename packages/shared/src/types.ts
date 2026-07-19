@@ -31,6 +31,8 @@ export interface ApiMeal {
   note: string | null;
   isFavorite: boolean;
   source: string;
+  /** Pre-logged for later today: reserves calories, not yet eaten. */
+  planned: boolean;
   createdAt: string;
   items: ApiMealItem[];
   photos: ApiMealPhoto[];

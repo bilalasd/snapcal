@@ -9,7 +9,15 @@
     "api": "yarn workspace @loggi/api",
     "mobile": "yarn workspace @loggi/mobile",
     "shared": "yarn workspace @loggi/shared",
-    "test": "yarn workspaces run test"
+    "test": "yarn workspaces run test",
+    "android": "yarn workspace @loggi/mobile android",
+    "ios": "yarn workspace @loggi/mobile ios"
   },
-  "packageManager": "yarn@4.17.1"
+  "packageManager": "yarn@4.17.1",
+  "version": "1.0.0",
+  "dependencies": {
+    "expo": "~54.0.35",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  }
 }

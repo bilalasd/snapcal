@@ -22,7 +22,7 @@ export default function SignIn() {
       const res = await signIn.create({ identifier: email, password });
       await setActive({ session: res.createdSessionId });
     } catch (e: any) {
-      setError(e?.errors?.[0]?.message ?? "Could not sign in");
+      setError(e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? "Could not sign in");
     } finally {
       setBusy(false);
     }
@@ -63,8 +63,8 @@ export default function SignIn() {
               onChangeText={setPassword}
             />
           </Field>
-          {error && <Text className="text-destructive text-sm">{error}</Text>}
-          <Button className="mt-2" disabled={busy} onPress={onSubmit}>
+          {error && <Text accessibilityLiveRegion="polite" accessibilityRole="alert" className="text-destructive text-sm">{error}</Text>}
+          <Button className="mt-2" disabled={busy || !email.trim() || !password} onPress={onSubmit}>
             {busy ? "Signing in…" : "Sign in"}
           </Button>
           <Link href="/(auth)/reset-password" className="self-center py-1 text-sm font-semibold text-muted-foreground">

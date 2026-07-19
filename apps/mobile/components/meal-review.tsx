@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { scalePortion, type DraftItem } from "@loggi/shared";
+import { useColors } from "../lib/colors";
 import { Card, Input, Button } from "./ui";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -38,6 +39,7 @@ interface Props {
 
 export function MealReview({ name, onNameChange, items, onItemsChange }: Props) {
   const [open, setOpen] = useState<number | null>(null);
+  const colors = useColors();
 
   // Touching portion or any number counts as the human checking the AI's guess,
   // so the low-confidence flag clears; renaming alone doesn't.
@@ -69,7 +71,7 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
               <View className="min-w-0 flex-1">
                 <View className="flex-row items-center gap-1">
                   <Text className="font-semibold text-foreground">{item.name || "Untitled item"}</Text>
-                  {item.usda_match ? <Feather name="check-circle" size={13} color="#000" /> : null}
+                  {item.usda_match ? <Feather name="check-circle" size={13} color={colors.foreground} /> : null}
                 </View>
                 {item.portion ? (
                   <View className="flex-row items-center gap-1">
@@ -87,7 +89,7 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
                 {item.calories}
                 <Text className="text-muted-foreground text-xs font-medium"> cal</Text>
               </Text>
-              <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#565656" />
+              <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
             </Pressable>
 
             {isOpen ? (
@@ -100,7 +102,7 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
                     accessibilityLabel="Remove item"
                     onPress={() => onItemsChange(items.filter((_, i) => i !== index))}
                   >
-                    <Feather name="trash-2" size={18} color="#000" />
+                    <Feather name="trash-2" size={18} color={colors.foreground} />
                   </Button>
                 </View>
                 <View className="flex-row items-center gap-2">
@@ -139,7 +141,7 @@ export function MealReview({ name, onNameChange, items, onItemsChange }: Props) 
           setOpen(items.length);
         }}
       >
-        <Feather name="plus" size={16} color="#000" />
+        <Feather name="plus" size={16} color={colors.foreground} />
         <Text className="font-bold text-foreground">Add item</Text>
       </Button>
     </Card>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, gateway } from "ai";
+import { z } from "zod";
 import { analysisSchema, NUTRITION_SYSTEM_PROMPT } from "@loggi/shared";
 import { groundWithUsda } from "@/lib/food-match";
 
@@ -15,7 +16,15 @@ const MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif
 interface AnalyzeBody {
   images?: Array<{ media_type: string; data: string }>;
   text?: string;
+  // Empty-plate correction: the already-logged items this photo is the
+  // aftermath of. Present → respond with per-item eaten fractions instead.
+  leftovers_of?: Array<{ name: string; portion: string }>;
 }
+
+const leftoversSchema = z.object({
+  // Fraction of each numbered item actually eaten, same order as the input.
+  fractions: z.array(z.number().min(0).max(1)),
+});
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as AnalyzeBody | null;
@@ -32,12 +41,47 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unsupported image format" }, { status: 400 });
   }
 
+  const imageParts = images.map((img) => ({
+    type: "file" as const,
+    data: img.data, // base64
+    mediaType: img.media_type,
+  }));
+
+  // Leftovers mode: given the plate-after photo, how much of each item was eaten?
+  const leftovers = body?.leftovers_of ?? [];
+  if (leftovers.length > 0 && images.length > 0) {
+    const list = leftovers.map((it, i) => `${i + 1}. ${it.name} — ${it.portion}`).join("\n");
+    try {
+      const { object } = await generateObject({
+        model: gateway(MODEL),
+        schema: leftoversSchema,
+        system:
+          "You estimate leftovers for a calorie-tracking app. The user logged a meal, then " +
+          "photographed the plate after eating. For each numbered logged item, return the fraction " +
+          "actually eaten: 1 = finished, 0.5 = half eaten, 0 = untouched. If an item is not " +
+          "visible or you cannot tell, return 1 (assume eaten). Return exactly one fraction per item, in order.",
+        maxOutputTokens: 1024,
+        messages: [
+          {
+            role: "user",
+            content: [...imageParts, { type: "text" as const, text: `Logged items:\n${list}` }],
+          },
+        ],
+      });
+      // Defensive alignment: pad missing fractions with 1 (assume eaten).
+      const fractions = leftovers.map((_, i) => object.fractions[i] ?? 1);
+      return NextResponse.json({ fractions });
+    } catch (err) {
+      console.error("Leftovers analyze error", err);
+      return NextResponse.json(
+        { error: "Couldn't read the plate — try a clearer photo" },
+        { status: 502 },
+      );
+    }
+  }
+
   const content = [
-    ...images.map((img) => ({
-      type: "file" as const,
-      data: img.data, // base64
-      mediaType: img.media_type,
-    })),
+    ...imageParts,
     {
       type: "text" as const,
       text: text ? `Analyze this meal. User's description: ${text}` : "Analyze this meal.",

@@ -11,6 +11,7 @@ const patchInput = z.object({
   eaten_at: z.string().datetime({ offset: true }).optional(),
   note: z.string().nullable().optional(),
   is_favorite: z.boolean().optional(),
+  planned: z.boolean().optional(),
   items: z.array(mealItemInput).min(1).optional(),
 });
 
@@ -47,6 +48,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       ...(input.eaten_at !== undefined && { eatenAt: new Date(input.eaten_at) }),
       ...(input.note !== undefined && { note: input.note }),
       ...(input.is_favorite !== undefined && { isFavorite: input.is_favorite }),
+      ...(input.planned !== undefined && { planned: input.planned }),
     })
     .where(eq(meals.id, id));
 

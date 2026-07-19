@@ -1,6 +1,9 @@
 import { localDateString, type ApiMeal, type DraftItem, type DraftPhoto, type Goals } from "@loggi/shared";
 import { fetchJson, fetchMealsRange, tzOffsetMinutes } from "./api";
+import { readJson, removeFile, writeJson } from "./disk";
 import { syncWidget } from "./widget";
+import { syncDinnerActivity } from "./dinner-activity";
+import { syncEveningReminder } from "./reminder";
 
 // In-memory stale-while-revalidate cache: screens show the last data instantly
 // on focus, then refresh in the background — no skeleton flash on tab switches.
@@ -14,8 +17,64 @@ export const setCachedGoals = (g: Goals) => {
   syncWidgetFromCache();
 };
 
-// Mirror today's cached state to the iOS home/lock-screen widgets.
-const syncWidgetFromCache = () => syncWidget(mealsByDate[localDateString()], goals);
+// Mirror today's cached state to the iOS widgets and the evening reminder.
+const syncWidgetFromCache = () => {
+  const today = mealsByDate[localDateString()];
+  syncWidget(today, goals);
+  syncDinnerActivity(today, goals);
+  void syncEveningReminder((today ?? []).some((m) => !m.planned));
+  persistCache();
+};
+
+// Disk mirror of goals + mealsByDate, so a cold launch paints the last
+// session's data instantly instead of a skeleton — the same stale-while-
+// revalidate as tab switches, extended across process death. Best-effort,
+// like everything in disk.ts. syncWidgetFromCache is the choke point every
+// mutation of these two already flows through, so persisting there covers all
+// writers.
+const CACHE_FILE = "cache-snapshot.json";
+const KEEP_DAYS = 35; // covers History's 30-day range; keeps the file bounded
+
+interface Snapshot {
+  goals: Goals | null;
+  mealsByDate: Record<string, ApiMeal[]>;
+}
+
+function persistCache() {
+  const cutoff = localDateString(new Date(Date.now() - KEEP_DAYS * 86_400_000));
+  const days = Object.fromEntries(Object.entries(mealsByDate).filter(([d]) => d >= cutoff));
+  void writeJson(CACHE_FILE, { goals, mealsByDate: days } satisfies Snapshot);
+}
+
+/** App start (module scope in _layout, before any screen mounts): restore the
+ *  last session's cache. In-memory data always wins over the disk copy. */
+export async function hydrateCache(): Promise<void> {
+  const saved = await readJson<Snapshot>(CACHE_FILE);
+  if (!saved) return;
+  goals ??= saved.goals;
+  for (const [date, m] of Object.entries(saved.mealsByDate)) mealsByDate[date] ??= m;
+}
+
+/** Sign-out: the next account on this device must not inherit this one's data.
+ *  Also covers the in-session account switch, which the old in-memory cache
+ *  silently leaked across. */
+export function clearCache() {
+  for (const key of Object.keys(mealsByDate)) delete mealsByDate[key];
+  goals = null;
+  historyRange = null;
+  rangeFetchedAt = 0;
+  trends = null;
+  favorites = null;
+  recents = null;
+  pendingNew.clear();
+  pendingEdit.clear();
+  pendingDelete.clear();
+  void removeFile(CACHE_FILE);
+}
+
+/** For the Settings reminder toggle: is anything (non-planned) logged today? */
+export const hasLoggedToday = (): boolean =>
+  (mealsByDate[localDateString()] ?? []).some((m) => !m.planned);
 
 // History's rolling 30-day range (one slot — the query is always the same).
 let historyRange: ApiMeal[] | null = null;
@@ -108,6 +167,16 @@ const stripFromCaches = (id: string) => {
 export function applyMealDelete(id: string) {
   pendingDelete.add(id);
   stripFromCaches(id);
+  syncWidgetFromCache();
+}
+
+/** Undo of an optimistic delete whose DELETE was never sent: exact inverse of
+ *  applyMealDelete — back into the cached lists, no longer marked deleted. */
+export function restoreMeal(meal: ApiMeal) {
+  pendingDelete.delete(meal.id);
+  const date = localDateString(new Date(meal.eatenAt));
+  mealsByDate[date] = [meal, ...(mealsByDate[date] ?? [])];
+  if (historyRange) historyRange = [meal, ...historyRange];
   syncWidgetFromCache();
 }
 

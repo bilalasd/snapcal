@@ -1,6 +1,9 @@
-import { View, Text } from "react-native";
+import { View, Text, Alert } from "react-native";
+import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { mealTotals, type ApiMeal } from "@loggi/shared";
+import { deleteMeal, stashLogAgain } from "../lib/meal-actions";
+import { tapLight } from "../lib/haptics";
 import { PressableScale } from "./pressable-scale";
 import { Photo } from "./photo";
 
@@ -12,16 +15,43 @@ function mealGlyph(hour: number): { icon: keyof typeof Feather.glyphMap; block: 
   return { icon: "moon", block: "bg-block-lilac" };
 }
 
-export function MealListItem({ meal, onPress }: { meal: ApiMeal; onPress?: () => void }) {
+export function MealListItem({
+  meal,
+  onPress,
+  onChanged,
+}: {
+  meal: ApiMeal;
+  onPress?: () => void;
+  onChanged?: () => void;
+}) {
+  const router = useRouter();
   const totals = mealTotals(meal);
   const eaten = new Date(meal.eatenAt);
   const time = eaten.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const { icon, block } = mealGlyph(eaten.getHours());
 
+  // Fast lane only — every action here is also reachable via tap → drawer.
+  function quickMenu() {
+    if (!onChanged) return;
+    tapLight();
+    Alert.alert(meal.name, `${totals.calories} cal`, [
+      {
+        text: "Log again",
+        onPress: () => {
+          stashLogAgain(meal);
+          router.push("/add");
+        },
+      },
+      { text: "Delete", style: "destructive", onPress: () => deleteMeal(meal, onChanged) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
   return (
     <PressableScale
       haptic
       onPress={onPress}
+      onLongPress={onChanged ? quickMenu : undefined}
       className="flex-row items-stretch gap-3 rounded-3xl border border-border bg-card p-3"
     >
       {meal.photos.length > 0 ? (
@@ -34,7 +64,7 @@ export function MealListItem({ meal, onPress }: { meal: ApiMeal; onPress?: () =>
       <View className="min-w-0 flex-1 justify-between py-0.5">
         <View>
           <Text className="text-muted-foreground text-xs font-extrabold uppercase tracking-[2px]">
-            {time}
+            {meal.planned ? "Planned · tap to confirm" : time}
           </Text>
           <Text numberOfLines={1} className="text-lg font-black tracking-tight text-foreground">
             {meal.name}

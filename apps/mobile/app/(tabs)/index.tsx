@@ -170,18 +170,24 @@ export default function Today() {
 
   useEffect(() => {
     // Goals only change via Settings/onboarding, which write the cache — so a
-    // cached copy means the round trip is pure waste.
-    if (!getCachedGoals()) {
+    // cached copy means the round trip is pure waste. No cache means this one
+    // request decides whether a brand-new user ever reaches onboarding, so a
+    // failure retries quietly instead of stranding them on an empty Today.
+    let cancelled = false;
+    const loadGoals = () => {
+      if (cancelled) return;
       fetchJson<Goals>("/api/goals")
         .then((g) => {
+          if (cancelled) return;
           if (!g.onboarded) router.replace("/onboarding");
           else {
             setGoals(g);
             setCachedGoals(g);
           }
         })
-        .catch(() => {});
-    }
+        .catch(() => setTimeout(loadGoals, 3000));
+    };
+    if (!getCachedGoals()) loadGoals();
     const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
     const countStreak = (rows: ApiMeal[]) => {
       const sums = new Map<string, number>();
@@ -201,6 +207,9 @@ export default function Today() {
     const cachedRange = getCachedRange();
     if (cachedRange) countStreak(cachedRange);
     else fetchMealsRange(weekAgo, new Date()).then(countStreak).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   // One trends fetch feeds both the smart goal (server-computed weekly, frozen

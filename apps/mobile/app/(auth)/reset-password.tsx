@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link } from "expo-router";
 import { useSignIn } from "@clerk/clerk-expo";
@@ -22,7 +22,7 @@ export default function ResetPassword() {
       await signIn.create({ strategy: "reset_password_email_code", identifier: email });
       setSent(true);
     } catch (e: any) {
-      setError(e?.errors?.[0]?.message ?? "Couldn't send a code");
+      setError(e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? "Couldn't send a code");
     } finally {
       setBusy(false);
     }
@@ -36,7 +36,7 @@ export default function ResetPassword() {
       const res = await signIn.attemptFirstFactor({ strategy: "reset_password_email_code", code, password });
       await setActive({ session: res.createdSessionId });
     } catch (e: any) {
-      setError(e?.errors?.[0]?.message ?? "Couldn't reset password");
+      setError(e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? "Couldn't reset password");
     } finally {
       setBusy(false);
     }
@@ -52,6 +52,9 @@ export default function ResetPassword() {
 
         {sent ? (
           <View className="mt-8 gap-3">
+            <Text className="text-sm font-medium text-muted-foreground">
+              I sent a 6-digit code to <Text className="font-bold text-foreground">{email}</Text>.
+            </Text>
             <Field label="Reset code">
               <Input
                 placeholder="6-digit code"
@@ -69,11 +72,25 @@ export default function ResetPassword() {
                 value={password}
                 onChangeText={setPassword}
               />
+              <Text className="text-xs font-medium text-muted-foreground">8 characters or more.</Text>
             </Field>
-            {error && <Text className="text-destructive text-sm">{error}</Text>}
-            <Button className="mt-2" disabled={busy} onPress={reset}>
+            {error && <Text accessibilityLiveRegion="polite" accessibilityRole="alert" className="text-destructive text-sm">{error}</Text>}
+            <Button className="mt-2" disabled={busy || code.trim().length !== 6 || password.length < 8} onPress={reset}>
               {busy ? "Resetting…" : "Set new password"}
             </Button>
+            <Pressable
+              onPress={() => {
+                setSent(false);
+                setCode("");
+                setError(null);
+              }}
+              disabled={busy}
+              accessibilityRole="button"
+              hitSlop={8}
+              className="mt-1 self-center active:opacity-60"
+            >
+              <Text className="text-sm font-semibold text-muted-foreground">Wrong email?</Text>
+            </Pressable>
           </View>
         ) : (
           <View className="mt-8 gap-3">
@@ -88,8 +105,8 @@ export default function ResetPassword() {
                 onChangeText={setEmail}
               />
             </Field>
-            {error && <Text className="text-destructive text-sm">{error}</Text>}
-            <Button className="mt-2" disabled={busy} onPress={sendCode}>
+            {error && <Text accessibilityLiveRegion="polite" accessibilityRole="alert" className="text-destructive text-sm">{error}</Text>}
+            <Button className="mt-2" disabled={busy || !email.trim()} onPress={sendCode}>
               {busy ? "Sending…" : "Send reset code"}
             </Button>
           </View>
