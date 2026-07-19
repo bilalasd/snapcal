@@ -163,7 +163,7 @@ export default function History() {
                 <BarChart data={chartData.map((d) => ({ label: d.day, value: d.calories }))} goal={goals?.daily_calories} />
               </View>
               {goals ? (
-                <Text className="mt-1 text-right text-[10px] text-black/60">Goal {goals.daily_calories.toLocaleString()} cal</Text>
+                <Text className="mt-1 text-right text-[11px] text-black/60">Goal {goals.daily_calories.toLocaleString()} cal</Text>
               ) : null}
               {insight ? (
                 <View className="mt-3 border-t border-black/15 pt-3">

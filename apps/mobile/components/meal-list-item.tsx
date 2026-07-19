@@ -78,7 +78,7 @@ export function MealListItem({
         <Text className="text-2xl font-black tabular-nums tracking-tight text-foreground">
           {totals.calories}
         </Text>
-        <Text className="text-muted-foreground text-[10px] font-extrabold uppercase tracking-[2px]">
+        <Text className="text-muted-foreground text-[11px] font-extrabold uppercase tracking-[2px]">
           cal
         </Text>
       </View>

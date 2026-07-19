@@ -137,7 +137,10 @@ tokens flip via `prefers-color-scheme` in `global.css`. No in-app toggle.
 | Kicker | `text-xs font-extrabold uppercase tracking-[2px] text-muted-foreground` | Desk eyebrows ("TREND DESK") |
 | Body | 16px regular–semibold, lh 1.5 | Paragraphs, list content |
 | Label | 12–14px medium–bold | Field labels, macro readouts |
-| Tab label | 10px `font-extrabold` uppercase | Bottom tab bar |
+| Tab label | 11px `font-extrabold` uppercase | Bottom tab bar |
+
+Minimum text size is 11px everywhere (HIG floor) — micro-captions that were
+10px (tab labels, "cal" caption, chart goal line, badge chips) now sit at 11px.
 
 ### 2.4 Spacing & layout
 - **Grid:** 4/8px rhythm; card padding 16px; section gaps 16/20/24px.
@@ -196,7 +199,7 @@ makes every mask shape seamless).
 
 | Component | Description | States |
 |---|---|---|
-| **Tab bar** | Fixed bottom, 4 destinations (Today, History, Weight, Settings) + empty center slot. 10px uppercase labels + Feather icons. | active / inactive |
+| **Tab bar** | Fixed bottom, 4 destinations (Today, History, Weight, Settings) + empty center slot. 11px uppercase labels + Feather icons. | active / inactive |
 | **Speed dial ("+")** | 76px vermilion FAB seated in the bar's center socket. Tap or touch-down fans out 4 actions (Search, Camera, Speak, Saved) at 130ms; drag-to-select pie-menu style with haptics; tap-away scrim closes. Every action also plain-tappable. | closed / open / action-hover |
 | **Card** | Flat `bg-card`, hairline border, `rounded-3xl`, 16px padding. | — |
 | **Block tile** | Pastel `block-*` square, `rounded-2xl`, near-black Feather glyph. Meal-type/time glyphs. | — |
