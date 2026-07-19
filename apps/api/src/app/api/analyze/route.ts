@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, gateway } from "ai";
+import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { analysisSchema, NUTRITION_SYSTEM_PROMPT } from "@loggi/shared";
 import { groundWithUsda } from "@/lib/food-match";
@@ -27,6 +28,12 @@ const leftoversSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // Defense in depth: the proxy middleware already gates this, but every other
+  // route re-checks in-handler so auth never rides on the matcher alone.
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = (await request.json().catch(() => null)) as AnalyzeBody | null;
   const images = (body?.images ?? []).slice(0, 3);
   const text = (body?.text ?? "").trim();
