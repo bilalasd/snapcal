@@ -15,8 +15,11 @@
         "NSSupportsLiveActivities": true
       },
       "entitlements": {
-        "com.apple.security.application-groups": ["group.com.loggi.app"]
-      }
+        "com.apple.security.application-groups": [
+          "group.com.loggi.app"
+        ]
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.loggi.app",
