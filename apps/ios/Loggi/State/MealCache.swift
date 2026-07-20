@@ -96,12 +96,75 @@ final class MealCache {
         persist()
     }
 
+    // --- Added Phase 2: 30-day range cache (History/Today's streak calc) ---
+    private(set) var historyRange: [ApiMeal]?
+    private var rangeFetchedAt: Date?
+
+    /// Merge a fresh 30-day range fetch with any pending optimistic/delete
+    /// overlay, cache it, return it. Mirrors lib/cache.ts's reconcileRange.
+    @discardableResult
+    func reconcileRange(_ server: [ApiMeal]) -> [ApiMeal] {
+        let merged = Array(pendingNew.values) + overlay(server)
+        historyRange = merged
+        rangeFetchedAt = Date()
+        persist()
+        return merged
+    }
+
+    /// True when the range was fetched under 30s ago — skips a redundant
+    /// refetch on tab focus, same threshold as lib/cache.ts's rangeIsFresh.
+    func rangeIsFresh() -> Bool {
+        guard let t = rangeFetchedAt else { return false }
+        return Date().timeIntervalSince(t) < 30
+    }
+
+    // --- Added Phase 2: trends (Today smart-goal, Weight, Settings share this) ---
+    private(set) var trends: TrendsResponse?
+
+    func setTrends(_ t: TrendsResponse) {
+        trends = t
+    }
+
+    // --- Added Phase 2: per-day goal history, so a Monday smart-goal change
+    // can't retroactively re-grade past days' "on target" status. Mirrors
+    // lib/goal-history.ts exactly; kept as its own tiny disk file (not part
+    // of Snapshot) since it has its own 90-day retention policy.
+    private var goalHistory: [String: Int] = [:]
+    private let goalHistoryFile = "goal-history.json"
+    private var goalHistoryHydrated = false
+
+    private func hydrateGoalHistoryIfNeeded() {
+        guard !goalHistoryHydrated else { return }
+        goalHistoryHydrated = true
+        let saved: [String: Int] = Disk.read(goalHistoryFile) ?? [:]
+        goalHistory = saved.merging(goalHistory) { _, new in new }
+    }
+
+    func recordDailyGoal(_ date: String, kcal: Int) {
+        hydrateGoalHistoryIfNeeded()
+        guard kcal > 0, goalHistory[date] != kcal else { return }
+        goalHistory[date] = kcal
+        let cutoff = localDateString(Date().addingTimeInterval(-90 * 86_400))
+        goalHistory = goalHistory.filter { $0.key >= cutoff }
+        Disk.write(goalHistory, to: goalHistoryFile)
+    }
+
+    func goalForDate(_ date: String, fallback: Int) -> Int {
+        hydrateGoalHistoryIfNeeded()
+        return goalHistory[date] ?? fallback
+    }
+
     /// Sign-out: the next account on this device must not inherit this one's data.
     func clear() {
         mealsByDate = [:]
         goals = nil
         pendingNew = [:]
         pendingDelete = []
+        historyRange = nil
+        rangeFetchedAt = nil
+        trends = nil
+        goalHistory = [:]
+        goalHistoryHydrated = false
         persist()
     }
 

@@ -42,12 +42,14 @@ enum Theme {
     enum Typography {
         // DESIGN.md §2.3: "text-4xl font-black tracking-tighter" = 36px/black.
         static let headline36 = Font.system(size: 36, weight: .black).width(.standard)
+        // DESIGN.md §2.3: "text-6xl font-black tracking-tighter" tabular = 60px/black.
+        static let bigMetric60 = Font.system(size: 60, weight: .black).width(.standard).monospacedDigit()
         static let kicker12   = Font.system(size: 12, weight: .heavy)
         static let body16     = Font.system(size: 16, weight: .regular)
         static let caption11  = Font.system(size: 11, weight: .semibold) // 11px floor per DESIGN.md
     }
     enum Spacing {
-        static let xs: CGFloat = 4, s: CGFloat = 8, m: CGFloat = 16, l: CGFloat = 20, xl: CGFloat = 24
+        static let xs: CGFloat = 4, s: CGFloat = 8, cluster: CGFloat = 12, m: CGFloat = 16, l: CGFloat = 20, xl: CGFloat = 24
     }
     enum Motion {
         static let standard = Animation.timingCurve(0.0, 0.0, 0.58, 1.0, duration: 0.13) // 130ms ease-out
