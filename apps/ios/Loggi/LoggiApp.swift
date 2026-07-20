@@ -30,7 +30,7 @@ struct LoggiApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(route: $route)
+            AuthGate(route: $route)
                 .environment(Clerk.shared)
                 .onOpenURL { url in
                     if let r = Route.parse(url) {
