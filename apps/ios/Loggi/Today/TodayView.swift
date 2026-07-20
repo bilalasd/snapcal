@@ -206,17 +206,23 @@ struct TodayView: View {
             Spacer()
             if vm.isToday, let streak = vm.streak, streak > 0 {
                 VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+                    // Labels ported from index.tsx's badges: "4/7" reads as
+                    // "four slash seven" to VoiceOver otherwise.
                     Label("\(streak)/7", systemImage: "bolt.fill")
                         .font(.system(size: 12, weight: .bold))
                         .padding(.horizontal, Theme.Spacing.s).padding(.vertical, 4)
                         .background(Theme.accentLog).clipShape(Capsule())
                         .foregroundStyle(.black)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(streak) of 7 days logged this week")
                     if onTarget > 0 {
                         Label("\(onTarget) on target", systemImage: "checkmark")
                             .font(.system(size: 12, weight: .bold))
                             .padding(.horizontal, Theme.Spacing.s).padding(.vertical, 4)
                             .background(Theme.blockMint).clipShape(Capsule())
                             .foregroundStyle(.black)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(onTarget) days on target this week")
                     }
                 }
             }
@@ -225,8 +231,11 @@ struct TodayView: View {
 
     private var dayNav: some View {
         HStack {
+            // Icon-only buttons announce nothing without these — index.tsx
+            // carries the same two labels on its prev/next controls.
             Button(action: vm.goPrev) { Image(systemName: "chevron.left") }
                 .frame(width: 44, height: 44)
+                .accessibilityLabel("Previous day")
             Spacer()
             Text(vm.isToday ? "TODAY" : vm.date.uppercased())
                 .font(.system(size: 11, weight: .heavy)).foregroundStyle(Theme.mutedForeground)
@@ -234,6 +243,7 @@ struct TodayView: View {
             Button(action: vm.goNext) { Image(systemName: "chevron.right") }
                 .frame(width: 44, height: 44)
                 .disabled(vm.isToday)
+                .accessibilityLabel("Next day")
         }
         .overlay(Rectangle().fill(Theme.hairline).frame(height: 1), alignment: .top)
         .padding(.top, Theme.Spacing.s)
