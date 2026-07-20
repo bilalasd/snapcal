@@ -66,7 +66,7 @@ final class MealCache {
     /// it, return it.
     @discardableResult
     func reconcileMeals(date: String, server: [ApiMeal]) -> [ApiMeal] {
-        let newForDay = pendingNew.values.filter { localDateString(ISO8601DateFormatter().date(from: $0.eatenAt) ?? Date()) == date }
+        let newForDay = pendingNew.values.filter { localDateString(parseAPIDate($0.eatenAt) ?? Date()) == date }
         let merged = Array(newForDay) + overlay(server)
         mealsByDate[date] = merged
         persist()
@@ -77,7 +77,7 @@ final class MealCache {
     /// protect it from racing refetches until settleMeal()/discardOptimistic().
     func addOptimisticMeal(_ meal: ApiMeal) {
         pendingNew[meal.id] = meal
-        let date = localDateString(ISO8601DateFormatter().date(from: meal.eatenAt) ?? Date())
+        let date = localDateString(parseAPIDate(meal.eatenAt) ?? Date())
         mealsByDate[date] = [meal] + (mealsByDate[date] ?? [])
         persist()
     }
@@ -102,6 +102,7 @@ final class MealCache {
         goals = nil
         pendingNew = [:]
         pendingDelete = []
+        persist()
     }
 
     private func persist() {

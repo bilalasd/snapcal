@@ -49,6 +49,17 @@ func tzOffsetMinutes() -> Int {
     -TimeZone.current.secondsFromGMT() / 60
 }
 
+/// Parses an API timestamp (e.g. eatenAt), tolerating both fractional-second
+/// (toISOString()'s always-emitted .SSSZ) and plain ISO 8601 forms.
+func parseAPIDate(_ s: String) -> Date? {
+    let withFractional = ISO8601DateFormatter()
+    withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let d = withFractional.date(from: s) { return d }
+    let plain = ISO8601DateFormatter()
+    plain.formatOptions = [.withInternetDateTime]
+    return plain.date(from: s)
+}
+
 func mealTotals(_ meal: ApiMeal) -> (calories: Double, protein: Double, carbs: Double, fat: Double) {
     meal.items.reduce((0.0, 0.0, 0.0, 0.0)) { acc, item in
         (acc.0 + item.calories,
