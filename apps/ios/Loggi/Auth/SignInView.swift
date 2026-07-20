@@ -13,7 +13,7 @@ struct SignInView: View {
 
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
-            Text("Loggi").font(Theme.Typography.headline34).foregroundStyle(Theme.foreground)
+            Text("Loggi").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
             TextField("Email", text: $email)
                 .textInputAutocapitalization(.never).keyboardType(.emailAddress)
                 .padding(Theme.Spacing.s).background(Theme.muted)

@@ -17,7 +17,7 @@ struct SignUpView: View {
 
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
-            Text("Loggi").font(Theme.Typography.headline34).foregroundStyle(Theme.foreground)
+            Text("Loggi").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
 
             if isVerifying {
                 TextField("Verification code", text: $code)

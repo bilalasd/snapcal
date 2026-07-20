@@ -40,7 +40,8 @@ enum Theme {
     static let blockCoral  = fixed(0xF3C9B6)
 
     enum Typography {
-        static let headline34 = Font.system(size: 34, weight: .black).width(.standard)
+        // DESIGN.md §2.3: "text-4xl font-black tracking-tighter" = 36px/black.
+        static let headline36 = Font.system(size: 36, weight: .black).width(.standard)
         static let kicker12   = Font.system(size: 12, weight: .heavy)
         static let body16     = Font.system(size: 16, weight: .regular)
         static let caption11  = Font.system(size: 11, weight: .semibold) // 11px floor per DESIGN.md

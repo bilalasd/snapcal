@@ -11,7 +11,7 @@ struct RootView: View {
                 .kerning(2)
 
             Text(route.label)
-                .font(Theme.Typography.headline34)
+                .font(Theme.Typography.headline36)
                 .foregroundStyle(Theme.foreground)
 
             if case .add(let intent, let date) = route {
