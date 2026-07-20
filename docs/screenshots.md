@@ -4,6 +4,44 @@ Headless, scriptable loop — no tapping required. Every screen is reached by
 deep link (`loggi://…`), captured with `simctl`. Works from a worktree or the
 main checkout.
 
+## Swift app (apps/ios)
+
+The Swift rewrite (Phase 0) uses a dev-loop script that regenerates, builds,
+installs, and captures in one command:
+
+```sh
+cd apps/ios
+./scripts/dev-loop.sh [screenshot-path] [route]
+```
+
+**Arguments:**
+- `screenshot-path`: where to save (default: `/tmp/loggi-screenshot.png`)
+- `route`: deep link route, same as the RN table below (default: today)
+  - Examples: `history`, `weight`, `add?intent=speak`, `ask-bevi`, `menu-scout`,
+    `onboarding`, `paywall`, `sign-in`, `sign-up`, `reset-password`, `welcome`
+
+**Simulator selection:** auto-selects the first booted iPhone (not iPad), or set
+`SIMULATOR_UDID` to use a specific one.
+
+**One-time setup:**
+- No Metro.
+- No permission pre-grants needed (Phase 0 is placeholder-only).
+- Dark mode: `xcrun simctl ui <udid> appearance dark` before running
+  `dev-loop.sh`, then `… appearance light` to restore.
+
+**Workflow:** take a single route by name, or loop all 9 routes:
+```sh
+for r in history weight settings "add?intent=speak" ask-bevi menu-scout onboarding paywall sign-in; do
+  ./scripts/dev-loop.sh "/tmp/phase0-$r.png" "$r"
+done
+```
+
+---
+
+## React Native app (apps/mobile)
+
+The Expo app uses Metro and `simctl openurl` for navigation.
+
 ## 0. One-time prerequisites
 
 - A booted simulator (`xcrun simctl list devices booted`). Examples below use
