@@ -78,6 +78,14 @@ struct APIClient {
         let (data, _) = try await send(request)
         return data
     }
+
+    /// Like post(), but takes pre-encoded JSON body — the save queue re-sends
+    /// a body it persisted verbatim rather than re-encoding a live Swift value.
+    func postRaw<T: Decodable>(_ path: String, bodyJSON: Data) async throws -> T {
+        let request = try await makeRequest(path, method: "POST", query: [:], body: bodyJSON)
+        let (data, _) = try await send(request)
+        do { return try JSONDecoder().decode(T.self, from: data) } catch { throw APIError.decoding }
+    }
 }
 
 /// Type-erasing wrapper so `post` can accept any Encodable body without a generic

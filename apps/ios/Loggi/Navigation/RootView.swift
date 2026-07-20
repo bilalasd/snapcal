@@ -32,17 +32,22 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(Theme.Spacing.l)
         .background(Theme.background)
-        // TEMPORARY (Task 4 placeholder): exercises APIClient's GET path once this
-        // view is reachable (i.e. once a session exists). Task 5 replaces this with
-        // the real cache-backed goals fetch. End-to-end reachability against the
-        // production API was verified separately (see task-4-report.md) since this
-        // view isn't mounted until AuthGate sees a signed-in user.
+        // Phase 1 exit criterion: sign in on sim, fetch and print today's meals.
+        // Cache-backed stale-while-revalidate load — hydrate disk snapshot and
+        // the offline save queue, then refetch today's meals and reconcile any
+        // in-flight optimistic mutations into the cache.
         .task {
+            MealCache.shared.hydrate()
+            SaveQueue.shared.hydrate()
+            let today = localDateString()
             do {
-                let goals: Goals = try await APIClient.shared.get("/api/goals")
-                print("Fetched goals: \(goals)")
+                let meals: [ApiMeal] = try await APIClient.shared.get("/api/meals", query: [
+                    "date": today, "tz_offset": String(tzOffsetMinutes()),
+                ])
+                MealCache.shared.reconcileMeals(date: today, server: meals)
+                print("Today's meals: \(meals.count)")
             } catch {
-                print("Fetch failed: \(error)")
+                print("Meal fetch failed: \(error)")
             }
         }
     }
