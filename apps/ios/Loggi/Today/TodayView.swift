@@ -16,6 +16,7 @@ final class TodayViewModel {
     var streak: Int?
     var daySums: [String: Double] = [:]
     var dayPickerOpen = false
+    var trends: TrendsResponse?
 
     init() {
         let t = localDateString()
@@ -77,6 +78,20 @@ final class TodayViewModel {
         }
     }
 
+    /// Smart-goal + Monday-note source. Non-critical — Today degrades
+    /// gracefully without it (no adaptive goal, no recap card), matching RN's
+    /// `trends` query having no error UI of its own.
+    func loadTrends() async {
+        if let cached = MealCache.shared.trends { trends = cached }
+        do {
+            let t: TrendsResponse = try await APIClient.shared.get("/api/trends", query: [
+                "days": "90", "tz_offset": String(tzOffsetMinutes()),
+            ])
+            trends = t
+            MealCache.shared.setTrends(t)
+        } catch { /* Today degrades gracefully without trends — no smart goal, no recap */ }
+    }
+
     func goPrev() {
         date = TodayViewModel.addDays(date, -1)
     }
@@ -98,10 +113,15 @@ final class TodayViewModel {
     }
 }
 
-/// Today — hero card, macros, day paging, streak badges. Ports
-/// apps/mobile/app/(tabs)/index.tsx. Deliberately scoped to Phase 2 Task 2:
-/// Monday-note/Milestone cards are Task 3 (slot commented below), the
-/// "usual meal" suggestion is Phase 3, Ask Bevi/Apple Health are Phase 4.
+/// Today — hero card, macros, day paging, streak badges, Monday-note recap.
+/// Ports apps/mobile/app/(tabs)/index.tsx. Phase 2 Task 3 added the
+/// trends fetch, the smart-goal read, and `MondayNoteCard` (shown on Today
+/// only, when `trends.recap` exists). `MilestoneCard` exists
+/// (Today/MilestoneCard.swift) but is deliberately NOT wired into the body
+/// yet — its RN counterpart's milestone-detection engine depends on
+/// locally-persisted "seen" state that only matters once Phase 3's real
+/// logging makes milestones reachable; see MilestoneCard.swift's doc comment.
+/// The "usual meal" suggestion is Phase 3, Ask Bevi/Apple Health are Phase 4.
 /// The meal journal row here is read-only — MealListItem's photo thumbnail
 /// and tap-to-open edit/delete drawer are Phase 3 (drawer edit/delete is a
 /// logging mutation, out of scope for a read-surfaces task).
@@ -117,7 +137,14 @@ struct TodayView: View {
     private var reserved: Double {
         (vm.meals ?? []).filter(\.planned).reduce(0) { $0 + mealTotals($1).calories }
     }
-    private var dailyGoal: Double { Double(vm.goals?.dailyCalories ?? 0) }
+    /// Prefers the trend-derived adaptive goal when the user has smart goals
+    /// on, matching RN's `trendGoal ?? goals.daily_calories` exactly.
+    private var dailyGoal: Double {
+        if vm.goals?.adaptiveGoal == true, let adaptive = vm.trends?.adaptiveGoalKcal {
+            return Double(adaptive)
+        }
+        return Double(vm.goals?.dailyCalories ?? 0)
+    }
     private var remaining: Double { (vm.goals == nil) ? 0 : dailyGoal - totals.calories - reserved }
     private var onTarget: Int {
         guard let goals = vm.goals else { return 0 }
@@ -134,7 +161,13 @@ struct TodayView: View {
                 if vm.meals == nil || vm.goals == nil {
                     skeleton
                 } else {
-                    // Task 3 inserts the Monday-note and Milestone cards here.
+                    if vm.isToday, let recap = vm.trends?.recap {
+                        MondayNoteCard(recap: recap, verdictStatus: vm.trends?.verdict.status ?? .collecting)
+                    }
+                    // MilestoneCard slot: deliberately left as EmptyView() —
+                    // see MilestoneCard.swift's doc comment. Not a silent
+                    // omission, a documented deferral to Phase 3+.
+                    EmptyView()
                     heroCard
                     if vm.meals!.isEmpty {
                         emptyState
@@ -153,7 +186,8 @@ struct TodayView: View {
             async let m: () = vm.load()
             async let g: () = vm.loadGoals()
             async let s: () = vm.loadStreak()
-            _ = await (m, g, s)
+            async let t: () = vm.loadTrends()
+            _ = await (m, g, s, t)
         }
         .onChange(of: vm.date) { _, _ in Task { await vm.load() } }
         .onChange(of: dailyGoal) { _, newValue in
