@@ -38,6 +38,17 @@ enum Theme {
     static let blockCream  = fixed(0xF4ECD6)
     static let blockMint   = fixed(0xC8E6CD)
     static let blockCoral  = fixed(0xF3C9B6)
+    /// Fixed-hex red for destructive/warning *text sitting on a pastel block
+    /// card* (e.g. Settings' goal-mismatch/aggressive-rate captions on
+    /// `blockCream`). Pastel cards never invert with the system theme
+    /// (DESIGN.md §2.2: "Text on pastel tiles is fixed near-black ink"), so
+    /// any accent color layered on top — including a warning red — must be
+    /// equally static, never the dynamic `Theme.destructive` token. Using
+    /// `Theme.destructive` here was a real bug found and left unfixed in
+    /// Task 2 (ProgressRing's over-limit color on the lime hero card,
+    /// tracked for whole-branch review) — this constant exists so Settings
+    /// doesn't repeat it.
+    static let destructiveFixed = fixed(0xD92D20)
 
     enum Typography {
         // DESIGN.md §2.3: "text-4xl font-black tracking-tighter" = 36px/black.

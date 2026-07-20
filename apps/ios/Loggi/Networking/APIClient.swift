@@ -72,6 +72,16 @@ struct APIClient {
         do { return try JSONDecoder().decode(T.self, from: data) } catch { throw APIError.decoding }
     }
 
+    /// lib/api.ts's fetchJson is method-agnostic; settings.tsx's `put()` calls
+    /// it with `{ method: "PUT" }` for /api/goals specifically (goals are a
+    /// singleton resource updated in place, unlike meals' POST-to-create).
+    func put<T: Decodable>(_ path: String, body: Encodable) async throws -> T {
+        let bodyData = try JSONEncoder().encode(AnyEncodable(body))
+        let request = try await makeRequest(path, method: "PUT", query: [:], body: bodyData)
+        let (data, _) = try await send(request)
+        do { return try JSONDecoder().decode(T.self, from: data) } catch { throw APIError.decoding }
+    }
+
     @discardableResult
     func delete(_ path: String) async throws -> Data {
         let request = try await makeRequest(path, method: "DELETE", query: [:], body: nil)

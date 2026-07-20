@@ -63,4 +63,37 @@ struct Goals: Codable, Equatable {
         goalWeightKg = try c.decodeIfPresent(Double.self, forKey: .goalWeightKg)
         adaptiveGoal = try c.decodeIfPresent(Bool.self, forKey: .adaptiveGoal) ?? false
     }
+
+    // Custom encode(to:) — verified necessary 2026-07-20 via a local
+    // decode/mutate/re-encode round trip against this exact struct: Swift's
+    // default-synthesized Encodable OMITS a nil Optional's key entirely
+    // (confirmed output for goalWeightKg = nil had no "goal_weight_kg" key
+    // at all). apps/api/src's PUT /api/goals (goalsInput = z.object({...
+    // .nullable().optional() ...}), then `...(parsed.data.goal_weight_kg
+    // !== undefined && { goalWeightKg: ... })`) treats an ABSENT key as
+    // "leave the stored value unchanged" and an explicit `null` as "clear
+    // it" — the same distinction settings.tsx's `JSON.stringify(next)`
+    // preserves for free (JS always serializes an explicit `null`). Without
+    // this override, Settings' own GoalCard "Goal weight (optional)" field,
+    // when emptied and saved, would silently fail to clear the value
+    // server-side. sex/age/heightCm/activityLevel/goalWeightKg are exactly
+    // the fields the API schema marks `.nullable()` (as opposed to
+    // onboarded/adaptiveGoal, which are `.optional()` but never nullable —
+    // plain booleans, never need this).
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(dailyCalories, forKey: .dailyCalories)
+        try c.encode(dailyProteinG, forKey: .dailyProteinG)
+        try c.encode(dailyCarbsG, forKey: .dailyCarbsG)
+        try c.encode(dailyFatG, forKey: .dailyFatG)
+        try c.encode(targetRateKgPerWk, forKey: .targetRateKgPerWk)
+        try c.encode(unitSystem, forKey: .unitSystem)
+        try c.encode(onboarded, forKey: .onboarded)
+        try c.encode(adaptiveGoal, forKey: .adaptiveGoal)
+        if let sex { try c.encode(sex, forKey: .sex) } else { try c.encodeNil(forKey: .sex) }
+        if let age { try c.encode(age, forKey: .age) } else { try c.encodeNil(forKey: .age) }
+        if let heightCm { try c.encode(heightCm, forKey: .heightCm) } else { try c.encodeNil(forKey: .heightCm) }
+        if let activityLevel { try c.encode(activityLevel, forKey: .activityLevel) } else { try c.encodeNil(forKey: .activityLevel) }
+        if let goalWeightKg { try c.encode(goalWeightKg, forKey: .goalWeightKg) } else { try c.encodeNil(forKey: .goalWeightKg) }
+    }
 }

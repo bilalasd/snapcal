@@ -1,0 +1,592 @@
+import SwiftUI
+
+private let kgPerLb = 0.453592
+
+/// decimal-pad yields "," in some locales; Double("0,5") is nil. Mirrors
+/// settings.tsx's `num()`.
+private func parseDecimal(_ s: String) -> Double? {
+    Double(s.replacingOccurrences(of: ",", with: "."))
+}
+private func round2(_ x: Double) -> Double { (x * 100).rounded() / 100 }
+private func round1(_ x: Double) -> Double { (x * 10).rounded() / 10 }
+/// Formats a Double the way JS's `String(n)` would for our rounded inputs —
+/// no trailing zeros/decimal point (Swift's `String(Double)` always prints
+/// e.g. "1.0", JS prints "1").
+private func fmtTrim(_ x: Double, decimals: Int) -> String {
+    var s = String(format: "%.\(decimals)f", x)
+    while s.contains("."), s.hasSuffix("0") { s.removeLast() }
+    if s.hasSuffix(".") { s.removeLast() }
+    return s
+}
+
+private let macroPresets: [(label: String, proteinPct: Int, carbsPct: Int, fatPct: Int)] = [
+    ("Balanced", 30, 40, 30),
+    ("High protein", 40, 30, 30),
+    ("Low carb", 35, 25, 40),
+]
+
+// MealCache.shared/APIClient.shared are @MainActor-isolated (MealCache) /
+// safe to call cross-actor (APIClient is a stateless struct) — same
+// isolation reasoning as TodayViewModel/WeightViewModel's documented pattern.
+@MainActor
+@Observable
+final class SettingsViewModel {
+    var goals: Goals?
+    var loadError = false
+    /// Context for the smart-goal status line and the goal-card's "current
+    /// weight" caption — pulled from the shared trends cache instantly (like
+    /// settings.tsx's `getCachedTrends`), refreshed in the background.
+    var currentKg: Double?
+    var adaptiveKcal: Int?
+    /// True once trends data (cache or live) has actually arrived — the
+    /// smart-goal status line stays hidden until then, matching RN's
+    /// `goals.adaptive_goal && trends ? ... : null` gate (nil `adaptiveKcal`
+    /// alone doesn't distinguish "not loaded yet" from "collecting data").
+    var trendsLoaded = false
+
+    func load() async {
+        if let cached = MealCache.shared.cachedGoals() { goals = cached; return }
+        do {
+            let g: Goals = try await APIClient.shared.get("/api/goals")
+            goals = g
+            MealCache.shared.setGoals(g)
+            loadError = false
+        } catch { loadError = true }
+    }
+
+    func loadTrendsContext() async {
+        if let cached = MealCache.shared.trends {
+            currentKg = cached.weights.last?.trendKg
+            adaptiveKcal = cached.adaptiveGoalKcal
+            trendsLoaded = true
+        }
+        do {
+            let t: TrendsResponse = try await APIClient.shared.get("/api/trends", query: [
+                "days": "90", "tz_offset": String(tzOffsetMinutes()),
+            ])
+            MealCache.shared.setTrends(t)
+            currentKg = t.weights.last?.trendKg
+            adaptiveKcal = t.adaptiveGoalKcal
+            trendsLoaded = true
+        } catch { /* Settings degrades gracefully without trends context, matching Today/Weight's pattern */ }
+    }
+
+    /// PUT /api/goals — goals are a singleton resource updated in place
+    /// (settings.tsx's `put()`), unlike meals' POST-to-create.
+    @discardableResult
+    func save(_ next: Goals) async -> Bool {
+        do {
+            let saved: Goals = try await APIClient.shared.put("/api/goals", body: next)
+            goals = saved
+            MealCache.shared.setGoals(saved)
+            return true
+        } catch { return false }
+    }
+}
+
+/// Settings — "Control room." This task ports the Goal/Targets/Smart-goal/
+/// Units cards only (DESIGN.md §4.3's Settings bullet, up through "Units...
+/// no lost edits)"). `ProfileSection` (Task 7) and Your-data/account-actions
+/// (Task 8) append to this same file's body below. The Monday-note/Evening-
+/// reminder/Apple-Health cards named later in that same DESIGN.md bullet are
+/// local-notification/HealthKit features — deferred to Phase 4, matching the
+/// already-established deferral precedent (WeightView's own doc comment;
+/// Task 4/5 reports) rather than a new decision made here.
+struct SettingsView: View {
+    @State private var vm = SettingsViewModel()
+
+    private var imperial: Bool { vm.goals?.unitSystem == .imperial }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Control room").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
+                    Text("Settings").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
+                }
+                if let goals = vm.goals {
+                    GoalCard(goals: goals, imperial: imperial, currentKg: vm.currentKg, onSave: vm.save)
+                    TargetsCard(goals: goals, adaptiveKcal: vm.adaptiveKcal, onSave: vm.save)
+                    smartGoalCard(goals)
+                    unitsCard(goals)
+                } else if vm.loadError {
+                    retryState
+                } else {
+                    skeleton
+                }
+            }
+            .padding(Theme.Spacing.l)
+            .padding(.bottom, 96)
+        }
+        .background(Theme.background)
+        .task {
+            async let g: () = vm.load()
+            async let t: () = vm.loadTrendsContext()
+            _ = await (g, t)
+        }
+    }
+
+    private var skeleton: some View {
+        RoundedRectangle(cornerRadius: 24).fill(Theme.muted).frame(height: 288)
+    }
+
+    private var retryState: some View {
+        VStack(spacing: Theme.Spacing.cluster) {
+            Text("Couldn't load your settings").font(.system(size: 18, weight: .black)).foregroundStyle(Theme.foreground)
+            Text("Check your connection and try again.")
+                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
+            Button {
+                Task { await vm.load() }
+            } label: {
+                Text("Retry").font(.system(size: 15, weight: .black)).foregroundStyle(Theme.primaryText)
+                    .padding(.horizontal, Theme.Spacing.l)
+                    .frame(minHeight: 44)
+                    .background(Theme.primaryFill)
+                    .clipShape(Capsule())
+            }
+        }
+        .frame(maxWidth: .infinity).padding(32).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    // MARK: - Smart goal card
+
+    private func smartGoalCard(_ goals: Goals) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            HStack {
+                HStack(spacing: Theme.Spacing.s) {
+                    Image(systemName: "chart.line.downtrend.xyaxis").foregroundStyle(Theme.foreground)
+                    Text("Smart calorie goal").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { goals.adaptiveGoal },
+                    set: { v in var next = goals; next.adaptiveGoal = v; Task { await vm.save(next) } }))
+                    .labelsHidden()
+                    .accessibilityLabel("Smart calorie goal")
+            }
+            Text("Recalculates your daily calories every Monday from your weight trend — your measured burn rate minus what your target rate needs. Falls back to the manual target above until there's enough logging history.")
+                .font(.system(size: 14)).foregroundStyle(Theme.mutedForeground)
+            if let status = smartGoalStatus(goals) {
+                Text(status).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.foreground).monospacedDigit()
+            }
+        }
+        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    private func smartGoalStatus(_ goals: Goals) -> String? {
+        guard goals.adaptiveGoal, vm.trendsLoaded else { return nil }
+        if let kcal = vm.adaptiveKcal {
+            return "Active — \(kcal) cal/day right now. Recalculates Monday."
+        }
+        return "Collecting data — using your manual target until there's about two weeks of logging."
+    }
+
+    // MARK: - Units card
+
+    private func unitsCard(_ goals: Goals) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
+            HStack(spacing: Theme.Spacing.s) {
+                Image(systemName: "slider.horizontal.3").foregroundStyle(Theme.foreground)
+                Text("Units").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+            }
+            Picker("Units", selection: Binding(
+                get: { goals.unitSystem },
+                set: { v in var next = goals; next.unitSystem = v; Task { await vm.save(next) } })) {
+                Text("Metric — kg, cm").tag(UnitSystem.metric)
+                Text("Imperial — lb, ft/in").tag(UnitSystem.imperial)
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+}
+
+// MARK: - Shared small pieces
+
+private enum SaveState { case idle, saving, saved }
+
+/// Ports settings.tsx's `SaveButton` — its own idle/saving/"Saved ✓" state
+/// instead of a native alert on success. On failure, shows an inline caption
+/// rather than `RNAlert.alert`: this codebase has no `.alert()` usage
+/// anywhere yet (grepped), and WeightView's `LogWeightSheet` already
+/// established inline error text as the local convention — followed here
+/// rather than introducing a new pattern for one screen.
+private struct SaveButton: View {
+    let label: String
+    var disabled: Bool = false
+    let onSave: () async -> Bool
+    @State private var state: SaveState = .idle
+    @State private var failed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Button {
+                failed = false
+                Task {
+                    state = .saving
+                    let ok = await onSave()
+                    if ok {
+                        state = .saved
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        state = .idle
+                    } else {
+                        state = .idle
+                        failed = true
+                    }
+                }
+            } label: {
+                Group {
+                    if state == .saving {
+                        ProgressView().tint(Theme.primaryText)
+                    } else {
+                        Text(state == .saved ? "Saved ✓" : label).font(.system(size: 16, weight: .bold))
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .foregroundStyle(Theme.primaryText)
+                .background(Theme.primaryFill)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            .disabled(disabled || state == .saving)
+            .opacity(disabled ? 0.5 : 1)
+            if failed {
+                Text("Couldn't save — try again.").font(Theme.Typography.caption11).foregroundStyle(Theme.destructive)
+            }
+        }
+    }
+}
+
+/// Ports settings.tsx's `OptionRow` pressable-chip pattern (rounded-xl
+/// border, active = solid primary fill/text) for direction/rate-preset/
+/// macro-preset selection.
+private struct Chip: View {
+    let label: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 13, weight: .bold))
+                .lineLimit(1)
+                .foregroundStyle(selected ? Theme.primaryText : Theme.foreground)
+                .padding(.horizontal, Theme.Spacing.m)
+                .frame(minHeight: 44)
+                .background(selected ? Theme.primaryFill : Theme.card)
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(selected ? Color.clear : Theme.hairline, lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+    }
+}
+
+// MARK: - Goal card
+
+/// Ports settings.tsx's `GoalCard`. Cream pastel card, fixed black ink
+/// throughout (per DESIGN.md §2.2 + the Task-2-tracked bug this task must
+/// not repeat) — including `Theme.destructiveFixed` for the mismatch/
+/// aggressive-rate warnings, since a *dynamic* destructive token would
+/// invert against this card's always-light background in dark mode.
+private struct GoalCard: View {
+    let goals: Goals
+    let imperial: Bool
+    let currentKg: Double?
+    let onSave: (Goals) async -> Bool
+
+    @State private var direction: String
+    @State private var rateText: String
+    @State private var goalWeightText: String
+
+    init(goals: Goals, imperial: Bool, currentKg: Double?, onSave: @escaping (Goals) async -> Bool) {
+        self.goals = goals
+        self.imperial = imperial
+        self.currentKg = currentKg
+        self.onSave = onSave
+        let toDisplay: (Double) -> Double = { imperial ? $0 / kgPerLb : $0 }
+        let savedRate = goals.targetRateKgPerWk
+        _direction = State(initialValue: savedRate < 0 ? "lose" : (savedRate > 0 ? "gain" : "maintain"))
+        _rateText = State(initialValue: savedRate == 0 ? "0.5" : fmtTrim(round2(abs(toDisplay(savedRate))), decimals: 2))
+        _goalWeightText = State(initialValue: goals.goalWeightKg.map { fmtTrim(round1(toDisplay($0)), decimals: 1) } ?? "")
+    }
+
+    private var unit: String { imperial ? "lb" : "kg" }
+    private func toDisplay(_ kg: Double) -> Double { imperial ? kg / kgPerLb : kg }
+    private func toKg(_ display: Double) -> Double { imperial ? display * kgPerLb : display }
+    private var ratePresets: [String] { imperial ? ["0.5", "1", "1.5", "2"] : ["0.25", "0.5", "0.75", "1"] }
+
+    private var rateKg: Double { toKg(abs(parseDecimal(rateText) ?? 0)) }
+    private var goalKg: Double? {
+        guard let w = parseDecimal(goalWeightText), w > 0 else { return nil }
+        return toKg(w)
+    }
+    private var mismatch: Bool {
+        guard let goalKg, let currentKg, direction != "maintain" else { return false }
+        return direction == "lose" ? goalKg > currentKg : goalKg < currentKg
+    }
+    private var aggressive: Bool { direction != "maintain" && rateKg > 1.1 } // above every preset chip
+
+    /// What the rate means: daily deficit/surplus, and roughly when the
+    /// goal lands. Mirrors GoalCard's `summary` memo.
+    private var summary: String? {
+        guard direction != "maintain", rateKg > 0 else { return nil }
+        let cal = abs(deficitForRate(rateKg))
+        var text = "≈ \(cal) cal/day \(direction == "lose" ? "deficit" : "surplus")"
+        if let goalKg, let currentKg, !mismatch, goalKg != currentKg {
+            let weeks = abs(goalKg - currentKg) / rateKg
+            let eta = Date().addingTimeInterval(weeks * 7 * 86_400)
+            let f = DateFormatter()
+            f.dateFormat = "MMMM yyyy"
+            f.locale = Locale(identifier: "en_US_POSIX")
+            text += " · \(goalWeightText) \(unit) around \(f.string(from: eta))"
+        }
+        return text
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
+            HStack(spacing: Theme.Spacing.s) {
+                Image(systemName: "target").foregroundStyle(.black)
+                Text("Your goal").font(.system(size: 20, weight: .black)).foregroundStyle(.black)
+            }
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Direction").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
+                HStack(spacing: Theme.Spacing.s) {
+                    Chip(label: "Lose", selected: direction == "lose") { direction = "lose" }
+                    Chip(label: "Maintain", selected: direction == "maintain") { direction = "maintain" }
+                    Chip(label: "Gain", selected: direction == "gain") { direction = "gain" }
+                }
+            }
+            if direction != "maintain" {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Rate (\(unit)/week)").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
+                    HStack(spacing: Theme.Spacing.s) {
+                        ForEach(ratePresets, id: \.self) { p in
+                            Chip(label: p, selected: rateText == p) { rateText = p }
+                        }
+                    }
+                    TextField("", text: $rateText)
+                        .keyboardType(.decimalPad)
+                        .monospacedDigit()
+                        .padding(Theme.Spacing.s)
+                        .background(Color.white.opacity(0.6))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Goal weight (\(unit), optional)").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
+                TextField("Target to reach", text: $goalWeightText)
+                    .keyboardType(.decimalPad)
+                    .monospacedDigit()
+                    .padding(Theme.Spacing.s)
+                    .background(Color.white.opacity(0.6))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            if mismatch, let currentKg {
+                Text("That's \(direction == "lose" ? "above" : "below") your current weight (\(fmtTrim(round1(toDisplay(currentKg)), decimals: 1)) \(unit)) — check the direction.")
+                    .font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.destructiveFixed).monospacedDigit()
+            } else if let currentKg {
+                Text("Current weight: \(fmtTrim(round1(toDisplay(currentKg)), decimals: 1)) \(unit)")
+                    .font(.system(size: 12)).foregroundStyle(.black.opacity(0.6)).monospacedDigit()
+            }
+            if aggressive, let summary {
+                Text("\(summary) — that's a lot. Most guidance tops out around \(imperial ? "2 lb" : "1 kg") a week.")
+                    .font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.destructiveFixed).monospacedDigit()
+            } else if let summary {
+                Text(summary).font(.system(size: 12)).foregroundStyle(.black.opacity(0.6)).monospacedDigit()
+            }
+            SaveButton(label: "Save goal") {
+                let mag = abs(parseDecimal(rateText) ?? 0)
+                let displayVal = direction == "maintain" ? 0 : (direction == "lose" ? -mag : mag)
+                let w = parseDecimal(goalWeightText) ?? 0
+                var next = goals
+                next.targetRateKgPerWk = round2(toKg(displayVal))
+                next.goalWeightKg = (goalWeightText.trimmingCharacters(in: .whitespaces).isEmpty || !(w > 0)) ? nil : round2(toKg(w))
+                return await onSave(next)
+            }
+        }
+        .padding(Theme.Spacing.m)
+        .background(Theme.blockCream)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        // Unit flip: convert the drafts in place — no remount, no lost edits
+        // (DESIGN.md §4.3: "flipping converts in-progress card drafts in place").
+        .onChange(of: imperial) { _, new in
+            let factor = new ? 1 / kgPerLb : kgPerLb
+            if let r = parseDecimal(rateText), r > 0 { rateText = fmtTrim(round2(r * factor), decimals: 2) }
+            if let w = parseDecimal(goalWeightText), w > 0 { goalWeightText = fmtTrim(round1(w * factor), decimals: 1) }
+        }
+    }
+}
+
+// MARK: - Targets card
+
+/// Ports settings.tsx's `TargetsCard`: calories + macros editable as % or
+/// grams via segmented toggle, preset splits, live gram/cal readout, Save
+/// disabled unless valid; adaptive-goal banner when smart goal is on.
+private struct TargetsCard: View {
+    let goals: Goals
+    let adaptiveKcal: Int?
+    let onSave: (Goals) async -> Bool
+
+    @State private var caloriesText: String
+    @State private var mode: String // "pct" or "g"
+    @State private var proteinPctText: String
+    @State private var carbsPctText: String
+    @State private var fatPctText: String
+    @State private var proteinGText: String
+    @State private var carbsGText: String
+    @State private var fatGText: String
+
+    init(goals: Goals, adaptiveKcal: Int?, onSave: @escaping (Goals) async -> Bool) {
+        self.goals = goals
+        self.adaptiveKcal = adaptiveKcal
+        self.onSave = onSave
+        let saved = macroPercents(calories: goals.dailyCalories, grams: .init(
+            proteinG: goals.dailyProteinG, carbsG: goals.dailyCarbsG, fatG: goals.dailyFatG))
+        _caloriesText = State(initialValue: String(goals.dailyCalories))
+        _mode = State(initialValue: "pct")
+        _proteinPctText = State(initialValue: String(saved.proteinPct))
+        _carbsPctText = State(initialValue: String(saved.carbsPct))
+        _fatPctText = State(initialValue: String(saved.fatPct))
+        _proteinGText = State(initialValue: String(goals.dailyProteinG))
+        _carbsGText = State(initialValue: String(goals.dailyCarbsG))
+        _fatGText = State(initialValue: String(goals.dailyFatG))
+    }
+
+    private var cal: Int { Int((Double(caloriesText) ?? 0).rounded()) }
+    private var pctNums: MacroPercents {
+        .init(proteinPct: Int(Double(proteinPctText) ?? 0),
+              carbsPct: Int(Double(carbsPctText) ?? 0),
+              fatPct: Int(Double(fatPctText) ?? 0))
+    }
+    private var gramNums: MacroGrams {
+        .init(proteinG: Int((Double(proteinGText) ?? 0).rounded()),
+              carbsG: Int((Double(carbsGText) ?? 0).rounded()),
+              fatG: Int((Double(fatGText) ?? 0).rounded()))
+    }
+    private var total: Int { pctNums.proteinPct + pctNums.carbsPct + pctNums.fatPct }
+    private var derived: MacroGrams { mode == "pct" ? gramsFromPercents(calories: cal, pcts: pctNums) : gramNums }
+    private var macroCal: Int { gramNums.proteinG * 4 + gramNums.carbsG * 4 + gramNums.fatG * 9 }
+    private var valid: Bool { cal >= 500 && (mode == "g" || total == 100) }
+    private var activePresetLabel: String {
+        macroPresets.first {
+            $0.proteinPct == pctNums.proteinPct && $0.carbsPct == pctNums.carbsPct && $0.fatPct == pctNums.fatPct
+        }?.label ?? ""
+    }
+
+    private func switchMode(_ next: String) {
+        guard next != mode else { return }
+        if next == "g" {
+            let g = gramsFromPercents(calories: cal, pcts: pctNums)
+            proteinGText = String(g.proteinG); carbsGText = String(g.carbsG); fatGText = String(g.fatG)
+        } else {
+            let p = macroPercents(calories: cal, grams: gramNums)
+            proteinPctText = String(p.proteinPct); carbsPctText = String(p.carbsPct); fatPctText = String(p.fatPct)
+        }
+        mode = next
+    }
+
+    private var validationText: String {
+        if cal < 500 { return "Calories must be at least 500." }
+        if mode == "pct", total != 100 { return "Percentages add up to \(total)% — they need to total 100%." }
+        if mode == "pct" { return "= \(derived.proteinG)g protein · \(derived.carbsG)g carbs · \(derived.fatG)g fat" }
+        let extra = abs(macroCal - cal) > 100 ? " — your calorie target is \(cal)" : ""
+        return "Macros add up to ~\(macroCal) cal\(extra)"
+    }
+
+    private var adaptiveBannerText: String {
+        if let kcal = adaptiveKcal {
+            return "Currently \(kcal) cal/day, recalculated every Monday — the numbers below are the fallback."
+        }
+        return "It's still collecting data, so the target below applies for now."
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
+            Text("Daily targets").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+            if goals.adaptiveGoal {
+                adaptiveBanner
+            }
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Calories (cal)").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                TextField("", text: $caloriesText)
+                    .keyboardType(.numberPad)
+                    .monospacedDigit()
+                    .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            HStack {
+                Text("Macros").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
+                Spacer()
+                // Wrapped in an explicit closure, not passed as a bare `set: switchMode`
+                // method reference — the latter crashes swift-frontend's IR generation on
+                // this exact Picker/Binding(get:set:) combination (Swift 6.3.3, reproduced
+                // and confirmed by isolating this one line; verified by build-log stack
+                // trace pointing at IRGenRequest for this file). Keep this closure form.
+                Picker("Mode", selection: Binding(get: { mode }, set: { switchMode($0) })) {
+                    Text("%").tag("pct")
+                    Text("grams").tag("g")
+                }
+                .pickerStyle(.segmented).frame(width: 140)
+            }
+            if mode == "pct" {
+                HStack(spacing: Theme.Spacing.s) {
+                    ForEach(macroPresets, id: \.label) { p in
+                        Chip(label: p.label, selected: activePresetLabel == p.label) {
+                            proteinPctText = String(p.proteinPct)
+                            carbsPctText = String(p.carbsPct)
+                            fatPctText = String(p.fatPct)
+                        }
+                    }
+                }
+                HStack(spacing: Theme.Spacing.cluster) {
+                    macroField("Protein %", $proteinPctText)
+                    macroField("Carbs %", $carbsPctText)
+                    macroField("Fat %", $fatPctText)
+                }
+            } else {
+                HStack(spacing: Theme.Spacing.cluster) {
+                    macroField("Protein g", $proteinGText)
+                    macroField("Carbs g", $carbsGText)
+                    macroField("Fat g", $fatGText)
+                }
+            }
+            Text(validationText)
+                .font(Theme.Typography.caption11)
+                .foregroundStyle(valid ? Theme.mutedForeground : Theme.destructive)
+                .monospacedDigit()
+            SaveButton(label: "Save targets", disabled: !valid) {
+                var next = goals
+                next.dailyCalories = cal
+                next.dailyProteinG = derived.proteinG
+                next.dailyCarbsG = derived.carbsG
+                next.dailyFatG = derived.fatG
+                return await onSave(next)
+            }
+        }
+        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    private var adaptiveBanner: some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.cluster) {
+            Image(systemName: "bolt.fill").foregroundStyle(Theme.foreground)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Smart goal is managing calories").font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.foreground)
+                Text(adaptiveBannerText).font(.system(size: 14)).foregroundStyle(Theme.mutedForeground).monospacedDigit()
+            }
+        }
+        .padding(Theme.Spacing.m)
+        .background(Theme.card)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func macroField(_ label: String, _ text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text(label).font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+            TextField("", text: text)
+                .keyboardType(.numberPad)
+                .monospacedDigit()
+                .multilineTextAlignment(.center)
+                .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
