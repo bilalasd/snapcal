@@ -14,7 +14,7 @@ enum Disk {
     static func write<T: Encodable>(_ value: T, to filename: String) {
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(filename)
         guard let data = try? JSONEncoder().encode(value) else { return }
-        try? data.write(to: url)
+        try? data.write(to: url, options: .atomic)
     }
 }
 

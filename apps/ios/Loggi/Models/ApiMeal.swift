@@ -40,6 +40,8 @@ func localDateString(_ date: Date = Date()) -> String {
     let f = DateFormatter()
     f.dateFormat = "yyyy-MM-dd"
     f.timeZone = .current
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.calendar = Calendar(identifier: .gregorian)
     return f.string(from: date)
 }
 
