@@ -313,7 +313,7 @@ struct SettingsView: View {
             sex = goals.sex
             ageText = goals.age.map(String.init) ?? ""
             activity = goals.activityLevel
-            heightCmText = goals.heightCm.map { String(Int($0)) } ?? ""
+            heightCmText = goals.heightCm.map { String(Int($0.rounded())) } ?? ""
         }
     }
 }
