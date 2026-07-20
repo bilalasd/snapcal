@@ -1,6 +1,6 @@
 # Loggi native Swift rewrite — migration design
 
-Date: 2026-07-19 · Branch: `swift-rewrite` · Status: awaiting approval
+Date: 2026-07-19 · Branch: `swift-rewrite` · Status: **APPROVED 2026-07-20** (backend explicitly unchanged per Muhammad)
 
 ## Why (decision context)
 
@@ -38,7 +38,7 @@ The backend does not change at all.
 | iOS floor | **17.0** (up from 16.4) | Swift Charts maturity, `@Observable`, `DataScannerViewController` stability; your device fleet is fine |
 | Project generation | **XcodeGen** (`project.yml`) | pbxproj merges are agent-hostile; generated projects keep diffs reviewable |
 | Repo layout | new `apps/ios/` beside `apps/mobile` | Both apps coexist until retirement |
-| Auth | Clerk iOS SDK (native) | Same Clerk instance/users; if the SDK fights us, fallback is a thin token client against Clerk's REST FAPI |
+| Auth | Clerk iOS SDK (native, 1.3.x — researched 2026-07-20: mature, biweekly releases, prebuilt SwiftUI views, Apple/Google/passkeys) | Same Clerk instance/users, zero API changes. Exit strategy if Clerk ever bites: Sign in with Apple only + own sessions (documented in research, requires API auth rewrite — post-parity project) |
 | Networking | URLSession + async/await + Codable | Zero dependencies; mirrors `@loggi/shared` types |
 | Persistence (cache/queue) | SQLite via GRDB — or plain files if the queue stays simple | Match existing stale-while-revalidate + offline-queue semantics |
 | Charts | Swift Charts | Replaces the hand-rolled RN charts |
@@ -109,8 +109,9 @@ App Intents/Shortcuts · Apple Health · evening reminder · barcode lookup ·
 
 ## Risks and mitigations
 
-- **Clerk iOS SDK maturity** — de-risked in Phase 1 before anything else;
-  fallback documented above.
+- **Clerk iOS SDK maturity** — largely retired by 2026-07-20 research (SDK is
+  1.3.x, actively maintained); Phase 1 still integrates auth first as the one
+  third-party dependency.
 - **Rewrite stalls before parity** — RN app remains shippable from `main`
   at all times; phases are ordered so each is independently demoable, and
   Phase 2 alone is a usable daily driver.
