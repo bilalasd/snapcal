@@ -21,3 +21,6 @@ node_modules
 
 # Session tooling scratch (holds ports/tokens)
 .superpowers/
+
+# XcodeGen generated project
+apps/ios/Loggi.xcodeproj
