@@ -21,6 +21,9 @@ targets:
         CFBundleDisplayName: Loggi
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        CFBundleURLTypes:
+          - CFBundleURLName: com.loggi.app
+            CFBundleURLSchemes: [loggi]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app
