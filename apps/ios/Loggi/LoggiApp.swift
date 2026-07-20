@@ -1,3 +1,4 @@
+import ClerkKit
 import SwiftUI
 
 @main
@@ -5,6 +6,7 @@ struct LoggiApp: App {
     @State private var route: Route = LoggiApp.initialRoute()
 
     init() {
+        Clerk.configure(publishableKey: Config.clerkPublishableKey)
         #if DEBUG
         RouteTests.runAssertions()
         #endif
@@ -29,6 +31,7 @@ struct LoggiApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(route: $route)
+                .environment(Clerk.shared)
                 .onOpenURL { url in
                     if let r = Route.parse(url) {
                         route = r

@@ -1,4 +1,8 @@
 name: Loggi
+packages:
+  Clerk:
+    url: https://github.com/clerk/clerk-ios
+    from: 1.0.0
 options:
   bundleIdPrefix: com.loggi
   deploymentTarget:
@@ -38,6 +42,10 @@ targets:
         embed: true
       - target: LoggiIntents
         embed: true
+      - package: Clerk
+        product: ClerkKit
+      - package: Clerk
+        product: ClerkKitUI
 
   LoggiWidgets:
     type: app-extension
