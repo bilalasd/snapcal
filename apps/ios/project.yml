@@ -57,7 +57,7 @@ targets:
           - group.com.loggi.app
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.LoggiWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.widget
         TARGETED_DEVICE_FAMILY: "1"
 
   LoggiIntents:
@@ -73,7 +73,7 @@ targets:
           EXExtensionPointIdentifier: com.apple.appintents-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.LoggiIntents
+        PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.appintents
         TARGETED_DEVICE_FAMILY: "1"
         # AppIntents' `title`/`description`/`openAppWhenRun` static properties
         # aren't Sendable-annotated in this SDK; Swift 6 strict concurrency
