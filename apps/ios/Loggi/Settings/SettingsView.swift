@@ -109,6 +109,7 @@ struct SettingsView: View {
                     TargetsCard(goals: goals, adaptiveKcal: vm.adaptiveKcal, onSave: vm.save)
                     smartGoalCard(goals)
                     unitsCard(goals)
+                    profileSection(goals)
                 } else if vm.loadError {
                     retryState
                 } else {
@@ -198,6 +199,122 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
         }
         .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    // MARK: - Profile section
+
+    @State private var sex: Sex?
+    @State private var ageText = ""
+    @State private var activity: ActivityLevel?
+    @State private var heightCmText = ""
+
+    /// Ports settings.tsx's `ProfileSection`: sex/age/height/activity-level
+    /// inputs feeding a live Mifflin-St Jeor BMR/TDEE readout (Bmr.swift,
+    /// Task 6). Deliberate, disclosed scope reduction vs RN (task-7-report.md):
+    /// RN shows dual ft/in fields when `imperial` and converts them in place;
+    /// this port keeps a single cm field always, since `height_cm` is the only
+    /// value actually stored and Phase 2's bar is daily-use parity, not
+    /// pixel-perfect form parity — the field label calls this out to imperial
+    /// users instead of silently reinterpreting their input as feet/inches.
+    private func profileSection(_ goals: Goals) -> some View {
+        let imperial = goals.unitSystem == .imperial
+        let cm = Double(heightCmText) ?? 0
+        let age = Int(ageText) ?? 0
+        let burn: Double? = {
+            guard let sex, age > 0, cm > 0, let activity, let currentKg = vm.currentKg else { return nil }
+            return estimatedTdee(bmr: bmrMifflinStJeor(sex: sex, weightKg: currentKg, heightCm: cm, age: age), activity: activity)
+        }()
+        // Ported from settings.tsx's `warn` — the ft/in-overflow branch is
+        // dropped along with the ft/in fields themselves (see doc comment
+        // above); age/height sanity ranges are kept since they're cheap and
+        // "port not redesign" is binding. `Theme.destructive` (dynamic), not
+        // `destructiveFixed` — this card sits on `Theme.card`, not a pastel
+        // block, so it must invert with the system theme like every other
+        // warning in this file (GoalCard's fixed-ink warnings are the
+        // pastel-only exception, not the default).
+        let warn: String? = {
+            if age > 0, age < 13 || age > 100 { return "Double-check the age — Loggi expects 13–100." }
+            if cm > 0, cm < 90 || cm > 250 { return "Double-check the height — that's outside the human range." }
+            return nil
+        }()
+
+        return VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
+            HStack(spacing: Theme.Spacing.s) {
+                Image(systemName: "person").foregroundStyle(Theme.foreground)
+                Text("Your profile").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+            }
+            Text("Used to estimate how many calories you burn.").font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground)
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Sex").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                Picker("Sex", selection: $sex) {
+                    Text("Male").tag(Sex?.some(.male))
+                    Text("Female").tag(Sex?.some(.female))
+                }.pickerStyle(.segmented)
+            }
+
+            HStack(spacing: Theme.Spacing.cluster) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Age").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                    TextField("", text: $ageText).keyboardType(.numberPad).monospacedDigit()
+                        .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text(imperial ? "Height (cm — imperial not yet supported)" : "Height (cm)")
+                        .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                    TextField("", text: $heightCmText).keyboardType(.numberPad).monospacedDigit()
+                        .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Activity level").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                    ForEach(activityLevels, id: \.value) { level in
+                        Button {
+                            activity = level.value
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(level.label).font(.system(size: 14, weight: .bold))
+                                Text(level.description).font(Theme.Typography.caption11).opacity(0.7)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(Theme.Spacing.s)
+                        }
+                        .foregroundStyle(activity == level.value ? Theme.primaryText : Theme.foreground)
+                        .background(activity == level.value ? Theme.primaryFill : Theme.card)
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(activity == level.value ? Color.clear : Theme.hairline, lineWidth: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                }
+            }
+
+            if let warn {
+                Text(warn).font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.destructive).monospacedDigit()
+            } else if let burn {
+                Text("Estimated burn: ~\(Int(burn)) cal/day at your current weight.")
+                    .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground).monospacedDigit()
+            } else {
+                Text("Fill everything in\(vm.currentKg == nil ? " and log a weigh-in" : "") to see your estimated daily burn.")
+                    .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+            }
+
+            SaveButton(label: "Save profile") {
+                var next = goals
+                next.sex = sex
+                next.age = age > 0 ? age : nil
+                next.heightCm = cm > 0 ? cm : nil
+                next.activityLevel = activity
+                return await vm.save(next)
+            }
+        }
+        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .onAppear {
+            sex = goals.sex
+            ageText = goals.age.map(String.init) ?? ""
+            activity = goals.activityLevel
+            heightCmText = goals.heightCm.map { String(Int($0)) } ?? ""
+        }
     }
 }
 
