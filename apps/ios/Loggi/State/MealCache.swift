@@ -165,6 +165,7 @@ final class MealCache {
         trends = nil
         goalHistory = [:]
         goalHistoryHydrated = false
+        Disk.write(goalHistory, to: goalHistoryFile)
         persist()
     }
 
