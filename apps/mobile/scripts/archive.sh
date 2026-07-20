@@ -12,6 +12,19 @@ set -a
 source .env.production
 set +a
 
+# Stamp the version/build from app.json into the generated ios/ project —
+# prebuild is not part of this pipeline, so the pbxproj/Info.plist values are
+# stale otherwise and App Store Connect would reject reused build numbers.
+VERSION=$(python3 -c "import json; print(json.load(open('app.json'))['expo']['version'])")
+BUILD=$(python3 -c "import json; print(json.load(open('app.json'))['expo']['ios']['buildNumber'])")
+(cd ios && xcrun agvtool new-marketing-version "$VERSION" >/dev/null && xcrun agvtool new-version -all "$BUILD" >/dev/null)
+
+# The bump must have happened: HEAD carries the tag for exactly this pair.
+if ! git describe --tags --exact-match HEAD 2>/dev/null | grep -qx "v${VERSION}-${BUILD}"; then
+  echo "BLOCKED: HEAD is not tagged v${VERSION}-${BUILD} — run scripts/bump-build.sh first." >&2
+  exit 1
+fi
+
 if [[ "${1:-}" == "--production" && "$EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY" != pk_live* ]]; then
   echo "BLOCKED: .env.production still has a pk_test Clerk key — production builds need pk_live." >&2
   exit 1

@@ -7,7 +7,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 NEW_VERSION="${2:-}"
-[[ "${1:-}" == "--version" && -z "$NEW_VERSION" ]] && { echo "usage: bump-build.sh [--version X.Y.Z]" >&2; exit 1; }
+if [[ -n "${1:-}" ]]; then
+  [[ "$1" == "--version" && -n "$NEW_VERSION" ]] || { echo "usage: bump-build.sh [--version X.Y.Z]" >&2; exit 1; }
+fi
 
 read -r VERSION BUILD < <(python3 - "$NEW_VERSION" <<'EOF'
 import json, sys

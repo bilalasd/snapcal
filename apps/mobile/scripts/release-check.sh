@@ -40,11 +40,14 @@ if [ "$CURRENT" -gt "$BASELINE" ]; then
   flag "hardcoded hex inks grew: $CURRENT > baseline $BASELINE (audit new ones, then regenerate scripts/ink-baseline.txt)"
 fi
 
-# 5. Build number must be ahead of the last release tag.
+# 5. Build number regression check. Gates run BEFORE bump-build.sh, so equality
+#    with the last release tag is the normal pre-bump state; only a build number
+#    BEHIND the last tag is an error. (archive.sh separately enforces that the
+#    bump happened by requiring HEAD to carry the matching tag.)
 BUILD=$(python3 -c "import json; print(json.load(open('app.json'))['expo']['ios']['buildNumber'])")
-LAST_TAG_BUILD=$(git tag -l 'v*' | sed 's/.*-//' | sort -n | tail -1)
-if [ -n "$LAST_TAG_BUILD" ] && [ "$BUILD" -le "$LAST_TAG_BUILD" ]; then
-  flag "buildNumber $BUILD not bumped past last tag's build $LAST_TAG_BUILD (run scripts/bump-build.sh)"
+LAST_TAG_BUILD=$(git tag -l 'v*' | grep -E '^v.*-[0-9]+$' | sed 's/.*-//' | sort -n | tail -1)
+if [ -n "$LAST_TAG_BUILD" ] && [ "$BUILD" -lt "$LAST_TAG_BUILD" ]; then
+  flag "buildNumber $BUILD is behind the last release tag's build $LAST_TAG_BUILD"
 fi
 
 # 6. CHANGELOG has content under [Unreleased] or a section for the current version.
@@ -58,6 +61,16 @@ if [ "${1:-}" = "--production" ]; then
   if grep -rn "pk_test" .env.production eas.json 2>/dev/null; then
     flag "pk_test key in release config (need pk_live)"
   fi
+fi
+
+# 8. Generated-project traps (spec-mandated): deployment target floor and
+#    bacons patches (they revert on every yarn install).
+if ! grep -q '"ios.deploymentTarget": "16.4"' ios/Podfile.properties.json 2>/dev/null; then
+  flag 'ios/Podfile.properties.json missing "ios.deploymentTarget": "16.4" (prebuild drops it; speech pod silently unlinks)'
+fi
+BACONS=$(ls -d node_modules/@bacons/apple-targets 2>/dev/null || ls -d ../../node_modules/@bacons/apple-targets 2>/dev/null || true)
+if [ -z "$BACONS" ] || ! grep -q ponytail "$BACONS/build/target.js" 2>/dev/null; then
+  flag "bacons patches not applied — run scripts/repatch-bacons.py (they revert on yarn install)"
 fi
 
 [ $FAIL -eq 0 ] && echo "release-check: all gates passed"
