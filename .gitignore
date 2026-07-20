@@ -24,3 +24,4 @@ node_modules
 
 # XcodeGen generated project
 apps/ios/Loggi.xcodeproj
+apps/ios/build/
