@@ -1,4 +1,5 @@
 import SwiftUI
+import ClerkKit
 
 private let kgPerLb = 0.453592
 
@@ -94,6 +95,7 @@ final class SettingsViewModel {
 /// Task 4/5 reports) rather than a new decision made here.
 struct SettingsView: View {
     @State private var vm = SettingsViewModel()
+    @Environment(Clerk.self) private var clerk
 
     private var imperial: Bool { vm.goals?.unitSystem == .imperial }
 
@@ -110,6 +112,7 @@ struct SettingsView: View {
                     smartGoalCard(goals)
                     unitsCard(goals)
                     profileSection(goals)
+                    dataAndAccountCard()
                 } else if vm.loadError {
                     retryState
                 } else {
@@ -163,6 +166,7 @@ struct SettingsView: View {
                     get: { goals.adaptiveGoal },
                     set: { v in var next = goals; next.adaptiveGoal = v; Task { await vm.save(next) } }))
                     .labelsHidden()
+                    .tint(Theme.foreground)
                     .accessibilityLabel("Smart calorie goal")
             }
             Text("Recalculates your daily calories every Monday from your weight trend — your measured burn rate minus what your target rate needs. Falls back to the manual target above until there's enough logging history.")
@@ -314,6 +318,187 @@ struct SettingsView: View {
             ageText = goals.age.map(String.init) ?? ""
             activity = goals.activityLevel
             heightCmText = goals.heightCm.map { String(Int($0.rounded())) } ?? ""
+        }
+    }
+
+    // MARK: - Data + account
+
+    @State private var exportedJSONURL: URL?
+    @State private var exportedCSVURL: URL?
+    @State private var exporting = false
+    @State private var deleteConfirmText = ""
+    @State private var showDeleteConfirm = false
+    @State private var deleteFailed = false
+
+    private struct AccountExport: Decodable {
+        let meals: [ApiMeal]
+    }
+
+    /// Ports settings.tsx's `exportData`: both shapes built client-side from
+    /// a single `GET /api/account` (`{ meals: [...] }}`) — JSON is the raw
+    /// meals array pretty-printed, CSV flattens to one row per meal item.
+    /// RN shares one `exporting` flag across both buttons (not per-button);
+    /// kept identical here rather than "fixing" it into two flags.
+    private func exportData(csv: Bool) async {
+        exporting = true
+        defer { exporting = false }
+        do {
+            let data: AccountExport = try await APIClient.shared.get("/api/account")
+            let body: String
+            let filename: String
+            if csv {
+                var rows = ["date,time,meal,item,portion,calories,protein_g,carbs_g,fat_g,planned,source"]
+                for meal in data.meals.sorted(by: { $0.eatenAt < $1.eatenAt }) {
+                    guard let eaten = parseAPIDate(meal.eatenAt) else { continue }
+                    let date = localDateString(eaten)
+                    let comps = Calendar.current.dateComponents([.hour, .minute], from: eaten)
+                    let time = String(format: "%02d:%02d", comps.hour ?? 0, comps.minute ?? 0)
+                    for item in meal.items {
+                        rows.append([date, time, meal.name, item.name, item.portion, String(item.calories),
+                                     item.proteinG, item.carbsG, item.fatG, String(meal.planned), meal.source]
+                            .joined(separator: ","))
+                    }
+                }
+                body = rows.joined(separator: "\r\n") + "\r\n"
+                filename = "loggi-meals-\(localDateString()).csv"
+            } else {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = .prettyPrinted
+                body = String(data: try encoder.encode(data.meals), encoding: .utf8) ?? "[]"
+                filename = "loggi-export-\(localDateString()).json"
+            }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            try body.write(to: url, atomically: true, encoding: .utf8)
+            if csv { exportedCSVURL = url } else { exportedJSONURL = url }
+        } catch {
+            // Export failure: no file is produced, so the ShareLink below
+            // simply has nothing to share yet — matches RN's silent-retry
+            // affordance (tap the button again) rather than surfacing an alert.
+        }
+    }
+
+    /// Ports settings.tsx's "Your data" card (DESIGN.md §4.3: "dated JSON
+    /// export + meals CSV ... log-out confirm, type-DELETE two-step account
+    /// deletion. Danger actions visually separated."). Account deletion here
+    /// mirrors RN exactly: `DELETE /api/account` (server wipes meals/weights/
+    /// goals/profile) then `clerk.auth.signOut()` — no client-side
+    /// `Clerk.shared.user?.delete()` call, matching RN's `confirmDeleteAccount`
+    /// (settings.tsx) which never touches the Clerk SDK for deletion, only
+    /// the backend route + signOut(). (`User.delete()` was verified to exist
+    /// in the resolved SDK source — clerk-ios Domains/User/User.swift, bottom
+    /// of file, `@discardableResult @MainActor public func delete() async
+    /// throws -> DeletedObject` — in case a future task wants full Clerk
+    /// identity deletion; deliberately not invoked here to stay at RN parity.)
+    private func dataAndAccountCard() -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
+            HStack(spacing: Theme.Spacing.s) {
+                Image(systemName: "shield").foregroundStyle(Theme.foreground)
+                Text("Your data").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Signed in as").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
+                Text(clerk.user?.primaryEmailAddress?.emailAddress ?? "—")
+                    .font(Theme.Typography.body16).foregroundStyle(Theme.foreground)
+            }
+            Text("Everything you log belongs to you — take a full copy anytime, or erase it all for good.")
+                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground)
+
+            HStack(spacing: Theme.Spacing.s) {
+                Button {
+                    Task { await exportData(csv: false) }
+                } label: {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        if exporting {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "square.and.arrow.down")
+                            Text("Export all (JSON)").font(.system(size: 14, weight: .bold)).lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .tint(Theme.foreground)
+                .disabled(exporting)
+
+                Button {
+                    Task { await exportData(csv: true) }
+                } label: {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        if exporting {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "tablecells")
+                            Text("Meals CSV").font(.system(size: 14, weight: .bold)).lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .tint(Theme.foreground)
+                .disabled(exporting)
+            }
+
+            if let url = exportedJSONURL {
+                ShareLink(item: url) {
+                    Label("Share JSON export", systemImage: "square.and.arrow.up")
+                }
+                .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+            }
+            if let url = exportedCSVURL {
+                ShareLink(item: url) {
+                    Label("Share CSV export", systemImage: "square.and.arrow.up")
+                }
+                .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+            }
+
+            // Danger actions visually separated (DESIGN.md §4.3).
+            Divider().overlay(Theme.hairline)
+
+            Button {
+                Task { try? await clerk.auth.signOut() }
+            } label: {
+                HStack(spacing: Theme.Spacing.xs) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Text("Log out").font(.system(size: 14, weight: .bold))
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.bordered)
+            .tint(Theme.foreground)
+
+            Button(role: .destructive) {
+                deleteFailed = false
+                showDeleteConfirm = true
+            } label: {
+                Text("Delete account")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Theme.destructive)
+                    .frame(maxWidth: .infinity)
+            }
+            if deleteFailed {
+                Text("Couldn't delete — try again.").font(Theme.Typography.caption11).foregroundStyle(Theme.destructive)
+            }
+        }
+        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .alert("Delete account?", isPresented: $showDeleteConfirm) {
+            TextField("Type DELETE to confirm", text: $deleteConfirmText)
+            Button("Cancel", role: .cancel) { deleteConfirmText = "" }
+            Button("Delete forever", role: .destructive) {
+                let confirmed = deleteConfirmText.trimmingCharacters(in: .whitespaces).uppercased() == "DELETE"
+                deleteConfirmText = ""
+                guard confirmed else { return }
+                Task {
+                    do {
+                        try await APIClient.shared.delete("/api/account")
+                        try? await clerk.auth.signOut()
+                    } catch {
+                        deleteFailed = true
+                    }
+                }
+            }
+        } message: {
+            Text("This permanently erases your meals, weights, goals, and profile. It cannot be undone.")
         }
     }
 }
