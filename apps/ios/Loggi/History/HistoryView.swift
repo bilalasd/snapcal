@@ -12,7 +12,11 @@ final class HistoryViewModel {
     var range: Int = 7
     var expandedDate: String?
     var failed = false
-    let today = localDateString()
+    // Re-derived on every successful load (mirrors history.tsx's
+    // `setToday(localDateString(now))` in its load() success path), not
+    // cached once at init — a view model that stays alive across a local
+    // midnight boundary must not keep grading "today" against yesterday.
+    var today = localDateString()
 
     func load(force: Bool = false) async {
         if let cached = MealCache.shared.historyRange { meals = cached }
@@ -25,6 +29,7 @@ final class HistoryViewModel {
                 "to": ISO8601DateFormatter().string(from: now),
             ])
             meals = MealCache.shared.reconcileRange(rows)
+            today = localDateString(now)
             failed = false
         } catch {
             failed = true
