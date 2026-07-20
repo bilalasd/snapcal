@@ -33,6 +33,24 @@ struct ApiMeal: Codable, Identifiable, Equatable {
     let createdAt: String
     let items: [ApiMealItem]
     let photos: [ApiMealPhoto]
+
+    // Verified against the live production API 2026-07-20: the deployed
+    // /api/meals response omits "planned" (older deploy, predates that
+    // field landing in apps/api/src) — decode it as false rather than
+    // failing the whole meal when the server hasn't caught up to the spec.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        eatenAt = try c.decode(String.self, forKey: .eatenAt)
+        name = try c.decode(String.self, forKey: .name)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+        isFavorite = try c.decode(Bool.self, forKey: .isFavorite)
+        source = try c.decode(String.self, forKey: .source)
+        planned = try c.decodeIfPresent(Bool.self, forKey: .planned) ?? false
+        createdAt = try c.decode(String.self, forKey: .createdAt)
+        items = try c.decode([ApiMealItem].self, forKey: .items)
+        photos = try c.decode([ApiMealPhoto].self, forKey: .photos)
+    }
 }
 
 /// Local calendar date as YYYY-MM-DD, matching lib/shared's localDateString().
