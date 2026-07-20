@@ -24,7 +24,59 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.loggi.app
             CFBundleURLSchemes: [loggi]
+    entitlements:
+      path: Loggi/Loggi.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.loggi.app
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app
         TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: LoggiWidgets
+        embed: true
+      - target: LoggiIntents
+        embed: true
+
+  LoggiWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [LoggiWidgets]
+    info:
+      path: LoggiWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: LoggiWidgets
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: LoggiWidgets/LoggiWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.loggi.app
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.LoggiWidgets
+        TARGETED_DEVICE_FAMILY: "1"
+
+  LoggiIntents:
+    type: extensionkit-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources: [LoggiIntents]
+    info:
+      path: LoggiIntents/Info.plist
+      properties:
+        CFBundleDisplayName: LoggiIntents
+        EXAppExtensionAttributes:
+          EXExtensionPointIdentifier: com.apple.appintents-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.LoggiIntents
+        TARGETED_DEVICE_FAMILY: "1"
+        # AppIntents' `title`/`description`/`openAppWhenRun` static properties
+        # aren't Sendable-annotated in this SDK; Swift 6 strict concurrency
+        # rejects them. Swift 5 mode restores the checking level the RN/bacons
+        # project actually compiled these files under. Ported code unchanged.
+        SWIFT_VERSION: "5.0"
