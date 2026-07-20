@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 NEW_VERSION="${2:-}"
 if [[ -n "${1:-}" ]]; then
-  [[ "$1" == "--version" && -n "$NEW_VERSION" ]] || { echo "usage: bump-build.sh [--version X.Y.Z]" >&2; exit 1; }
+  [[ "$1" == "--version" && "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "usage: bump-build.sh [--version X.Y.Z]" >&2; exit 1; }
 fi
 
 read -r VERSION BUILD < <(python3 - "$NEW_VERSION" <<'EOF'
