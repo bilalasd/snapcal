@@ -26,20 +26,22 @@ How it was done (monorepo notes, for redeploys):
   hit production (no local API tab needed). Change back to `http://localhost:3000`
   if you want to develop against a local API.
 
-## 3. Build with EAS (native build — local CocoaPods hangs on this Mac, so use EAS cloud)
+## 3. Build & release ✅ PROCESS EXISTS — see RELEASE.md
+
+Local Xcode builds are the path (verified 2026-07-19: `pod install` +
+`xcodebuild archive` succeed on this Mac — the old "local CocoaPods hangs"
+note is stale). The full beta/production runbook with versioning, release
+notes, and compliance gates lives in **RELEASE.md**. Quick reference:
 
 ```bash
 cd apps/mobile
-npx eas login             # your Expo account
-npx eas build:configure
-npx eas build --profile preview --platform ios     # internal test build (TestFlight-installable)
-# production:
-npx eas build --profile production --platform ios
-npx eas submit --profile production --platform ios  # needs an Apple Developer account ($99/yr)
+./scripts/release-check.sh   # gates
+./scripts/bump-build.sh      # version + tag
+./scripts/archive.sh         # build/Loggi.xcarchive (+ env verification)
+# then Xcode → Organizer → Distribute App
 ```
 
-Android is analogous with `--platform android` (needs a Google Play account for store submit;
-internal APKs need no account).
+EAS remains a fallback only (see RELEASE.md §fallback).
 
 ## 4. Before store submit (not needed for internal testing)
 
