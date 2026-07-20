@@ -334,19 +334,29 @@ struct SettingsView: View {
         let meals: [ApiMeal]
     }
 
+    /// Port of packages/shared/src/csv.ts's `csvField` (RFC 4180 quoting).
+    /// Meal and item names are free text — AI-generated from a photo — so an
+    /// unescaped comma in "Chicken, rice and beans" shifts every later column
+    /// in that row and silently corrupts the user's export.
+    private func csvField(_ v: String) -> String {
+        guard v.rangeOfCharacter(from: CharacterSet(charactersIn: "\",\n\r")) != nil else { return v }
+        return "\"\(v.replacingOccurrences(of: "\"", with: "\"\""))\""
+    }
+
     /// Ports settings.tsx's `exportData`: both shapes built client-side from
-    /// a single `GET /api/account` (`{ meals: [...] }}`) — JSON is the raw
-    /// meals array pretty-printed, CSV flattens to one row per meal item.
-    /// RN shares one `exporting` flag across both buttons (not per-button);
-    /// kept identical here rather than "fixing" it into two flags.
+    /// a single `GET /api/account`, JSON being the whole payload and CSV
+    /// flattening meals to one row per item. RN shares one `exporting` flag
+    /// across both buttons (not per-button); kept identical here rather than
+    /// "fixing" it into two flags.
     private func exportData(csv: Bool) async {
         exporting = true
         defer { exporting = false }
         do {
-            let data: AccountExport = try await APIClient.shared.get("/api/account")
+            let raw = try await APIClient.shared.getRaw("/api/account")
             let body: String
             let filename: String
             if csv {
+                let data = try JSONDecoder().decode(AccountExport.self, from: raw)
                 var rows = ["date,time,meal,item,portion,calories,protein_g,carbs_g,fat_g,planned,source"]
                 for meal in data.meals.sorted(by: { $0.eatenAt < $1.eatenAt }) {
                     guard let eaten = parseAPIDate(meal.eatenAt) else { continue }
@@ -356,15 +366,25 @@ struct SettingsView: View {
                     for item in meal.items {
                         rows.append([date, time, meal.name, item.name, item.portion, String(item.calories),
                                      item.proteinG, item.carbsG, item.fatG, String(meal.planned), meal.source]
+                            .map(csvField)
                             .joined(separator: ","))
                     }
                 }
                 body = rows.joined(separator: "\r\n") + "\r\n"
                 filename = "loggi-meals-\(localDateString()).csv"
             } else {
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = .prettyPrinted
-                body = String(data: try encoder.encode(data.meals), encoding: .utf8) ?? "[]"
+                // Re-serialize the SERVER's payload, not a typed subset: the
+                // route returns exported_at/goals/meals/weights/weekly_recaps,
+                // so encoding `AccountExport.meals` would ship a fifth of the
+                // account under a button that says "Export all" — and would
+                // keep silently dropping whatever the API adds next. Matches
+                // settings.tsx's JSON.stringify(data, null, 2). Keys are
+                // sorted (JSONSerialization won't preserve server order) so
+                // successive exports at least diff cleanly.
+                let object = try JSONSerialization.jsonObject(with: raw)
+                let pretty = try JSONSerialization.data(withJSONObject: object,
+                                                        options: [.prettyPrinted, .sortedKeys])
+                body = String(data: pretty, encoding: .utf8) ?? "{}"
                 filename = "loggi-export-\(localDateString()).json"
             }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)

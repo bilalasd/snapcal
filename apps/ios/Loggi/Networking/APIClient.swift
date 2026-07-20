@@ -65,6 +65,15 @@ struct APIClient {
         do { return try JSONDecoder().decode(T.self, from: data) } catch { throw APIError.decoding }
     }
 
+    /// Like get(), but hands back the undecoded body — the account export
+    /// re-serializes the server's payload verbatim, so a typed model can't
+    /// silently drop fields the API returns (or gains later).
+    func getRaw(_ path: String, query: [String: String] = [:]) async throws -> Data {
+        let request = try await makeRequest(path, method: "GET", query: query, body: nil)
+        let (data, _) = try await send(request)
+        return data
+    }
+
     func post<T: Decodable>(_ path: String, body: Encodable) async throws -> T {
         let bodyData = try JSONEncoder().encode(AnyEncodable(body))
         let request = try await makeRequest(path, method: "POST", query: [:], body: bodyData)
