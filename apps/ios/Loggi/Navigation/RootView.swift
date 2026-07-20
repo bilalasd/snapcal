@@ -32,6 +32,19 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(Theme.Spacing.l)
         .background(Theme.background)
+        // TEMPORARY (Task 4 placeholder): exercises APIClient's GET path once this
+        // view is reachable (i.e. once a session exists). Task 5 replaces this with
+        // the real cache-backed goals fetch. End-to-end reachability against the
+        // production API was verified separately (see task-4-report.md) since this
+        // view isn't mounted until AuthGate sees a signed-in user.
+        .task {
+            do {
+                let goals: Goals = try await APIClient.shared.get("/api/goals")
+                print("Fetched goals: \(goals)")
+            } catch {
+                print("Fetch failed: \(error)")
+            }
+        }
     }
 }
 
