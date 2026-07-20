@@ -20,6 +20,14 @@ All commands run from `apps/mobile` unless noted.
 - [ ] Public Privacy Policy + Terms of Use URLs; paywall links to both
       (App Store guideline 3.1.1 — REQUIRED before first submit).
 
+> ⚠️ **After ANY react-native / expo version change** (including `expo install
+> --fix`), do a poison-proof rebuild before trusting a Release binary:
+> `rm -rf ios/Pods ios/Podfile.lock ~/Library/Caches/CocoaPods
+> ~/Library/Developer/Xcode/DerivedData/Loggi-*` then `pod install`. Mixed
+> prebuilt React/Hermes artifacts from stale caches produce a
+> Release-only startup segfault (vtable mismatch — debugged 2026-07-19);
+> Debug builds mask it.
+
 ## Beta (TestFlight)
 
 1. **Notes first.** Write the release section in `CHANGELOG.md`
