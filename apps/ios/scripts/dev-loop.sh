@@ -57,6 +57,7 @@ xcrun simctl terminate "$UDID" com.loggi.app 2>/dev/null || true
 # Launch the app with optional -route argument.
 if [[ -n "$ROUTE" ]]; then
     echo "Launching with route: $ROUTE"
+    # -route avoids the untappable system "Open in Loggi?" dialog that simctl openurl triggers in the simulator
     xcrun simctl launch "$UDID" com.loggi.app -route "$ROUTE"
 else
     echo "Launching app..."

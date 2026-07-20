@@ -29,6 +29,8 @@ cd apps/ios
 - Dark mode: `xcrun simctl ui <udid> appearance dark` before running
   `dev-loop.sh`, then `… appearance light` to restore.
 
+**Why `-route` instead of `simctl openurl`:** Unlike the React Native app below, the Swift app uses a `-route` launch argument to navigate. The `simctl openurl loggi://…` command triggers an untappable system "Open in Loggi?" confirmation dialog in this simulator environment (confirmed during Phase 0 development; it occurs even on repeated opens, not just first-launch), which blocks headless/scripted navigation. The `dev-loop.sh` script uses `xcrun simctl launch <udid> com.loggi.app -route "<value>"` instead — a launch argument the app reads at startup (see `LoggiApp.initialRoute()`) to set the initial route directly, with no dialog and no need for the app to already be running.
+
 **Workflow:** take a single route by name, or loop all 9 routes:
 ```sh
 for r in history weight settings "add?intent=speak" ask-bevi menu-scout onboarding paywall sign-in; do
