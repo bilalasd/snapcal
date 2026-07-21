@@ -3,21 +3,32 @@ import SwiftUI
 /// The warm empty state (spec §2.1 "happy", §9.1). An empty day is the most
 /// common first impression, so it gets real presence rather than an apology.
 ///
-/// Uses SF Symbols rather than Bevi for now: Bevi's poses are PNG assets
-/// tuned to the OLD pastel grounds, and re-tuning them for the warm canvas is
-/// its own task. This is a deliberate, temporary substitution — the spec
-/// keeps Bevi as an identity carrier.
+/// Bevi appears here. The empty state is the screen that most needs warmth,
+/// and Bevi is one of the two identity carriers — an SF Symbol in this slot
+/// was the single biggest personality loss in the first pass. Poses live in
+/// the asset catalog from Phase 0 (bevi-camera/wave/celebrate/...).
 struct EmptyStateView: View {
     let title: String
     let message: String
+    /// Bevi pose asset name, e.g. "bevi-camera". Falls back to `systemImage`
+    /// when nil so non-Bevi empty states (errors, filtered lists) stay simple.
+    var bevi: String?
     var systemImage: String = "leaf"
 
     var body: some View {
         VStack(spacing: Theme2.Space.l) {
-            Image(systemName: systemImage)
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(Theme2.inkSecondary)
-                .accessibilityHidden(true)
+            if let bevi {
+                Image(bevi)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 132)
+                    .accessibilityHidden(true)
+            } else {
+                Image(systemName: systemImage)
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Theme2.inkSecondary)
+                    .accessibilityHidden(true)
+            }
             VStack(spacing: Theme2.Space.s) {
                 Text(title)
                     .font(Theme2.Text.title)
