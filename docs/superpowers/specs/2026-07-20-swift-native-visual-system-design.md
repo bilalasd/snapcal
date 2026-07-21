@@ -241,7 +241,7 @@ All rebuilt on native SwiftUI structure. The list is the gallery's contents.
 
 | Component | Native basis | Colour role |
 |---|---|---|
-| Hero progress | `Gauge` / Swift Charts | macro ramp + status |
+| Hero progress | trimmed `Circle` (`Gauge` can't do a clean arc) | status |
 | Macro bars | native progress primitives | macro ramp, label-adjacent |
 | Calorie / weight charts | Swift Charts + `.accessibilityChartDescriptor` | status for over/under, neutral otherwise |
 | Rows, cards | `List` / `Section`, warm raised surface (§3.0) | neutral |
