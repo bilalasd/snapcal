@@ -248,6 +248,7 @@ struct TodayView: View {
             async let s: () = vm.loadStreak()
             async let t: () = vm.loadTrends()
             _ = await (m, g, s, t)
+            WidgetBridge.publish()
         }
         .onChange(of: vm.date) { _, _ in Task { await vm.load() } }
         .onChange(of: dailyGoal) { _, newValue in

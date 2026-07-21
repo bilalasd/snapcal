@@ -90,6 +90,9 @@ enum MealLogger {
         let optimistic = optimisticMeal(name: name, items: cleaned, source: source,
                                         planned: planned, photos: photos, eatenAt: eatenAtString)
         MealCache.shared.addOptimisticMeal(optimistic)
+        // Keep the widget honest the moment the app's own UI updates —
+        // optimistically, for the same reason the meal list is.
+        WidgetBridge.publish()
 
         let body = SaveBody(name: name.isEmpty ? "Meal" : name, eaten_at: eatenAtString,
                             source: source, planned: planned, items: cleaned, photos: photos)
@@ -130,6 +133,7 @@ enum MealLogger {
     /// leaving the UI lying about what's saved.
     static func delete(_ meal: ApiMeal) {
         MealCache.shared.markDeleted(id: meal.id)
+        WidgetBridge.publish()
         Task {
             do {
                 try await APIClient.shared.delete("/api/meals/\(meal.id)")

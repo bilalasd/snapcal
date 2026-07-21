@@ -3,9 +3,14 @@ import WidgetKit
 import SwiftUI
 
 private let appGroup = "group.com.loggi.app"
-// Loggi design tokens — lime hero card with black ink (see DESIGN.md).
-private let lime = Color(red: 220 / 255, green: 238 / 255, blue: 177 / 255)
-private let over = Color(red: 217 / 255, green: 45 / 255, blue: 32 / 255)
+// Loggi design tokens, duplicated deliberately: the widget extension doesn't
+// link the app's Theme2, and these must stay in sync with it by hand.
+// Lime block + fixed near-black ink (the pastel never inverts), and the
+// light-mode over-target crimson — a widget can't resolve a dynamic colour
+// against the app's canvas, so the FIXED values are the correct choice here.
+private let lime = Color(red: 220 / 255, green: 238 / 255, blue: 177 / 255)   // Theme2.Block.lime
+private let over = Color(red: 165 / 255, green: 0 / 255, blue: 60 / 255)      // Theme2.statusOver (light)
+private let ink = Color(red: 26 / 255, green: 22 / 255, blue: 19 / 255)       // Theme2.blockInk
 private let track = Color.black.opacity(0.12)
 
 struct WidgetData: Codable {
