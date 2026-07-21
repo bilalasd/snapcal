@@ -13,15 +13,25 @@ struct AuthGate: View {
     /// is unreachable — and `GalleryView` itself doesn't exist outside DEBUG.
     private var isGalleryRoute: Bool {
         #if DEBUG
-        route == .gallery
+        if case .todayPreview = route { return true }
+        return route == .gallery
         #else
-        false
+        return false
         #endif
     }
 
     @ViewBuilder private var galleryContent: some View {
         #if DEBUG
-        GalleryView()
+        if case .todayPreview(let empty) = route {
+            // Seed as a body-level statement so the cache is warm BEFORE
+            // TodayView is constructed. A sibling .task races TodayView's own
+            // .task, whose load() overwrites the seed with an empty network
+            // result — that raced and produced a misleading empty screenshot.
+            let _ = TodayPreviewSeed.apply(empty: empty)
+            TodayView()
+        } else {
+            GalleryView()
+        }
         #else
         EmptyView()
         #endif

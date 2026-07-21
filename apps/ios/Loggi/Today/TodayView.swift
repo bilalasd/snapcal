@@ -127,6 +127,7 @@ final class TodayViewModel {
 /// logging mutation, out of scope for a read-surfaces task).
 struct TodayView: View {
     @State private var vm = TodayViewModel()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var totals: (calories: Double, protein: Double, carbs: Double, fat: Double) {
         (vm.meals ?? []).filter { !$0.planned }.reduce((0.0, 0.0, 0.0, 0.0)) { acc, meal in
@@ -146,6 +147,7 @@ struct TodayView: View {
         return Double(vm.goals?.dailyCalories ?? 0)
     }
     private var remaining: Double { (vm.goals == nil) ? 0 : dailyGoal - totals.calories - reserved }
+    private var isOver: Bool { remaining < 0 }
     private var onTarget: Int {
         guard let goals = vm.goals else { return 0 }
         return vm.daySums.filter { date, calories in
@@ -153,9 +155,20 @@ struct TodayView: View {
         }.count
     }
 
+    private static let figure: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+    /// Thousands separators on every figure — "1,950" not "1950". Tracked as a
+    /// systemic gap since Phase 2 Task 4; the rebuild is the place to fix it.
+    private func fmt(_ value: Double) -> String {
+        Self.figure.string(from: NSNumber(value: Int(value.rounded()))) ?? "\(Int(value))"
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+            VStack(alignment: .leading, spacing: Theme2.Space.l) {
                 header
                 dayNav
                 if vm.meals == nil || vm.goals == nil {
@@ -164,11 +177,10 @@ struct TodayView: View {
                     if vm.isToday, let recap = vm.trends?.recap {
                         MondayNoteCard(recap: recap, verdictStatus: vm.trends?.verdict.status ?? .collecting)
                     }
-                    // MilestoneCard slot: deliberately left as EmptyView() —
-                    // see MilestoneCard.swift's doc comment. Not a silent
-                    // omission, a documented deferral to Phase 3+.
-                    EmptyView()
+                    // MilestoneCard slot: deliberately left empty — see
+                    // MilestoneCard.swift. A documented deferral, not an omission.
                     heroCard
+                    macroCard
                     if vm.meals!.isEmpty {
                         emptyState
                     } else {
@@ -176,10 +188,19 @@ struct TodayView: View {
                     }
                 }
             }
-            .padding(Theme.Spacing.l)
+            .padding(Theme2.Space.l)
             .padding(.bottom, 96)
         }
-        .background(Theme.background)
+        .background(Theme2.canvas)
+        .refreshable {
+            // DESIGN.md mandates pull-to-refresh here; the Phase 2 port never
+            // had it. Native .refreshable is the whole implementation.
+            async let m: () = vm.load()
+            async let g: () = vm.loadGoals()
+            async let s: () = vm.loadStreak()
+            async let t: () = vm.loadTrends()
+            _ = await (m, g, s, t)
+        }
         .task {
             MealCache.shared.hydrate()
             SaveQueue.shared.hydrate()
@@ -197,32 +218,26 @@ struct TodayView: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text(vm.isToday ? "Today" : vm.date)
-                    .font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text(vm.isToday ? "TODAY" : vm.date.uppercased())
+                    .font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
                 Text(vm.isToday ? greeting() : vm.date)
-                    .font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
+                    .font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
             }
-            Spacer()
+            Spacer(minLength: Theme2.Space.m)
             if vm.isToday, let streak = vm.streak, streak > 0 {
-                VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
-                    // Labels ported from index.tsx's badges: "4/7" reads as
-                    // "four slash seven" to VoiceOver otherwise.
+                VStack(alignment: .trailing, spacing: Theme2.Space.xs) {
+                    // Streak keeps vermilion: logging IS its meaning, so this
+                    // is the accent's rule being honoured, not decoration.
                     Label("\(streak)/7", systemImage: "bolt.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(.horizontal, Theme.Spacing.s).padding(.vertical, 4)
-                        .background(Theme.accentLog).clipShape(Capsule())
-                        .foregroundStyle(.black)
+                        .font(Theme2.Text.caption)
+                        .padding(.horizontal, Theme2.Space.m).padding(.vertical, Theme2.Space.xs)
+                        .background(Theme2.accentLog, in: Capsule())
+                        .foregroundStyle(Theme2.blockInk)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(streak) of 7 days logged this week")
                     if onTarget > 0 {
-                        Label("\(onTarget) on target", systemImage: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .padding(.horizontal, Theme.Spacing.s).padding(.vertical, 4)
-                            .background(Theme.blockMint).clipShape(Capsule())
-                            .foregroundStyle(.black)
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(onTarget) days on target this week")
+                        StatusBadge(status: .onTarget, text: "\(onTarget) on target")
                     }
                 }
             }
@@ -231,115 +246,111 @@ struct TodayView: View {
 
     private var dayNav: some View {
         HStack {
-            // Icon-only buttons announce nothing without these — index.tsx
-            // carries the same two labels on its prev/next controls.
             Button(action: vm.goPrev) { Image(systemName: "chevron.left") }
                 .frame(width: 44, height: 44)
                 .accessibilityLabel("Previous day")
             Spacer()
             Text(vm.isToday ? "TODAY" : vm.date.uppercased())
-                .font(.system(size: 11, weight: .heavy)).foregroundStyle(Theme.mutedForeground)
+                .font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
             Spacer()
             Button(action: vm.goNext) { Image(systemName: "chevron.right") }
                 .frame(width: 44, height: 44)
                 .disabled(vm.isToday)
                 .accessibilityLabel("Next day")
         }
-        .overlay(Rectangle().fill(Theme.hairline).frame(height: 1), alignment: .top)
-        .padding(.top, Theme.Spacing.s)
+        .tint(Theme2.ink)
+        .overlay(Rectangle().fill(Theme2.hairline).frame(height: 1), alignment: .top)
+        .padding(.top, Theme2.Space.s)
     }
 
     private var skeleton: some View {
-        VStack(spacing: Theme.Spacing.m) {
-            Circle().fill(Theme.muted).frame(width: 208, height: 208)
-            RoundedRectangle(cornerRadius: 16).fill(Theme.muted).frame(height: 96)
+        VStack(spacing: Theme2.Space.m) {
+            RoundedRectangle(cornerRadius: Theme2.Radius.card, style: .continuous)
+                .fill(Theme2.hairline).frame(height: 180)
+            RoundedRectangle(cornerRadius: Theme2.Radius.card, style: .continuous)
+                .fill(Theme2.hairline).frame(height: 140)
         }
+        .accessibilityLabel("Loading today")
     }
 
+    /// Lime when on target, coral when over — both are pastel SURFACES, so the
+    /// swap is expressive rather than data-carrying, and the over/under meaning
+    /// is still carried by the "cal over" wording and the status badge.
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.m) {
+        PastelCard(tone: isOver ? .coral : .lime) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text(remaining >= 0 ? "Still available" : "Over target")
-                        .font(Theme.Typography.kicker12).foregroundStyle(.black.opacity(0.6))
-                    Text("\(Int(abs(remaining)))")
-                        .font(Theme.Typography.bigMetric60)
-                        .foregroundStyle(remaining < 0 ? Theme.destructive : .black)
-                    Text("cal \(remaining >= 0 ? "left" : "over")")
-                        .font(.system(size: 13, weight: .bold)).foregroundStyle(.black.opacity(0.6))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(Int(totals.calories)) of \(Int(dailyGoal)) eaten")
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(.black.opacity(0.6))
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(isOver ? "OVER TARGET" : "STILL AVAILABLE")
+                        .font(Theme2.Text.kicker)
+                        .foregroundStyle(Theme2.blockInkSecondary)
+                    Text(fmt(abs(remaining)))
+                        .font(Theme2.Text.display60)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                    Text(isOver ? "cal over" : "cal left")
+                        .font(Theme2.Text.label)
+                        .foregroundStyle(Theme2.blockInkSecondary)
+                    VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                        Text("\(fmt(totals.calories)) of \(fmt(dailyGoal)) eaten")
                         if reserved > 0 {
-                            Text("\(Int(reserved)) reserved for later")
-                                .font(.system(size: 12, weight: .semibold)).foregroundStyle(.black.opacity(0.6))
+                            Text("\(fmt(reserved)) reserved for later")
                         }
                     }
-                    .padding(.top, Theme.Spacing.s)
+                    .font(Theme2.Text.caption)
+                    .foregroundStyle(Theme2.blockInkSecondary)
+                    .padding(.top, Theme2.Space.s)
                 }
-                Spacer()
-                ProgressRing(value: totals.calories, max: dailyGoal, label: "\(dailyGoal > 0 ? Int(min(totals.calories / dailyGoal * 100, 999)) : 0)%", sublabel: "logged")
+                Spacer(minLength: Theme2.Space.s)
             }
-            VStack(spacing: Theme.Spacing.cluster) {
-                macroRow("Protein", totals.protein, Double(vm.goals?.dailyProteinG ?? 0), Color.black)
-                macroRow("Carbs", totals.carbs, Double(vm.goals?.dailyCarbsG ?? 0), Color.black.opacity(0.7))
-                macroRow("Fat", totals.fat, Double(vm.goals?.dailyFatG ?? 0), Color.black.opacity(0.5))
-            }
-            .padding(.top, Theme.Spacing.m)
-            .overlay(Rectangle().fill(Color.black.opacity(0.15)).frame(height: 1), alignment: .top)
         }
-        .padding(Theme.Spacing.m)
-        .background(Theme.blockLime)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .animation(reduceMotion ? nil : Theme2.Motion.standard, value: isOver)
     }
 
-    private func macroRow(_ label: String, _ value: Double, _ max: Double, _ color: Color) -> some View {
-        HStack(spacing: Theme.Spacing.cluster) {
-            Text(label.uppercased()).font(.system(size: 11, weight: .heavy)).foregroundStyle(.black).frame(width: 72, alignment: .leading)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Rectangle().fill(Color.black.opacity(0.1))
-                    Rectangle().fill(color).frame(width: max > 0 ? geo.size.width * min(value / max, 1) : 0)
-                }
+    /// Macros sit on the neutral surface, never on the pastel hero: fat is
+    /// 2.3-2.9:1 on lime/coral. PastelCard documents the rule.
+    private var macroCard: some View {
+        SurfaceCard {
+            VStack(spacing: Theme2.Space.m) {
+                MacroBar(macro: .protein, grams: totals.protein, goal: Double(vm.goals?.dailyProteinG ?? 0))
+                MacroBar(macro: .carbs, grams: totals.carbs, goal: Double(vm.goals?.dailyCarbsG ?? 0))
+                MacroBar(macro: .fat, grams: totals.fat, goal: Double(vm.goals?.dailyFatG ?? 0))
             }
-            .frame(height: 8)
-            .animation(Theme.Motion.standard, value: value)
-            Text("\(Int(value))/\(Int(max))g")
-                .font(.system(size: 11, weight: .bold)).foregroundStyle(.black.opacity(0.6))
-                .frame(width: 80, alignment: .trailing)
         }
     }
 
     private var emptyState: some View {
-        VStack(spacing: Theme.Spacing.cluster) {
-            Text(vm.isToday ? "Nothing logged yet" : "No meals this day")
-                .font(.system(size: 18, weight: .black)).foregroundStyle(Theme.foreground)
-            Text(vm.isToday ? "Snap a photo of your next meal to get started." : "Add a meal to log it for this day.")
-                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground)
-                .multilineTextAlignment(.center)
+        SurfaceCard {
+            EmptyStateView(
+                title: vm.isToday ? "Nothing logged yet" : "No meals this day",
+                message: vm.isToday
+                    ? "Snap a photo of your next meal and it'll show up here."
+                    : "Add a meal to log it for this day.",
+                bevi: vm.isToday ? "bevi-camera" : nil,
+                systemImage: "calendar")
         }
-        .frame(maxWidth: .infinity)
-        .padding(32)
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private var mealJournal: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
-            Text("MEAL JOURNAL").font(.system(size: 11, weight: .heavy)).foregroundStyle(Theme.mutedForeground)
-                .overlay(Rectangle().fill(Theme.hairline).frame(height: 1), alignment: .top)
-                .padding(.top, Theme.Spacing.s)
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            Text("MEAL JOURNAL")
+                .font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
             ForEach(vm.meals ?? []) { meal in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(meal.name).font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.foreground)
-                        Text("\(Int(mealTotals(meal).calories)) cal").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                SurfaceCard {
+                    HStack {
+                        VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                            Text(meal.name)
+                                .font(Theme2.Text.label).foregroundStyle(Theme2.ink)
+                            if meal.planned {
+                                Text("Planned")
+                                    .font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
+                            }
+                        }
+                        Spacer(minLength: Theme2.Space.s)
+                        Text("\(fmt(mealTotals(meal).calories)) cal")
+                            .font(Theme2.Text.figure).foregroundStyle(Theme2.ink)
                     }
-                    Spacer()
+                    .accessibilityElement(children: .combine)
                 }
-                .padding(Theme.Spacing.m)
-                .background(Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }
     }

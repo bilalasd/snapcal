@@ -8,6 +8,9 @@ enum Route: Equatable {
     /// configurations so the enum shape doesn't vary by build config; only
     /// its presentation in RootView is #if DEBUG.
     case gallery
+    /// DEBUG-only: the real TodayView over seeded cache data, so a screen
+    /// rebuild can be screenshotted without a Clerk session.
+    case todayPreview(empty: Bool)
     case signIn, signUp, resetPassword, welcome
 
     /// loggi://<path>?<query> — mirrors the expo-router URLs in docs/screenshots.md
@@ -32,6 +35,7 @@ enum Route: Equatable {
         case "reset-password": return .resetPassword
         case "welcome": return .welcome
         case "gallery": return .gallery
+        case "today-preview": return .todayPreview(empty: q("empty") == "1")
         default: return nil
         }
     }
