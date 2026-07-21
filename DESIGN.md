@@ -47,6 +47,13 @@ smoothed weight trend.
 
 ## 2. Design theme
 
+> **Two systems currently coexist.** The four RN tab screens (and the Swift
+> port of them) still render the legacy tokens described below as "RN".
+> New Swift work uses `Theme2` — same identity, native structure, warm ground
+> instead of pure white. Where the two differ, the section says so explicitly.
+> Live in the DEBUG-only gallery (`loggi://gallery`). The screens get rebuilt
+> against it in a later phase; the divergence is expected, not drift.
+
 > **Theme prompt:** "Stark black-and-white editorial layout with one loud
 > vermilion accent. Heavy black display type, tightly tracked, uppercase kickers.
 > Flat white cards with hairline borders and generously rounded corners. Soft
@@ -54,8 +61,15 @@ smoothed weight trend.
 > no shadows — contrast does the work."
 
 ### 2.1 Art direction
-- **Flat + stark**, not material or skeuomorphic. No gradients, no drop
-  shadows; hierarchy comes from type weight, size, and hairline borders.
+- **Flat, warm, and stark** — not material or skeuomorphic. No gradients, no
+  drop shadows; hierarchy comes from type weight, size, ground, and hairline
+  borders.
+- **Nothing is pure white or pure black** (Swift `Theme2`). The canvas is oat
+  `#FAF6EF` / warm near-black `#1A1613`, with a raised surface `#FFFCF7` /
+  `#241F1A` for cards and sheets. The RN app's pure-white canvas is the one
+  part of this section the Swift system does not reproduce: a clinical ground
+  is what made an early Swift pass read as generic, and warmth costs almost
+  nothing in contrast (largest change across the whole palette: ~0.5:1).
 - **Accent discipline:** vermilion `#e64a19` (`accent-log`) is reserved for the
   logging entry points — the floating "+" button and its speed-dial actions. It
   is the "log something" color; it never decorates.
@@ -117,6 +131,67 @@ class conflict against `bg-card`.
 series/bars = foreground, secondary marks (dots, axes, dashed goal line) =
 muted-foreground, over-target = destructive.
 
+#### Swift (`Theme2`) — colour as data
+
+**Every colour encodes a meaning. Nothing is coloured for decoration.** This
+generalises the accent-discipline rule above (vermilion = "log something",
+never ornament) to the whole palette. It is also the anti-generic mechanism:
+stock iOS apps aren't generic for using `List`, they're generic for accepting
+*defaults* — system blue, grey grouped cards, colour applied wherever it looks
+nice. If a pixel is coloured here, a user can ask what that colour means and
+there is an answer.
+
+*Ground* (spec §3.0) — canvas `#FAF6EF` / `#1A1613`, raised surface `#FFFCF7`
+/ `#241F1A`. Every data colour is validated against **both**, worst-of-two:
+the raised surface is usually the tighter constraint, and validating only
+against the canvas is how a palette silently fails on cards.
+
+*Macro ramp* (spec §3.1) — ONE warm plum-berry family in three lightness
+steps, not three hues. Three simultaneously-visible hues that survive
+deuteranopia, protanopia and tritanopia while also clearing a reserved brand
+colour is over-constrained: an early attempt collapsed to ΔE 3.5. Lightness
+survives every CVD type (ΔL 16–18).
+
+| Role | Light | Dark | Worst-case |
+|---|---|---|---|
+| Protein | `#4A1D4E` | `#F0C4F4` | 12.4:1 / 10.8:1 |
+| Carbs | `#7D3A82` | `#C48ACA` | 7.0:1 / 6.1:1 |
+| Fat | `#B072B5` | `#94599B` | 3.3:1 / 3.2:1 |
+
+Order is information: protein darkest → fat lightest, never reordered.
+**Fat is graphic-only** — fills and marks, never text.
+
+*Status* (spec §3.3) — on-target `#116149` / `#4ECB92`, over-target `#A5003C`
+/ `#F5829B`. These are **not distinguishable from each other by colour**
+(ΔE 2.0 dark under deuteranopia — the green/red collapse), so wherever both
+can appear the distinction MUST also carry an SF Symbol or text. `StatusBadge`
+is the sanctioned way to render them. There is deliberately **no "approaching"
+colour**: no yellow/amber/gold clears vermilion under protanopia, because
+vermilion desaturates toward exactly that region. "Approaching" is encoded by
+fill proportion plus text, which a progress bar already communicates.
+
+*Pastel blocks as surfaces* — the `block-*` tiles above are **surfaces, not
+data**, so they carry no meaning and are free to be expressive. Fixed across
+themes, so content on them uses fixed `blockInk` `#1A1613` (9.3:1 on lilac,
+the worst case; 15.3:1 on cream), never a dynamic token that would invert to
+near-white in dark mode. Two placement rules, enforced by `PastelCard`:
+
+- **No macro bars on pastel.** Fat is 1.8–2.9:1 on four of the five, and no
+  fat value exists that clears all five while remaining a distinct ramp step —
+  the constraints are mathematically incompatible. Pastels host ink, numerals
+  and glyphs; macro bars live on canvas/surface. (This is how the RN app
+  already framed it: big figure on lime, bars beneath.)
+- **Accent and Bevi only on lime/cream.** Vermilion is 2.0–2.9:1 on
+  lilac/mint/coral. Generalises §2.1's existing "Bevi never sits on an
+  accent-log surface" rule to the pastels that can't carry it.
+
+Values are enforced twice, and the pair caught a real bug: `apps/ios/scripts/
+validate-palette.mjs` (CI) and `LoggiTests/PaletteTests.swift`, which resolves
+the **real** `Theme2` colours through UIKit trait environments rather than
+re-checking transcribed hexes. The Swift test failed on its first run over a
+value the JS validator had passed — the JS side was rounding simulated colours
+to 8-bit hex, inflating ΔE by ~0.2. Both now measure at full float precision.
+
 **Contrast rules (WCAG AA):** text ≥4.5:1, secondary text ≥3:1, chart
 geometry ≥3:1 — verified light **and** dark independently. The accent passes
 as a UI/graphical color in both themes (3.9:1 light, 5.0:1 dark) but never
@@ -144,6 +219,31 @@ tokens flip via `prefers-color-scheme` in `global.css`. No in-app toggle.
 Minimum text size is 11px everywhere (HIG floor) — micro-captions that were
 10px (tab labels, "cal" caption, chart goal line, badge chips) now sit at 11px.
 
+**Swift (`Theme2.Text`)** keeps this scale — the heavy editorial type is
+identity, not decoration — but every size scales with Dynamic Type via
+`Font.custom(_:size:relativeTo:)`:
+
+| Token | Size / weight | Maps to |
+|---|---|---|
+| `display60` | 60 black, tabular, `relativeTo: .largeTitle` | Big metric |
+| `headline36` | 36 black, `relativeTo: .title` | Screen titles |
+| `kicker` | `.caption` heavy, uppercased at the call site | Eyebrows |
+| `figure` | `.title3` semibold, tabular | Aligned data figures |
+| `body` / `label` / `caption` | `.body` / `.subheadline` / `.caption` | Prose, labels, captions |
+
+**Dynamic Type means text SCALES — not that it is small.** Conflating those
+two is what made an early Swift pass read as generic: semantic styles at
+default weights were used everywhere, and the display numerals disappeared.
+`.custom(size:relativeTo:)` satisfies the accessibility requirement *and*
+keeps the 60px black figure. A plain `Font.system(size:)` does neither — it
+freezes at one size and ignores the user's setting.
+
+Layouts must survive AX5 without truncating essential content.
+**Known gap:** `CalorieRing`'s fixed 180pt frame can't grow with the type
+inside it, so at AX5 the numeral overflows the circle (legible, but visibly
+wrong). Fixing it needs a reflow to a non-ring layout at accessibility sizes,
+not a smaller font.
+
 ### 2.4 Spacing & layout
 
 4px base unit. These are the only named spacing roles — pick the role, use its
@@ -161,15 +261,21 @@ class, don't reach for neighbors:
 - Safe-area insets respected top and bottom; tab screens reserve `pb-28` so
   scroll content clears the floating "+".
 - Anything off this table is a deviation — flag it in review, don't copy it.
+- Swift `Theme2.Space` names the same roles: `xs` 4 / `s` 8 / `m` 12 / `l` 16
+  / `xl` 24. Note `l` is 16pt (card padding) where RN's screen gutter is 20px.
 
 ### 2.5 Shape & radius
 - **Rounded, not pill-everything:** cards `rounded-3xl`, inputs and rows
   `rounded-2xl`, chips/segments and the FAB family `rounded-full`.
+- Swift `Theme2.Radius`: cards 20pt, controls 12pt, chips `Capsule()`.
 
 ### 2.6 Elevation & effects
 - **None.** Flat surfaces + `1px` hairline borders (`border-border`).
   Overlays use a plain black scrim: sheets `bg-black/40`, speed-dial backdrop
   `bg-black/30`.
+- Depth comes from the ground, not from shadow: a `SurfaceCard` reads as
+  raised because it is lighter than the canvas, and a `PastelCard` because it
+  is coloured. Neither uses elevation or blur.
 
 ### 2.7 Iconography
 - **Feather** (`@expo/vector-icons`), one family, default stroke. Sizes 16
@@ -498,3 +604,11 @@ themes (pastel blocks are theme-fixed, §2.2).
 - All motion honors reduced-motion; errors announced to screen readers
   (`accessibilityLiveRegion` / `role="alert"` equivalents).
 - Native controls where possible; every field labeled; validate before submit.
+- **Data colours are validated against both grounds** (canvas AND raised
+  surface), worst-of-two — see §2.2. Enforced by
+  `apps/ios/scripts/validate-palette.mjs` and `LoggiTests/PaletteTests.swift`;
+  the latter resolves real `Theme2` values, not transcribed hexes.
+- **Colour is never the only signal** (WCAG 1.4.1). Where two states share a
+  surface and differ only in hue, the distinction also carries a symbol, text,
+  or position. On-target vs over-target is the load-bearing case: ΔE 2.0 under
+  deuteranopia, i.e. genuinely identical to some users.
