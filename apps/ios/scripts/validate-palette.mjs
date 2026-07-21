@@ -20,15 +20,17 @@ return rgb2hex(l2s(Math.max(0,Math.min(1,5.47221206*l-4.6419601*m+0.16963708*s))
 const V=["normal","deuter","protan","tritan"];
 const sim=(h,v)=>v==="normal"?h:cvd(h,v);
 const VERM="#e64a19";
-const P={light:{bg:"#ffffff",protein:"#16307A",carbs:"#3D5CB8",fat:"#7286D8",onTarget:"#116149",over:"#A5003C"},
-         dark:{bg:"#0c0c0c",protein:"#B9CCFF",carbs:"#7E9BE8",fat:"#4A63B5",onTarget:"#4ECB92",over:"#FF6FA0"}};
+// Warm canvas + one raised warm surface. Every data color is checked against
+// BOTH, since the raised surface is the tighter constraint.
+const P={light:{bg:"#FAF6EF",surface:"#FFFCF7",protein:"#4A1D4E",carbs:"#7D3A82",fat:"#B072B5",onTarget:"#116149",over:"#A5003C"},
+         dark:{bg:"#1A1613",surface:"#241F1A",protein:"#F0C4F4",carbs:"#C48ACA",fat:"#94599B",onTarget:"#4ECB92",over:"#FF6FA0"}};
 let fail=0;
 for(const[t,c] of Object.entries(P)){
   console.log(`\n=== ${t.toUpperCase()} ===`);
-  console.log(" contrast vs bg (>=3:1):");
+  console.log(" contrast vs canvas AND raised surface (>=3:1, worst of the two):");
   for(const k of ["protein","carbs","fat","onTarget","over"]){
-    const ct=contrast(c[k],c.bg),ok=ct>=3; if(!ok)fail++;
-    console.log(`   ${k.padEnd(9)} ${c[k]} ${ct.toFixed(2).padStart(5)}:1 ${ok?"PASS":"FAIL"}${ct>=4.5?" text-safe":""}`);
+    const ct=Math.min(contrast(c[k],c.bg),contrast(c[k],c.surface)),ok=ct>=3; if(!ok)fail++;
+    console.log(`   ${k.padEnd(9)} ${c[k]} ${ct.toFixed(2).padStart(5)}:1 ${ok?"PASS":"FAIL"}${ct>=4.5?" text-safe":" graphic-only"}`);
   }
   console.log(" macro ramp dL (co-visible, all CVD):");
   for(const v of V){let w=Infinity;for(const[i,j] of [["protein","carbs"],["carbs","fat"],["protein","fat"]]){const d=dL(sim(c[i],v),sim(c[j],v));if(d<w)w=d;}
