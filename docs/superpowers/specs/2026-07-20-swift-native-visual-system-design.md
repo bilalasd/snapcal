@@ -174,10 +174,20 @@ already says "approaching" without needing a hue.
 | Role | Light | Dark | Contrast (light / dark) |
 |---|---|---|---|
 | On target | `#116149` | `#4ECB92` | 7.42:1 / 9.58:1 |
-| Over target | `#A5003C` | `#FF6FA0` | 7.88:1 / 7.48:1 |
+| Over target | `#A5003C` | `#F5829B` | 7.31:1 / 6.65:1 |
 
-Both clear vermilion under every CVD type (ΔE ≥20). Both clear the background
-for text in both themes.
+Both clear vermilion under every CVD type (ΔE ≥20 — dark over-target is 29.9).
+Both clear both grounds for text in both themes.
+
+Dark over-target was `#FF6FA0` until the Swift regression test (Task 2 of the
+implementation plan) caught it at **ΔE 19.87** from vermilion under tritanopia —
+just under the threshold. The JS validator had reported 20.07 and passed it. The
+discrepancy was real: the JS validator rounded each simulated colour to an 8-bit
+hex string before measuring, inflating ΔE by up to ~0.2. Both validators now
+measure at full float precision, and the value moved to `#F5829B`, which clears
+vermilion at ΔE 29.9 and the macro ramp at 29.3 — margin rather than a hairline
+pass. Recorded because it is the exact failure mode the two-validator setup
+exists to catch, and because "the script said it passed" was wrong.
 
 Two constraints the validator surfaced, which implementation **must** honour:
 

@@ -47,6 +47,18 @@ targets:
       - package: Clerk
         product: ClerkKitUI
 
+  LoggiTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [LoggiTests]
+    dependencies:
+      - target: Loggi
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
   LoggiWidgets:
     type: app-extension
     platform: iOS

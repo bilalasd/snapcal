@@ -11,19 +11,24 @@ const s2l=(c)=>{c/=255;return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
 const l2s=(c)=>255*(c<=0.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-0.055);
 const lum=(h)=>{const[r,g,b]=hex2rgb(h).map(s2l);return 0.2126*r+0.7152*g+0.0722*b;};
 const contrast=(a,b)=>{const[x,y]=[lum(a),lum(b)].sort((p,q)=>q-p);return (x+0.05)/(y+0.05);};
-const lab=(h)=>{const[r,g,b]=hex2rgb(h).map(s2l);let x=(0.4124*r+0.3576*g+0.1805*b)/0.95047,y=0.2126*r+0.7152*g+0.0722*b,z=(0.0193*r+0.1192*g+0.9505*b)/1.08883;const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;[x,y,z]=[f(x),f(y),f(z)];return[116*y-16,500*(x-y),200*(y-z)];};
+const lab=(h)=>{const[r,g,b]=(typeof h==="string"?hex2rgb(h):h).map(s2l);let x=(0.4124*r+0.3576*g+0.1805*b)/0.95047,y=0.2126*r+0.7152*g+0.0722*b,z=(0.0193*r+0.1192*g+0.9505*b)/1.08883;const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;[x,y,z]=[f(x),f(y),f(z)];return[116*y-16,500*(x-y),200*(y-z)];};
 const dE=(a,b)=>{const[l1,a1,b1]=lab(a),[l2,a2,b2]=lab(b);return Math.hypot(l1-l2,a1-a2,b1-b2);};
 const dL=(a,b)=>Math.abs(lab(a)[0]-lab(b)[0]);
+// Returns FLOAT sRGB 0-255, deliberately NOT an 8-bit hex string. Rounding the
+// simulated colour to hex inflated dE by up to ~0.2 and once reported a pair as
+// 20.07 that is really 19.87 — under the threshold. LoggiTests/PaletteTests.swift
+// does the same maths at full precision; these two must agree.
 const cvd=(hex,t)=>{const[r,g,b]=hex2rgb(hex).map(s2l);const L=0.31399*r+0.63951*g+0.04649*b,M=0.15537*r+0.75789*g+0.08670*b,S=0.01775*r+0.10945*g+0.87262*b;let l=L,m=M,s=S;
 if(t==="deuter")m=0.9513092*L+0.04866992*S; if(t==="protan")l=1.05118294*M-0.05116099*S; if(t==="tritan")s=-0.86744736*L+1.86727089*M;
-return rgb2hex(l2s(Math.max(0,Math.min(1,5.47221206*l-4.6419601*m+0.16963708*s))),l2s(Math.max(0,Math.min(1,-1.1252419*l+2.29317094*m-0.1678952*s))),l2s(Math.max(0,Math.min(1,0.02980165*l-0.19318073*m+1.16364789*s))));};
+const un=(v)=>{const c=Math.max(0,Math.min(1,v));return 255*(c<=0.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-0.055);};
+return [un(5.47221206*l-4.6419601*m+0.16963708*s),un(-1.1252419*l+2.29317094*m-0.1678952*s),un(0.02980165*l-0.19318073*m+1.16364789*s)];};
 const V=["normal","deuter","protan","tritan"];
 const sim=(h,v)=>v==="normal"?h:cvd(h,v);
 const VERM="#e64a19";
 // Warm canvas + one raised warm surface. Every data color is checked against
 // BOTH, since the raised surface is the tighter constraint.
 const P={light:{bg:"#FAF6EF",surface:"#FFFCF7",protein:"#4A1D4E",carbs:"#7D3A82",fat:"#B072B5",onTarget:"#116149",over:"#A5003C"},
-         dark:{bg:"#1A1613",surface:"#241F1A",protein:"#F0C4F4",carbs:"#C48ACA",fat:"#94599B",onTarget:"#4ECB92",over:"#FF6FA0"}};
+         dark:{bg:"#1A1613",surface:"#241F1A",protein:"#F0C4F4",carbs:"#C48ACA",fat:"#94599B",onTarget:"#4ECB92",over:"#F5829B"}};
 let fail=0;
 for(const[t,c] of Object.entries(P)){
   console.log(`\n=== ${t.toUpperCase()} ===`);

@@ -49,7 +49,7 @@ enum Theme2 {
     // colour alone (dE 2.0 dark / 7.3 light under CVD) — always pair with a
     // symbol or text. `StatusBadge` is the sanctioned way to render these.
     static let statusOnTarget = dynamic(0x116149, 0x4ECB92)
-    static let statusOver     = dynamic(0xA5003C, 0xFF6FA0)
+    static let statusOver     = dynamic(0xA5003C, 0xF5829B)
 
     // MARK: - Type (spec §4). Dynamic Type only; no fixed sizes.
     enum Text {

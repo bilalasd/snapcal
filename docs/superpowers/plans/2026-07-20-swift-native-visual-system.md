@@ -20,7 +20,7 @@
   - Carbs: light `#7D3A82`, dark `#C48ACA`
   - Fat: light `#B072B5`, dark `#94599B`
   - On target: light `#116149`, dark `#4ECB92`
-  - Over target: light `#A5003C`, dark `#FF6FA0`
+  - Over target: light `#A5003C`, dark `#F5829B` (was `#FF6FA0`; Task 2's test caught it at ΔE 19.87 from vermilion — see spec §3.3)
   - Vermilion (reserved, unchanged): `#E64A19`
 - **Fat is graphic-only** in both themes (~3.2:1). It may fill a bar or chart mark; it may NEVER be used for text or for a text-adjacent glyph that carries meaning alone. Task 2's test enforces the value; no automated check can catch misuse, so every task that renders `fat` must self-check this.
 - **Colour is never the only signal** (spec §3.3a, WCAG 1.4.1). Wherever on-target and over-target can both appear, the distinction MUST also carry an SF Symbol or text. On-target vs over-target is ΔE 2.0 in dark mode — indistinguishable to a deuteranope without the redundant channel.
@@ -121,7 +121,7 @@ enum Theme2 {
     // colour alone (dE 2.0 dark / 7.3 light under CVD) — always pair with a
     // symbol or text. `StatusBadge` is the sanctioned way to render these.
     static let statusOnTarget = dynamic(0x116149, 0x4ECB92)
-    static let statusOver     = dynamic(0xA5003C, 0xFF6FA0)
+    static let statusOver     = dynamic(0xA5003C, 0xF5829B)
 
     // MARK: - Type (spec §4). Dynamic Type only; no fixed sizes.
     enum Text {
