@@ -16,6 +16,10 @@ struct RootView: View {
     /// tab with), so this is a thin projection, not a duplicate of `Route`.
     private enum Tab: Hashable { case today, history, weight, settings }
 
+    #if DEBUG
+    @State private var galleryOpen = false
+    #endif
+
     /// Two-way bridge to the shared `route` binding: deep links (`-route`
     /// launch arg, `onOpenURL`) that land on `.today`/`.history`/`.weight`/
     /// `.settings` select the matching tab; tapping a tab writes that route
@@ -60,6 +64,15 @@ struct RootView: View {
                 .tag(Tab.settings)
         }
         .tint(Theme.foreground)
+        #if DEBUG
+        // Design-system gallery (loggi://gallery). Presented over the tab
+        // shell rather than as a tab: it's a review surface, not a feature.
+        // Uses a @State mirror rather than .constant(...) so it can be
+        // swiped away by hand — .constant would pin it open.
+        .fullScreenCover(isPresented: $galleryOpen) { GalleryView() }
+        .onAppear { galleryOpen = (route == .gallery) }
+        .onChange(of: route) { _, new in galleryOpen = (new == .gallery) }
+        #endif
     }
 }
 

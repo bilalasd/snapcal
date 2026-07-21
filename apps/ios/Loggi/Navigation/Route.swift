@@ -4,6 +4,10 @@ enum Route: Equatable {
     case today, history, weight, settings
     case add(intent: String?, date: String?)
     case askBevi, menuScout, onboarding, paywall
+    /// DEBUG-only design-system gallery (loggi://gallery). Parsed in all
+    /// configurations so the enum shape doesn't vary by build config; only
+    /// its presentation in RootView is #if DEBUG.
+    case gallery
     case signIn, signUp, resetPassword, welcome
 
     /// loggi://<path>?<query> — mirrors the expo-router URLs in docs/screenshots.md
@@ -27,6 +31,7 @@ enum Route: Equatable {
         case "sign-up": return .signUp
         case "reset-password": return .resetPassword
         case "welcome": return .welcome
+        case "gallery": return .gallery
         default: return nil
         }
     }

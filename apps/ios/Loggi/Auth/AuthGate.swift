@@ -9,9 +9,34 @@ struct AuthGate: View {
     @Binding var route: Route
     @State private var showingSignUp = false
 
+    /// Compiles to a constant `false` in release, so the gallery branch below
+    /// is unreachable — and `GalleryView` itself doesn't exist outside DEBUG.
+    private var isGalleryRoute: Bool {
+        #if DEBUG
+        route == .gallery
+        #else
+        false
+        #endif
+    }
+
+    @ViewBuilder private var galleryContent: some View {
+        #if DEBUG
+        GalleryView()
+        #else
+        EmptyView()
+        #endif
+    }
+
     var body: some View {
         Group {
-            if !clerk.isLoaded {
+            // The design-system gallery renders pure static components with no
+            // account data, so it deliberately bypasses the auth gate — the
+            // review/screenshot loop shouldn't need a live Clerk session to
+            // look at a colour ramp. `isGalleryRoute` is always false in
+            // release builds, so this cannot leak to users.
+            if isGalleryRoute {
+                galleryContent
+            } else if !clerk.isLoaded {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.background)
             } else if clerk.user == nil {
                 if showingSignUp {
