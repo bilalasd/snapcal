@@ -65,3 +65,32 @@ func gramsFromPercents(calories: Int, pcts: MacroPercents) -> MacroGrams {
         carbsG: Int((Double(calories * pcts.carbsPct) / 100 / 4).rounded()),
         fatG: Int((Double(calories * pcts.fatPct) / 100 / 9).rounded()))
 }
+
+// MARK: - Plan math (onboarding)
+
+/// Calorie target for a goal rate, with a safety floor. Ports
+/// packages/shared/src/bmr.ts's `suggestedIntake` exactly.
+///
+/// The floor is the point of this function: an aggressive rate on a small
+/// person can compute an intake well under what's safe, so it clamps to the
+/// greater of 1200 kcal and 85% of BMR — and reports that it clamped, so the
+/// UI can say so rather than silently showing a different number than asked for.
+func suggestedIntake(tdee: Double, bmr: Double, targetRateKgPerWk: Double) -> (intake: Int, floored: Bool) {
+    let raw = Int(tdee.rounded()) - deficitForRate(targetRateKgPerWk)
+    let floor = max(1200, Int((bmr * 0.85).rounded()))
+    if raw < floor { return (floor, true) }
+    return (raw, false)
+}
+
+/// Daily macro targets for a calorie goal. Ports `suggestedMacros`.
+///
+/// Protein is 1.6 g/kg of bodyweight (evidence-based for active or
+/// weight-losing people — enough to preserve muscle), fat is 30% of calories,
+/// carbs take the remainder. These are GOALS; a logged meal's macros come from
+/// the per-item estimate in /api/analyze, not this formula.
+func suggestedMacros(calories: Int, weightKg: Double) -> MacroGrams {
+    let protein = Int((1.6 * weightKg).rounded())
+    let fat = Int((Double(calories) * 0.3 / 9).rounded())
+    let carbs = max(0, Int((Double(calories - protein * 4 - fat * 9) / 4).rounded()))
+    return MacroGrams(proteinG: protein, carbsG: carbs, fatG: fat)
+}

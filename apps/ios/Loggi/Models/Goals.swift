@@ -1,8 +1,30 @@
 import Foundation
 
-enum ActivityLevel: String, Codable {
+enum ActivityLevel: String, Codable, CaseIterable, Hashable {
     case sedentary, light, moderate, active
     case veryActive = "very_active"
+
+    /// Copy ported verbatim from packages/shared/src/bmr.ts's ACTIVITY_LEVELS
+    /// — the descriptions are what make the choice answerable, so they are
+    /// part of the model rather than re-invented per screen.
+    var label: String {
+        switch self {
+        case .sedentary: "Sedentary"
+        case .light: "Lightly active"
+        case .moderate: "Moderately active"
+        case .active: "Very active"
+        case .veryActive: "Athlete"
+        }
+    }
+    var blurb: String {
+        switch self {
+        case .sedentary: "Desk job, little deliberate exercise"
+        case .light: "Light exercise 1–3 days a week"
+        case .moderate: "Moderate exercise 3–5 days a week"
+        case .active: "Hard exercise 6–7 days a week"
+        case .veryActive: "Physical job or twice-daily training"
+        }
+    }
 }
 
 enum UnitSystem: String, Codable {
@@ -47,6 +69,28 @@ struct Goals: Codable, Equatable {
     // /api/goals response omits "adaptive_goal" (older deploy, predates
     // that field landing in apps/api/src) — decode it as false rather
     // than failing the whole Goals object when the server lags the spec.
+    /// Memberwise init, written out because the custom `init(from:)` below
+    /// suppresses the synthesized one. Onboarding needs to CONSTRUCT a Goals
+    /// (it computes a plan before the server has one), not just decode it.
+    init(dailyCalories: Int, dailyProteinG: Int, dailyCarbsG: Int, dailyFatG: Int,
+         targetRateKgPerWk: Double, unitSystem: UnitSystem, sex: Sex?, age: Int?,
+         heightCm: Double?, activityLevel: ActivityLevel?, onboarded: Bool,
+         goalWeightKg: Double?, adaptiveGoal: Bool) {
+        self.dailyCalories = dailyCalories
+        self.dailyProteinG = dailyProteinG
+        self.dailyCarbsG = dailyCarbsG
+        self.dailyFatG = dailyFatG
+        self.targetRateKgPerWk = targetRateKgPerWk
+        self.unitSystem = unitSystem
+        self.sex = sex
+        self.age = age
+        self.heightCm = heightCm
+        self.activityLevel = activityLevel
+        self.onboarded = onboarded
+        self.goalWeightKg = goalWeightKg
+        self.adaptiveGoal = adaptiveGoal
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         dailyCalories = try c.decode(Int.self, forKey: .dailyCalories)

@@ -11,6 +11,8 @@ enum Route: Equatable {
     /// DEBUG-only: the real TodayView over seeded cache data, so a screen
     /// rebuild can be screenshotted without a Clerk session.
     case todayPreview(empty: Bool)
+    /// DEBUG-only previews of the first-run gates.
+    case onboardingPreview, paywallPreview
     case signIn, signUp, resetPassword, welcome
 
     /// loggi://<path>?<query> — mirrors the expo-router URLs in docs/screenshots.md
@@ -36,6 +38,8 @@ enum Route: Equatable {
         case "welcome": return .welcome
         case "gallery": return .gallery
         case "today-preview": return .todayPreview(empty: q("empty") == "1")
+        case "onboarding-preview": return .onboardingPreview
+        case "paywall-preview": return .paywallPreview
         default: return nil
         }
     }

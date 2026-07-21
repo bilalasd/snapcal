@@ -15,32 +15,34 @@ import SwiftUI
 ///    step — the constraints are mathematically incompatible. Macro bars
 ///    belong on canvas/surface; pastels host ink, numerals, and glyphs.
 ///    Matches how the RN app used them: big figure on lime, bars underneath.
-struct PastelCard<Content: View>: View {
-    enum Tone {
-        case lime, lilac, cream, mint, coral
+/// Hoisted out of the generic: the tone has nothing to do with the content
+/// type, and nesting it forced call sites into `PastelCard<AnyView>.Tone`
+/// just to name a colour.
+enum PastelTone {
+    case lime, lilac, cream, mint, coral
 
-        var color: Color {
-            switch self {
-            case .lime:  Theme2.Block.lime
-            case .lilac: Theme2.Block.lilac
-            case .cream: Theme2.Block.cream
-            case .mint:  Theme2.Block.mint
-            case .coral: Theme2.Block.coral
-            }
-        }
-        /// Vermilion is 2.0–2.9:1 on lilac/mint/coral, so the accent (and
-        /// Bevi, whose fur is the same warm family) only goes on these two.
-        /// Mirrors DESIGN.md §2.1's existing "Bevi never sits on an
-        /// accent-log surface" rule.
-        var acceptsAccent: Bool {
-            switch self {
-            case .lime, .cream: true
-            case .lilac, .mint, .coral: false
-            }
+    var color: Color {
+        switch self {
+        case .lime:  Theme2.Block.lime
+        case .lilac: Theme2.Block.lilac
+        case .cream: Theme2.Block.cream
+        case .mint:  Theme2.Block.mint
+        case .coral: Theme2.Block.coral
         }
     }
+    /// Vermilion is 2.0–2.9:1 on lilac/mint/coral, so the accent (and Bevi,
+    /// whose fur is the same warm family) only goes on these two. Mirrors
+    /// DESIGN.md §2.1's "Bevi never sits on an accent-log surface" rule.
+    var acceptsAccent: Bool {
+        switch self {
+        case .lime, .cream: true
+        case .lilac, .mint, .coral: false
+        }
+    }
+}
 
-    let tone: Tone
+struct PastelCard<Content: View>: View {
+    let tone: PastelTone
     @ViewBuilder var content: Content
 
     var body: some View {

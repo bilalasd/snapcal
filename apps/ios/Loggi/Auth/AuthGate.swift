@@ -8,13 +8,33 @@ struct AuthGate: View {
     @Environment(Clerk.self) private var clerk
     @Binding var route: Route
     @State private var showingSignUp = false
+    @State private var onboarded = false
+    @State private var paywallCleared = false
+    @State private var goalsChecked = false
+    @State private var hasGoals = false
+
+    /// True until the account has goals. `goalsChecked` keeps the app from
+    /// flashing onboarding during the first fetch — an unchecked nil reads
+    /// identically to "never onboarded".
+    private var needsOnboarding: Bool {
+        guard goalsChecked, !onboarded else { return false }
+        return !hasGoals
+    }
+
+    /// The paywall follows onboarding once, per RN's router.replace("/paywall").
+    /// A subscribed user skips it; so does anyone who already got past it this
+    /// launch.
+    private var needsPaywall: Bool {
+        guard goalsChecked, !paywallCleared else { return false }
+        return (onboarded || hasGoals) && !Subscriptions.shared.isSubscribed && onboarded
+    }
 
     /// Compiles to a constant `false` in release, so the gallery branch below
     /// is unreachable — and `GalleryView` itself doesn't exist outside DEBUG.
     private var isGalleryRoute: Bool {
         #if DEBUG
         if case .todayPreview = route { return true }
-        return route == .gallery
+        return route == .gallery || route == .onboardingPreview || route == .paywallPreview
         #else
         return false
         #endif
@@ -22,7 +42,11 @@ struct AuthGate: View {
 
     @ViewBuilder private var galleryContent: some View {
         #if DEBUG
-        if case .todayPreview(let empty) = route {
+        if route == .onboardingPreview {
+            OnboardingView {}
+        } else if route == .paywallPreview {
+            PaywallView {}
+        } else if case .todayPreview(let empty) = route {
             // Seed as a body-level statement so the cache is warm BEFORE
             // TodayView is constructed. A sibling .task races TodayView's own
             // .task, whose load() overwrites the seed with an empty network
@@ -55,9 +79,31 @@ struct AuthGate: View {
                 } else {
                     SignInView(onSignUpTapped: { showingSignUp = true })
                 }
+            } else if needsOnboarding {
+                // A signed-in account with no goals has never finished setup.
+                // Sending them to the tabs would show a zero-calorie budget and
+                // read as broken, so onboarding gates the app rather than
+                // sitting behind a banner.
+                OnboardingView { onboarded = true }
+            } else if needsPaywall {
+                PaywallView { paywallCleared = true }
             } else {
                 RootView(route: $route)
             }
+        }
+        .task(id: clerk.user?.id) {
+            guard clerk.user != nil else { return }
+            MealCache.shared.hydrate()
+            if let cached = MealCache.shared.cachedGoals() {
+                hasGoals = cached.onboarded
+                goalsChecked = true
+            }
+            if let goals: Goals = try? await APIClient.shared.get("/api/goals") {
+                MealCache.shared.setGoals(goals)
+                hasGoals = goals.onboarded
+            }
+            goalsChecked = true
+            await Subscriptions.shared.load()
         }
         // Sign-out safety net ahead of Phase 2's real sign-out UI: Clerk
         // persists sessions across launches and MealCache.hydrate() loads
