@@ -8,6 +8,10 @@ struct AuthGate: View {
     @Environment(Clerk.self) private var clerk
     @Binding var route: Route
     @State private var showingSignUp = false
+    /// Only shown once per launch for a signed-out user — returning users
+    /// hitting sign-in don't want the carousel again.
+    @State private var showingWelcome = true
+    @State private var showingReset = false
     @State private var onboarded = false
     @State private var paywallCleared = false
     @State private var goalsChecked = false
@@ -74,10 +78,23 @@ struct AuthGate: View {
             } else if !clerk.isLoaded {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme2.canvas)
             } else if clerk.user == nil {
-                if showingSignUp {
+                if showingWelcome {
+                    // The promise before the ask: a brand-new user sees what
+                    // the app does before being asked for an account.
+                    WelcomeView(
+                        onGetStarted: { showingWelcome = false; showingSignUp = true },
+                        onSignIn: { showingWelcome = false; showingSignUp = false })
+                } else if showingSignUp {
                     SignUpView(onSignInTapped: { showingSignUp = false })
                 } else {
                     SignInView(onSignUpTapped: { showingSignUp = true })
+                        .overlay(alignment: .bottom) {
+                            Button("Forgot password?") { showingReset = true }
+                                .font(Theme2.Text.caption)
+                                .tint(Theme2.inkSecondary)
+                                .padding(.bottom, Theme2.Space.xl)
+                        }
+                        .sheet(isPresented: $showingReset) { ResetPasswordView() }
                 }
             } else if needsOnboarding {
                 // A signed-in account with no goals has never finished setup.

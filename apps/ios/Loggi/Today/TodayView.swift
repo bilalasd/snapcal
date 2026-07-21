@@ -139,6 +139,8 @@ final class TodayViewModel {
 struct TodayView: View {
     @State private var vm = TodayViewModel()
     @State private var addOpen = false
+    @State private var askOpen = false
+    @State private var menuOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var totals: (calories: Double, protein: Double, carbs: Double, fat: Double) {
@@ -221,6 +223,10 @@ struct TodayView: View {
             .padding(.bottom, Theme2.Space.xl)
             .accessibilityLabel("Log a meal")
         }
+        .sheet(isPresented: $askOpen) { AskBeviView() }
+        .sheet(isPresented: $menuOpen) {
+            MenuScoutView().onDisappear { Task { await vm.load() } }
+        }
         .sheet(isPresented: $addOpen) {
             AddMealView(targetDate: vm.dateAsDate)
                 .onDisappear { Task { await vm.load() } }
@@ -258,6 +264,14 @@ struct TodayView: View {
                     .font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
             }
             Spacer(minLength: Theme2.Space.m)
+            VStack(alignment: .trailing, spacing: Theme2.Space.s) {
+            HStack(spacing: Theme2.Space.s) {
+                Button { menuOpen = true } label: { Image(systemName: "menucard") }
+                    .accessibilityLabel("Menu scout")
+                Button { askOpen = true } label: { Image(systemName: "bubble.left.and.text.bubble.right") }
+                    .accessibilityLabel("Ask Bevi")
+            }
+            .tint(Theme2.inkSecondary)
             if vm.isToday, let streak = vm.streak, streak > 0 {
                 VStack(alignment: .trailing, spacing: Theme2.Space.xs) {
                     // Streak keeps vermilion: logging IS its meaning, so this
@@ -273,6 +287,7 @@ struct TodayView: View {
                         StatusBadge(status: .onTarget, text: "\(onTarget) on target")
                     }
                 }
+            }
             }
         }
     }
