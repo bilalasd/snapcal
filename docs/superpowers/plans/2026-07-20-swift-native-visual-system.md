@@ -26,8 +26,14 @@
 - **Colour is never the only signal** (spec §3.3a, WCAG 1.4.1). Wherever on-target and over-target can both appear, the distinction MUST also carry an SF Symbol or text. On-target vs over-target is ΔE 2.0 in dark mode — indistinguishable to a deuteranope without the redundant channel.
 - **Dynamic Type everywhere** (spec §4). No fixed `Font.system(size:)` in any new component. Use semantic text styles, or `.custom(_:relativeTo:)` when a specific size is genuinely needed. Numeric figures keep `.monospacedDigit()`.
 - **Reduce Motion** must be honoured on every animation: gate with `@Environment(\.accessibilityReduceMotion)`.
-- Verify on the simulator with an explicitly-selected UDID — never bare `booted`:
-  `UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)`
+- Verify on the simulator with an explicitly-selected UDID — never bare `booted`.
+  **Boot first and fail loudly if nothing is booted**, otherwise `-destination "id="`
+  is empty and `xcodebuild` prints its help text instead of building — which looks
+  nothing like a failure and wasted a cycle during this plan's own execution:
+  ```bash
+  UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+  if [[ -z "$UDID" ]]; then echo "No booted iPhone sim — run: xcrun simctl boot <udid>"; exit 1; fi
+  ```
   Build/install/launch/screenshot via `cd apps/ios && bash scripts/dev-loop.sh <path>.png <route>`.
 - Commit after each task. Trailers:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
@@ -145,7 +151,8 @@ enum Theme2 {
 
 ```bash
 cd apps/ios && xcodegen generate
-UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)
+UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+[[ -n "$UDID" ]] || { echo "No booted iPhone sim"; exit 1; }
 xcodebuild -project Loggi.xcodeproj -scheme Loggi -configuration Debug -destination "id=$UDID" build 2>&1 | tail -5
 ```
 Expected: `** BUILD SUCCEEDED **`. Nothing consumes `Theme2` yet, so this is compile-only.
@@ -368,7 +375,8 @@ final class PaletteTests: XCTestCase {
 
 ```bash
 cd apps/ios && xcodegen generate
-UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)
+UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+[[ -n "$UDID" ]] || { echo "No booted iPhone sim"; exit 1; }
 xcodebuild test -project Loggi.xcodeproj -scheme Loggi -destination "id=$UDID" -only-testing:LoggiTests 2>&1 | tail -20
 ```
 Expected: all 5 tests pass. If `testMacroRampSeparatesByLightnessUnderAllCVD` or `testDataColorsClearBothGrounds` fails, a token in Task 1 was mistyped — fix the token, not the threshold.
@@ -480,7 +488,8 @@ struct StatusBadge: View {
 
 ```bash
 cd apps/ios && xcodegen generate
-UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)
+UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+[[ -n "$UDID" ]] || { echo "No booted iPhone sim"; exit 1; }
 xcodebuild -project Loggi.xcodeproj -scheme Loggi -configuration Debug -destination "id=$UDID" build 2>&1 | tail -5
 ```
 Expected: `** BUILD SUCCEEDED **`.
@@ -630,7 +639,8 @@ Note for implementer: the ring is a fixed 180pt frame, which does NOT scale with
 
 ```bash
 cd apps/ios && xcodegen generate
-UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)
+UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+[[ -n "$UDID" ]] || { echo "No booted iPhone sim"; exit 1; }
 xcodebuild -project Loggi.xcodeproj -scheme Loggi -configuration Debug -destination "id=$UDID" build 2>&1 | tail -5
 ```
 Expected: `** BUILD SUCCEEDED **`.
@@ -733,7 +743,8 @@ struct CalorieChart: View {
 
 ```bash
 cd apps/ios && xcodegen generate
-UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)
+UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+[[ -n "$UDID" ]] || { echo "No booted iPhone sim"; exit 1; }
 xcodebuild -project Loggi.xcodeproj -scheme Loggi -configuration Debug -destination "id=$UDID" build 2>&1 | tail -5
 ```
 Expected: `** BUILD SUCCEEDED **`. Rendering is verified in Task 7, where the gallery makes it visible.
@@ -804,7 +815,8 @@ struct EmptyStateView: View {
 
 ```bash
 cd apps/ios && xcodegen generate
-UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)
+UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+[[ -n "$UDID" ]] || { echo "No booted iPhone sim"; exit 1; }
 xcodebuild -project Loggi.xcodeproj -scheme Loggi -configuration Debug -destination "id=$UDID" build 2>&1 | tail -5
 ```
 Expected: `** BUILD SUCCEEDED **`.
@@ -1031,7 +1043,8 @@ Note for implementer: `RootView`'s `selection` binding maps unknown routes to `.
 
 ```bash
 cd apps/ios && xcodegen generate
-UDID=$(xcrun simctl list devices booted | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)
+UDID=$(xcrun simctl list devices booted | grep iPhone | sed -n 's/.*(\([A-F0-9-]\{36\}\)) (Booted).*/\1/p' | head -1)
+[[ -n "$UDID" ]] || { echo "No booted iPhone sim"; exit 1; }
 bash scripts/dev-loop.sh /tmp/gallery-components.png gallery
 ```
 
