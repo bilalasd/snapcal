@@ -26,6 +26,17 @@ final class TodayViewModel {
 
     var isToday: Bool { date == today }
 
+    /// The paged date as a `Date`, for the logging sheet — a meal added while
+    /// viewing a past day must land on THAT day, not today.
+    var dateAsDate: Date {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar(identifier: .gregorian)
+        f.timeZone = .current
+        return f.date(from: date) ?? Date()
+    }
+
     func load() async {
         // Match RN's cached ?? null pattern exactly: a cache miss on a
         // freshly-paged-to date must clear the PREVIOUS date's meals, not
@@ -127,6 +138,7 @@ final class TodayViewModel {
 /// logging mutation, out of scope for a read-surfaces task).
 struct TodayView: View {
     @State private var vm = TodayViewModel()
+    @State private var addOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var totals: (calories: Double, protein: Double, carbs: Double, fat: Double) {
@@ -189,9 +201,30 @@ struct TodayView: View {
                 }
             }
             .padding(Theme2.Space.l)
-            .padding(.bottom, 96)
+            // 96 clears the tab bar; the extra 72 clears the floating "+",
+            // which otherwise sits on top of the last meal row.
+            .padding(.bottom, 168)
         }
         .background(Theme2.canvas)
+        .overlay(alignment: .bottomTrailing) {
+            // The one place vermilion is allowed: "log something" (§2.1).
+            Button {
+                addOpen = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 60, height: 60)
+                    .background(Theme2.accentLog, in: Circle())
+            }
+            .padding(Theme2.Space.l)
+            .padding(.bottom, Theme2.Space.xl)
+            .accessibilityLabel("Log a meal")
+        }
+        .sheet(isPresented: $addOpen) {
+            AddMealView(targetDate: vm.dateAsDate)
+                .onDisappear { Task { await vm.load() } }
+        }
         .refreshable {
             // DESIGN.md mandates pull-to-refresh here; the Phase 2 port never
             // had it. Native .refreshable is the whole implementation.

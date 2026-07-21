@@ -88,6 +88,36 @@ final class MealCache {
     }
 
     /// A failed optimistic save: drop the stand-in meal entirely.
+    // --- Phase 3: optimistic DELETE. `pendingDelete` already filters the
+    // server list via overlay(); these three drive it. Same three-way shape as
+    // the save path: mark -> confirm (gone for good) or undo (put it back).
+
+    /// Hide the meal immediately. `overlay()` filters it out of every
+    /// reconcile, so it disappears from Today and History at once.
+    func markDeleted(id: String) {
+        pendingDelete.insert(id)
+        for (date, meals) in mealsByDate {
+            mealsByDate[date] = meals.filter { $0.id != id }
+        }
+        historyRange = historyRange?.filter { $0.id != id }
+        pendingNew.removeValue(forKey: id)
+        persist()
+    }
+
+    /// The server confirmed the delete — stop overlaying it. Without this the
+    /// id would accumulate in pendingDelete forever.
+    func confirmDeleted(id: String) {
+        pendingDelete.remove(id)
+        persist()
+    }
+
+    /// The delete failed. Drop the overlay so the next reconcile brings the
+    /// meal back rather than leaving the UI claiming it's gone.
+    func undoDelete(id: String) {
+        pendingDelete.remove(id)
+        persist()
+    }
+
     func discardOptimistic(id: String) {
         pendingNew.removeValue(forKey: id)
         for key in mealsByDate.keys {

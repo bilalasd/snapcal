@@ -34,6 +34,24 @@ struct ApiMeal: Codable, Identifiable, Equatable {
     let items: [ApiMealItem]
     let photos: [ApiMealPhoto]
 
+    /// Memberwise init, written out because the custom `init(from:)` below
+    /// suppresses the synthesized one. Needed to build the OPTIMISTIC meal
+    /// that Phase 3's logging shows before the server has seen it.
+    init(id: String, eatenAt: String, name: String, note: String?, isFavorite: Bool,
+         source: String, planned: Bool, createdAt: String,
+         items: [ApiMealItem], photos: [ApiMealPhoto]) {
+        self.id = id
+        self.eatenAt = eatenAt
+        self.name = name
+        self.note = note
+        self.isFavorite = isFavorite
+        self.source = source
+        self.planned = planned
+        self.createdAt = createdAt
+        self.items = items
+        self.photos = photos
+    }
+
     // Verified against the live production API 2026-07-20: the deployed
     // /api/meals response omits "planned" (older deploy, predates that
     // field landing in apps/api/src) — decode it as false rather than
