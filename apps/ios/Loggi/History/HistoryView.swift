@@ -72,12 +72,15 @@ final class HistoryViewModel {
 struct HistoryView: View {
     @State private var vm = HistoryViewModel()
 
-    private var chartData: [CalorieBarChart.Point] {
+    /// One entry per day in the range, zero-filled for unlogged days.
+    /// `label` ("7/20") is BOTH the axis tick and CalorieChart's categorical
+    /// key — unique per day here, which is what keeps bars from merging.
+    private var chartDays: [CalorieChart.Day] {
         let byDate = Dictionary(uniqueKeysWithValues: vm.days.map { ($0.date, $0.calories) })
-        var points: [CalorieBarChart.Point] = []
+        var points: [CalorieChart.Day] = []
         for i in stride(from: vm.range - 1, through: 0, by: -1) {
             let d = TodayViewModel.addDays(vm.today, -i)
-            points.append(.init(label: Self.chartLabel(d), calories: byDate[d] ?? 0))
+            points.append(.init(date: Self.dayLabel(d), label: Self.chartLabel(d), calories: byDate[d] ?? 0))
         }
         return points
     }
@@ -100,10 +103,10 @@ struct HistoryView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Archive").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
-                    Text("History").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
+            VStack(alignment: .leading, spacing: Theme2.Space.l) {
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                    Text("ARCHIVE").font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
+                    Text("History").font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
                 }
 
                 if vm.meals == nil && vm.failed {
@@ -119,10 +122,10 @@ struct HistoryView: View {
                     }
                 }
             }
-            .padding(Theme.Spacing.l)
+            .padding(Theme2.Space.l)
             .padding(.bottom, 96)
         }
-        .background(Theme.background)
+        .background(Theme2.canvas)
         .refreshable { await vm.load(force: true) }
         .task {
             async let m: () = vm.load()
@@ -131,74 +134,95 @@ struct HistoryView: View {
         }
     }
 
+    private static let figure: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+    private func fmt(_ value: Double) -> String {
+        Self.figure.string(from: NSNumber(value: Int(value.rounded()))) ?? "\(Int(value))"
+    }
+
     private var skeleton: some View {
-        VStack(spacing: Theme.Spacing.m) {
-            RoundedRectangle(cornerRadius: 24).fill(Theme.muted).frame(height: 192)
-            RoundedRectangle(cornerRadius: 16).fill(Theme.muted).frame(height: 64)
+        VStack(spacing: Theme2.Space.m) {
+            RoundedRectangle(cornerRadius: Theme2.Radius.card, style: .continuous)
+                .fill(Theme2.hairline).frame(height: 220)
+            RoundedRectangle(cornerRadius: Theme2.Radius.card, style: .continuous)
+                .fill(Theme2.hairline).frame(height: 64)
         }
+        .accessibilityLabel("Loading history")
     }
 
     private var retryState: some View {
-        VStack(spacing: Theme.Spacing.cluster) {
-            Text("Couldn't load").font(.system(size: 18, weight: .black)).foregroundStyle(Theme.foreground)
-            Text("Check your connection and try again.")
-                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
-            Button {
-                Task { await vm.load(force: true) }
-            } label: {
-                Text("Retry").font(.system(size: 15, weight: .black)).foregroundStyle(Theme.primaryText)
-                    .padding(.horizontal, Theme.Spacing.l)
-                    .frame(minHeight: 44)
-                    .background(Theme.primaryFill)
-                    .clipShape(Capsule())
+        SurfaceCard {
+            VStack(spacing: Theme2.Space.m) {
+                EmptyStateView(
+                    title: "Couldn't load",
+                    message: "Check your connection and try again.",
+                    systemImage: "wifi.exclamationmark")
+                Button {
+                    Task { await vm.load(force: true) }
+                } label: {
+                    Text("Retry")
+                        .font(Theme2.Text.label)
+                        .padding(.horizontal, Theme2.Space.xl)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme2.ink)
             }
         }
-        .frame(maxWidth: .infinity).padding(32).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private var emptyState: some View {
-        VStack(spacing: Theme.Spacing.cluster) {
-            Text("No meals yet").font(.system(size: 18, weight: .black)).foregroundStyle(Theme.foreground)
-            Text("Your logged days — and a calorie chart — show up here once you log a meal.")
-                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
+        SurfaceCard {
+            EmptyStateView(
+                title: "No meals yet",
+                message: "Your logged days — and a calorie chart — show up here once you log a meal.",
+                bevi: "bevi-clipboard")
         }
-        .frame(maxWidth: .infinity).padding(32).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
+    /// Chart lives on the NEUTRAL surface, not a pastel: chart marks use the
+    /// status colours, and those aren't validated against pastel grounds
+    /// (PastelCard documents the rule). The lilac card the RN app used carried
+    /// no marks — only the heading and insight text.
     private var chartCard: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-            HStack {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Plate index").font(Theme.Typography.kicker12).foregroundStyle(.black.opacity(0.6))
-                    Text("Calories").font(.system(size: 22, weight: .black)).foregroundStyle(.black)
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            PastelCard(tone: .lilac) {
+                // One VStack, not two siblings: PastelCard takes a
+                // @ViewBuilder, so sibling views render as SEPARATE cards.
+                // That split the insight line into its own floating card.
+                VStack(alignment: .leading, spacing: Theme2.Space.s) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                        Text("PLATE INDEX")
+                            .font(Theme2.Text.kicker).foregroundStyle(Theme2.blockInkSecondary)
+                        Text("Calories").font(Theme2.Text.title)
+                    }
+                    Spacer(minLength: Theme2.Space.m)
+                    Picker("Range", selection: $vm.range) {
+                        Text("7d").tag(7)
+                        Text("30d").tag(30)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 120)
                 }
-                Spacer()
-                Picker("Range", selection: $vm.range) {
-                    Text("7d").tag(7)
-                    Text("30d").tag(30)
+                if let insight {
+                    Text(insightText(insight))
+                        .font(Theme2.Text.caption)
+                        .foregroundStyle(Theme2.blockInkSecondary)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 120)
+                }
             }
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                CalorieBarChart(data: chartData, goal: vm.goals.map { Double($0.dailyCalories) })
-                if let goal = vm.goals?.dailyCalories {
-                    Text("Goal \(goal) cal").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-            }
-            if let insight {
-                Text(insightText(insight))
-                    .font(.system(size: 12, weight: .bold)).foregroundStyle(.black.opacity(0.6))
-                    .padding(.top, Theme.Spacing.s)
-                    .overlay(Rectangle().fill(Color.black.opacity(0.15)).frame(height: 1), alignment: .top)
+            SurfaceCard {
+                CalorieChart(days: chartDays, goal: Double(vm.goals?.dailyCalories ?? 0))
             }
         }
-        .padding(Theme.Spacing.m).background(Theme.blockLilac).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private func insightText(_ insight: (avg: Int, logged: Int, onTarget: Int)) -> String {
-        var text = "Avg \(insight.avg) cal across \(insight.logged) logged \(insight.logged == 1 ? "day" : "days")"
+        var text = "Avg \(fmt(Double(insight.avg))) cal across \(insight.logged) logged \(insight.logged == 1 ? "day" : "days")"
         if insight.onTarget > 0 { text += " · \(insight.onTarget) on target" }
         return text
     }
@@ -209,36 +233,52 @@ struct HistoryView: View {
             guard let goals = vm.goals else { return false }
             return day.calories > Double(MealCache.shared.goalForDate(day.date, fallback: goals.dailyCalories))
         }()
-        return VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            Button {
-                vm.expandedDate = isOpen ? nil : day.date
-            } label: {
-                HStack {
-                    Text(Self.dayLabel(day.date)).font(.system(size: 17, weight: .black)).foregroundStyle(Theme.foreground)
-                    Spacer()
-                    HStack(spacing: 4) {
-                        if overGoal {
-                            Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.destructive)
-                        }
-                        Text("\(Int(day.calories)) cal")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(overGoal ? Theme.destructive : Theme.foreground)
-                    }
-                    Image(systemName: isOpen ? "chevron.up" : "chevron.down").foregroundStyle(Theme.mutedForeground)
-                }
-                .frame(minHeight: 44)
-            }
-            if isOpen {
-                ForEach(day.meals) { meal in
+        return SurfaceCard {
+            VStack(alignment: .leading, spacing: Theme2.Space.s) {
+                Button {
+                    vm.expandedDate = isOpen ? nil : day.date
+                } label: {
                     HStack {
-                        Text(meal.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.foreground)
-                        Spacer()
-                        Text("\(Int(mealTotals(meal).calories)) cal").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                        Text(Self.dayLabel(day.date))
+                            .font(Theme2.Text.label).foregroundStyle(Theme2.ink)
+                        Spacer(minLength: Theme2.Space.s)
+                        // Over-goal carries an ICON as well as colour — the
+                        // status pair is indistinguishable by hue under CVD.
+                        if overGoal {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(Theme2.Text.caption)
+                                .foregroundStyle(Theme2.statusOver)
+                        }
+                        Text("\(fmt(day.calories)) cal")
+                            .font(Theme2.Text.figure)
+                            .foregroundStyle(overGoal ? Theme2.statusOver : Theme2.ink)
+                        Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                            .font(Theme2.Text.caption)
+                            .foregroundStyle(Theme2.inkSecondary)
+                    }
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Self.dayLabel(day.date))
+                .accessibilityValue("\(fmt(day.calories)) calories\(overGoal ? ", over target" : "")")
+                .accessibilityHint(isOpen ? "Collapse" : "Expand")
+
+                if isOpen {
+                    Divider().overlay(Theme2.hairline)
+                    ForEach(day.meals) { meal in
+                        HStack {
+                            Text(meal.name)
+                                .font(Theme2.Text.body).foregroundStyle(Theme2.ink)
+                            Spacer(minLength: Theme2.Space.s)
+                            Text("\(fmt(mealTotals(meal).calories)) cal")
+                                .font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
+                                .monospacedDigit()
+                        }
+                        .accessibilityElement(children: .combine)
                     }
                 }
             }
         }
-        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     /// "yyyy-MM-dd" -> "Sun, Jul 20", matching RN's

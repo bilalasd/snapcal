@@ -101,10 +101,10 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Control room").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
-                    Text("Settings").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
+            VStack(alignment: .leading, spacing: Theme2.Space.l) {
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                    Text("Control room").font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
+                    Text("Settings").font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
                 }
                 if let goals = vm.goals {
                     GoalCard(goals: goals, imperial: imperial, currentKg: vm.currentKg, onSave: vm.save)
@@ -119,10 +119,10 @@ struct SettingsView: View {
                     skeleton
                 }
             }
-            .padding(Theme.Spacing.l)
+            .padding(Theme2.Space.l)
             .padding(.bottom, 96)
         }
-        .background(Theme.background)
+        .background(Theme2.canvas)
         .task {
             async let g: () = vm.load()
             async let t: () = vm.loadTrendsContext()
@@ -131,51 +131,51 @@ struct SettingsView: View {
     }
 
     private var skeleton: some View {
-        RoundedRectangle(cornerRadius: 24).fill(Theme.muted).frame(height: 288)
+        RoundedRectangle(cornerRadius: 24).fill(Theme2.hairline).frame(height: 288)
     }
 
     private var retryState: some View {
-        VStack(spacing: Theme.Spacing.cluster) {
-            Text("Couldn't load your settings").font(.system(size: 18, weight: .black)).foregroundStyle(Theme.foreground)
+        VStack(spacing: Theme2.Space.m) {
+            Text("Couldn't load your settings").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
             Text("Check your connection and try again.")
-                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
+                .font(Theme2.Text.body).foregroundStyle(Theme2.inkSecondary).multilineTextAlignment(.center)
             Button {
                 Task { await vm.load() }
             } label: {
-                Text("Retry").font(.system(size: 15, weight: .black)).foregroundStyle(Theme.primaryText)
-                    .padding(.horizontal, Theme.Spacing.l)
+                Text("Retry").font(Theme2.Text.label).foregroundStyle(Theme2.canvas)
+                    .padding(.horizontal, Theme2.Space.l)
                     .frame(minHeight: 44)
-                    .background(Theme.primaryFill)
+                    .background(Theme2.ink)
                     .clipShape(Capsule())
             }
         }
-        .frame(maxWidth: .infinity).padding(32).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .frame(maxWidth: .infinity).padding(32).background(Theme2.surface).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     // MARK: - Smart goal card
 
     private func smartGoalCard(_ goals: Goals) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+        VStack(alignment: .leading, spacing: Theme2.Space.s) {
             HStack {
-                HStack(spacing: Theme.Spacing.s) {
-                    Image(systemName: "chart.line.downtrend.xyaxis").foregroundStyle(Theme.foreground)
-                    Text("Smart calorie goal").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+                HStack(spacing: Theme2.Space.s) {
+                    Image(systemName: "chart.line.downtrend.xyaxis").foregroundStyle(Theme2.ink)
+                    Text("Smart calorie goal").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
                 }
                 Spacer()
                 Toggle("", isOn: Binding(
                     get: { goals.adaptiveGoal },
                     set: { v in var next = goals; next.adaptiveGoal = v; Task { await vm.save(next) } }))
                     .labelsHidden()
-                    .tint(Theme.foreground)
+                    .tint(Theme2.ink)
                     .accessibilityLabel("Smart calorie goal")
             }
             Text("Recalculates your daily calories every Monday from your weight trend — your measured burn rate minus what your target rate needs. Falls back to the manual target above until there's enough logging history.")
-                .font(.system(size: 14)).foregroundStyle(Theme.mutedForeground)
+                .font(Theme2.Text.body).foregroundStyle(Theme2.inkSecondary)
             if let status = smartGoalStatus(goals) {
-                Text(status).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.foreground).monospacedDigit()
+                Text(status).font(Theme2.Text.label).foregroundStyle(Theme2.ink).monospacedDigit()
             }
         }
-        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding(Theme2.Space.l).background(Theme2.surface).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private func smartGoalStatus(_ goals: Goals) -> String? {
@@ -189,10 +189,10 @@ struct SettingsView: View {
     // MARK: - Units card
 
     private func unitsCard(_ goals: Goals) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
-            HStack(spacing: Theme.Spacing.s) {
-                Image(systemName: "slider.horizontal.3").foregroundStyle(Theme.foreground)
-                Text("Units").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            HStack(spacing: Theme2.Space.s) {
+                Image(systemName: "slider.horizontal.3").foregroundStyle(Theme2.ink)
+                Text("Units").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
             }
             Picker("Units", selection: Binding(
                 get: { goals.unitSystem },
@@ -202,7 +202,7 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
         }
-        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding(Theme2.Space.l).background(Theme2.surface).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     // MARK: - Profile section
@@ -231,8 +231,8 @@ struct SettingsView: View {
         // Ported from settings.tsx's `warn` — the ft/in-overflow branch is
         // dropped along with the ft/in fields themselves (see doc comment
         // above); age/height sanity ranges are kept since they're cheap and
-        // "port not redesign" is binding. `Theme.destructive` (dynamic), not
-        // `destructiveFixed` — this card sits on `Theme.card`, not a pastel
+        // "port not redesign" is binding. `Theme2.statusOver` (dynamic), not
+        // `destructiveFixed` — this card sits on `Theme2.surface`, not a pastel
         // block, so it must invert with the system theme like every other
         // warning in this file (GoalCard's fixed-ink warnings are the
         // pastel-only exception, not the default).
@@ -242,65 +242,65 @@ struct SettingsView: View {
             return nil
         }()
 
-        return VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
-            HStack(spacing: Theme.Spacing.s) {
-                Image(systemName: "person").foregroundStyle(Theme.foreground)
-                Text("Your profile").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+        return VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            HStack(spacing: Theme2.Space.s) {
+                Image(systemName: "person").foregroundStyle(Theme2.ink)
+                Text("Your profile").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
             }
-            Text("Used to estimate how many calories you burn.").font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground)
+            Text("Used to estimate how many calories you burn.").font(Theme2.Text.body).foregroundStyle(Theme2.inkSecondary)
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Sex").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text("Sex").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
                 Picker("Sex", selection: $sex) {
                     Text("Male").tag(Sex?.some(.male))
                     Text("Female").tag(Sex?.some(.female))
                 }.pickerStyle(.segmented)
             }
 
-            HStack(spacing: Theme.Spacing.cluster) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Age").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+            HStack(spacing: Theme2.Space.m) {
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                    Text("Age").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
                     TextField("", text: $ageText).keyboardType(.numberPad).monospacedDigit()
-                        .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(Theme2.Space.s).background(Theme2.hairline).clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
                     Text(imperial ? "Height (cm — imperial not yet supported)" : "Height (cm)")
-                        .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                        .font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
                     TextField("", text: $heightCmText).keyboardType(.numberPad).monospacedDigit()
-                        .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(Theme2.Space.s).background(Theme2.hairline).clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Activity level").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
-                VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text("Activity level").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
+                VStack(alignment: .leading, spacing: Theme2.Space.s) {
                     ForEach(activityLevels, id: \.value) { level in
                         Button {
                             activity = level.value
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(level.label).font(.system(size: 14, weight: .bold))
-                                Text(level.description).font(Theme.Typography.caption11).opacity(0.7)
+                                Text(level.label).font(Theme2.Text.label)
+                                Text(level.description).font(Theme2.Text.caption).opacity(0.7)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(Theme.Spacing.s)
+                            .padding(Theme2.Space.s)
                         }
-                        .foregroundStyle(activity == level.value ? Theme.primaryText : Theme.foreground)
-                        .background(activity == level.value ? Theme.primaryFill : Theme.card)
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(activity == level.value ? Color.clear : Theme.hairline, lineWidth: 1))
+                        .foregroundStyle(activity == level.value ? Theme2.canvas : Theme2.ink)
+                        .background(activity == level.value ? Theme2.ink : Theme2.surface)
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(activity == level.value ? Color.clear : Theme2.hairline, lineWidth: 1))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                 }
             }
 
             if let warn {
-                Text(warn).font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.destructive).monospacedDigit()
+                Text(warn).font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver).monospacedDigit()
             } else if let burn {
                 Text("Estimated burn: ~\(Int(burn)) cal/day at your current weight.")
-                    .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground).monospacedDigit()
+                    .font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary).monospacedDigit()
             } else {
                 Text("Fill everything in\(vm.currentKg == nil ? " and log a weigh-in" : "") to see your estimated daily burn.")
-                    .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                    .font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
             }
 
             SaveButton(label: "Save profile") {
@@ -312,7 +312,7 @@ struct SettingsView: View {
                 return await vm.save(next)
             }
         }
-        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding(Theme2.Space.l).background(Theme2.surface).clipShape(RoundedRectangle(cornerRadius: 24))
         .onAppear {
             sex = goals.sex
             ageText = goals.age.map(String.init) ?? ""
@@ -410,52 +410,52 @@ struct SettingsView: View {
     /// throws -> DeletedObject` — in case a future task wants full Clerk
     /// identity deletion; deliberately not invoked here to stay at RN parity.)
     private func dataAndAccountCard() -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
-            HStack(spacing: Theme.Spacing.s) {
-                Image(systemName: "shield").foregroundStyle(Theme.foreground)
-                Text("Your data").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            HStack(spacing: Theme2.Space.s) {
+                Image(systemName: "shield").foregroundStyle(Theme2.ink)
+                Text("Your data").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("Signed in as").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
+                Text("Signed in as").font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
                 Text(clerk.user?.primaryEmailAddress?.emailAddress ?? "—")
-                    .font(Theme.Typography.body16).foregroundStyle(Theme.foreground)
+                    .font(Theme2.Text.body).foregroundStyle(Theme2.ink)
             }
             Text("Everything you log belongs to you — take a full copy anytime, or erase it all for good.")
-                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground)
+                .font(Theme2.Text.body).foregroundStyle(Theme2.inkSecondary)
 
-            HStack(spacing: Theme.Spacing.s) {
+            HStack(spacing: Theme2.Space.s) {
                 Button {
                     Task { await exportData(csv: false) }
                 } label: {
-                    HStack(spacing: Theme.Spacing.xs) {
+                    HStack(spacing: Theme2.Space.xs) {
                         if exporting {
                             ProgressView()
                         } else {
                             Image(systemName: "square.and.arrow.down")
-                            Text("Export all (JSON)").font(.system(size: 14, weight: .bold)).lineLimit(1)
+                            Text("Export all (JSON)").font(Theme2.Text.label).lineLimit(1)
                         }
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.bordered)
-                .tint(Theme.foreground)
+                .tint(Theme2.ink)
                 .disabled(exporting)
 
                 Button {
                     Task { await exportData(csv: true) }
                 } label: {
-                    HStack(spacing: Theme.Spacing.xs) {
+                    HStack(spacing: Theme2.Space.xs) {
                         if exporting {
                             ProgressView()
                         } else {
                             Image(systemName: "tablecells")
-                            Text("Meals CSV").font(.system(size: 14, weight: .bold)).lineLimit(1)
+                            Text("Meals CSV").font(Theme2.Text.label).lineLimit(1)
                         }
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.bordered)
-                .tint(Theme.foreground)
+                .tint(Theme2.ink)
                 .disabled(exporting)
             }
 
@@ -463,44 +463,44 @@ struct SettingsView: View {
                 ShareLink(item: url) {
                     Label("Share JSON export", systemImage: "square.and.arrow.up")
                 }
-                .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                .font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
             }
             if let url = exportedCSVURL {
                 ShareLink(item: url) {
                     Label("Share CSV export", systemImage: "square.and.arrow.up")
                 }
-                .font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                .font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
             }
 
             // Danger actions visually separated (DESIGN.md §4.3).
-            Divider().overlay(Theme.hairline)
+            Divider().overlay(Theme2.hairline)
 
             Button {
                 Task { try? await clerk.auth.signOut() }
             } label: {
-                HStack(spacing: Theme.Spacing.xs) {
+                HStack(spacing: Theme2.Space.xs) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
-                    Text("Log out").font(.system(size: 14, weight: .bold))
+                    Text("Log out").font(Theme2.Text.label)
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.bordered)
-            .tint(Theme.foreground)
+            .tint(Theme2.ink)
 
             Button(role: .destructive) {
                 deleteFailed = false
                 showDeleteConfirm = true
             } label: {
                 Text("Delete account")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Theme.destructive)
+                    .font(Theme2.Text.label)
+                    .foregroundStyle(Theme2.statusOver)
                     .frame(maxWidth: .infinity)
             }
             if deleteFailed {
-                Text("Couldn't delete — try again.").font(Theme.Typography.caption11).foregroundStyle(Theme.destructive)
+                Text("Couldn't delete — try again.").font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver)
             }
         }
-        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding(Theme2.Space.l).background(Theme2.surface).clipShape(RoundedRectangle(cornerRadius: 24))
         .alert("Delete account?", isPresented: $showDeleteConfirm) {
             TextField("Type DELETE to confirm", text: $deleteConfirmText)
             Button("Cancel", role: .cancel) { deleteConfirmText = "" }
@@ -541,7 +541,7 @@ private struct SaveButton: View {
     @State private var failed = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+        VStack(alignment: .leading, spacing: Theme2.Space.xs) {
             Button {
                 failed = false
                 Task {
@@ -559,20 +559,20 @@ private struct SaveButton: View {
             } label: {
                 Group {
                     if state == .saving {
-                        ProgressView().tint(Theme.primaryText)
+                        ProgressView().tint(Theme2.canvas)
                     } else {
-                        Text(state == .saved ? "Saved ✓" : label).font(.system(size: 16, weight: .bold))
+                        Text(state == .saved ? "Saved ✓" : label).font(Theme2.Text.label)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .foregroundStyle(Theme.primaryText)
-                .background(Theme.primaryFill)
+                .foregroundStyle(Theme2.canvas)
+                .background(Theme2.ink)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .disabled(disabled || state == .saving)
             .opacity(disabled ? 0.5 : 1)
             if failed {
-                Text("Couldn't save — try again.").font(Theme.Typography.caption11).foregroundStyle(Theme.destructive)
+                Text("Couldn't save — try again.").font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver)
             }
         }
     }
@@ -589,13 +589,13 @@ private struct Chip: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 13, weight: .bold))
+                .font(Theme2.Text.caption)
                 .lineLimit(1)
-                .foregroundStyle(selected ? Theme.primaryText : Theme.foreground)
-                .padding(.horizontal, Theme.Spacing.m)
+                .foregroundStyle(selected ? Theme2.canvas : Theme2.ink)
+                .padding(.horizontal, Theme2.Space.l)
                 .frame(minHeight: 44)
-                .background(selected ? Theme.primaryFill : Theme.card)
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(selected ? Color.clear : Theme.hairline, lineWidth: 1))
+                .background(selected ? Theme2.ink : Theme2.surface)
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(selected ? Color.clear : Theme2.hairline, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
@@ -605,7 +605,7 @@ private struct Chip: View {
 
 /// Ports settings.tsx's `GoalCard`. Cream pastel card, fixed black ink
 /// throughout (per DESIGN.md §2.2 + the Task-2-tracked bug this task must
-/// not repeat) — including `Theme.destructiveFixed` for the mismatch/
+/// not repeat) — including `Theme2.statusOver` for the mismatch/
 /// aggressive-rate warnings, since a *dynamic* destructive token would
 /// invert against this card's always-light background in dark mode.
 private struct GoalCard: View {
@@ -664,23 +664,23 @@ private struct GoalCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
-            HStack(spacing: Theme.Spacing.s) {
-                Image(systemName: "target").foregroundStyle(.black)
-                Text("Your goal").font(.system(size: 20, weight: .black)).foregroundStyle(.black)
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            HStack(spacing: Theme2.Space.s) {
+                Image(systemName: "target").foregroundStyle(Theme2.blockInk)
+                Text("Your goal").font(Theme2.Text.title).foregroundStyle(Theme2.blockInk)
             }
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Direction").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
-                HStack(spacing: Theme.Spacing.s) {
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text("Direction").font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
+                HStack(spacing: Theme2.Space.s) {
                     Chip(label: "Lose", selected: direction == "lose") { direction = "lose" }
                     Chip(label: "Maintain", selected: direction == "maintain") { direction = "maintain" }
                     Chip(label: "Gain", selected: direction == "gain") { direction = "gain" }
                 }
             }
             if direction != "maintain" {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Rate (\(unit)/week)").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
-                    HStack(spacing: Theme.Spacing.s) {
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                    Text("Rate (\(unit)/week)").font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
+                    HStack(spacing: Theme2.Space.s) {
                         ForEach(ratePresets, id: \.self) { p in
                             Chip(label: p, selected: rateText == p) { rateText = p }
                         }
@@ -688,32 +688,32 @@ private struct GoalCard: View {
                     TextField("", text: $rateText)
                         .keyboardType(.decimalPad)
                         .monospacedDigit()
-                        .padding(Theme.Spacing.s)
+                        .padding(Theme2.Space.s)
                         .background(Color.white.opacity(0.6))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Goal weight (\(unit), optional)").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text("Goal weight (\(unit), optional)").font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
                 TextField("Target to reach", text: $goalWeightText)
                     .keyboardType(.decimalPad)
                     .monospacedDigit()
-                    .padding(Theme.Spacing.s)
+                    .padding(Theme2.Space.s)
                     .background(Color.white.opacity(0.6))
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             if mismatch, let currentKg {
                 Text("That's \(direction == "lose" ? "above" : "below") your current weight (\(fmtTrim(round1(toDisplay(currentKg)), decimals: 1)) \(unit)) — check the direction.")
-                    .font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.destructiveFixed).monospacedDigit()
+                    .font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver).monospacedDigit()
             } else if let currentKg {
                 Text("Current weight: \(fmtTrim(round1(toDisplay(currentKg)), decimals: 1)) \(unit)")
-                    .font(.system(size: 12)).foregroundStyle(.black.opacity(0.6)).monospacedDigit()
+                    .font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary).monospacedDigit()
             }
             if aggressive, let summary {
                 Text("\(summary) — that's a lot. Most guidance tops out around \(imperial ? "2 lb" : "1 kg") a week.")
-                    .font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.destructiveFixed).monospacedDigit()
+                    .font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver).monospacedDigit()
             } else if let summary {
-                Text(summary).font(.system(size: 12)).foregroundStyle(.black.opacity(0.6)).monospacedDigit()
+                Text(summary).font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary).monospacedDigit()
             }
             SaveButton(label: "Save goal") {
                 let mag = abs(parseDecimal(rateText) ?? 0)
@@ -725,8 +725,8 @@ private struct GoalCard: View {
                 return await onSave(next)
             }
         }
-        .padding(Theme.Spacing.m)
-        .background(Theme.blockCream)
+        .padding(Theme2.Space.l)
+        .background(Theme2.Block.cream)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         // Unit flip: convert the drafts in place — no remount, no lost edits
         // (DESIGN.md §4.3: "flipping converts in-progress card drafts in place").
@@ -822,20 +822,20 @@ private struct TargetsCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.cluster) {
-            Text("Daily targets").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            Text("Daily targets").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
             if goals.adaptiveGoal {
                 adaptiveBanner
             }
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Calories (cal)").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text("Calories (cal)").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
                 TextField("", text: $caloriesText)
                     .keyboardType(.numberPad)
                     .monospacedDigit()
-                    .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(Theme2.Space.s).background(Theme2.hairline).clipShape(RoundedRectangle(cornerRadius: 16))
             }
             HStack {
-                Text("Macros").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
+                Text("Macros").font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
                 Spacer()
                 // Wrapped in an explicit closure, not passed as a bare `set: switchMode`
                 // method reference — the latter crashes swift-frontend's IR generation on
@@ -849,7 +849,7 @@ private struct TargetsCard: View {
                 .pickerStyle(.segmented).frame(width: 140)
             }
             if mode == "pct" {
-                HStack(spacing: Theme.Spacing.s) {
+                HStack(spacing: Theme2.Space.s) {
                     ForEach(macroPresets, id: \.label) { p in
                         Chip(label: p.label, selected: activePresetLabel == p.label) {
                             proteinPctText = String(p.proteinPct)
@@ -858,21 +858,21 @@ private struct TargetsCard: View {
                         }
                     }
                 }
-                HStack(spacing: Theme.Spacing.cluster) {
+                HStack(spacing: Theme2.Space.m) {
                     macroField("Protein %", $proteinPctText)
                     macroField("Carbs %", $carbsPctText)
                     macroField("Fat %", $fatPctText)
                 }
             } else {
-                HStack(spacing: Theme.Spacing.cluster) {
+                HStack(spacing: Theme2.Space.m) {
                     macroField("Protein g", $proteinGText)
                     macroField("Carbs g", $carbsGText)
                     macroField("Fat g", $fatGText)
                 }
             }
             Text(validationText)
-                .font(Theme.Typography.caption11)
-                .foregroundStyle(valid ? Theme.mutedForeground : Theme.destructive)
+                .font(Theme2.Text.caption)
+                .foregroundStyle(valid ? Theme2.inkSecondary : Theme2.statusOver)
                 .monospacedDigit()
             SaveButton(label: "Save targets", disabled: !valid) {
                 var next = goals
@@ -883,31 +883,31 @@ private struct TargetsCard: View {
                 return await onSave(next)
             }
         }
-        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding(Theme2.Space.l).background(Theme2.surface).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private var adaptiveBanner: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.cluster) {
-            Image(systemName: "bolt.fill").foregroundStyle(Theme.foreground)
+        HStack(alignment: .top, spacing: Theme2.Space.m) {
+            Image(systemName: "bolt.fill").foregroundStyle(Theme2.ink)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Smart goal is managing calories").font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.foreground)
-                Text(adaptiveBannerText).font(.system(size: 14)).foregroundStyle(Theme.mutedForeground).monospacedDigit()
+                Text("Smart goal is managing calories").font(Theme2.Text.label).foregroundStyle(Theme2.ink)
+                Text(adaptiveBannerText).font(Theme2.Text.body).foregroundStyle(Theme2.inkSecondary).monospacedDigit()
             }
         }
-        .padding(Theme.Spacing.m)
-        .background(Theme.card)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.hairline, lineWidth: 1))
+        .padding(Theme2.Space.l)
+        .background(Theme2.surface)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme2.hairline, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private func macroField(_ label: String, _ text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(label).font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+        VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+            Text(label).font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
             TextField("", text: text)
                 .keyboardType(.numberPad)
                 .monospacedDigit()
                 .multilineTextAlignment(.center)
-                .padding(Theme.Spacing.s).background(Theme.muted).clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(Theme2.Space.s).background(Theme2.hairline).clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .frame(maxWidth: .infinity)
     }

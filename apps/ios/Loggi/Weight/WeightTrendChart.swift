@@ -22,11 +22,11 @@ import Charts
 /// anchored `.leading`/`.trailing` instead of `.center`, same fix.
 ///
 /// DESIGN.md §2.2 "Charts route through useColors() — three roles": primary
-/// series (trend line) = Theme.foreground, secondary marks (measured dots,
-/// axis labels, dashed goal line) = Theme.mutedForeground — mirrors
+/// series (trend line) = Theme2.ink, secondary marks (measured dots,
+/// axis labels, dashed goal line) = Theme2.inkSecondary — mirrors
 /// charts.tsx's `WeightChart` exactly (`c.foreground` for the trend `Path`,
 /// `c.mutedForeground` for dots/goal/axis/legend). This card sits on the
-/// fixed-ink `Theme.blockCream` card, but per `CalorieBarChart`'s doc
+/// fixed-ink `Theme2.Block.cream` card, but per `CalorieBarChart`'s doc
 /// comment chart geometry is the one documented exception to that card's
 /// fixed-ink rule — colors here route through the dynamic Theme tokens, not
 /// `Color.black`.
@@ -45,21 +45,21 @@ struct WeightTrendChart: View {
     let goal: Double?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+        VStack(alignment: .leading, spacing: Theme2.Space.s) {
             legend
             Chart {
                 ForEach(Array(points.enumerated()), id: \.element.id) { index, p in
                     PointMark(x: .value("Day", index), y: .value("Weight", p.measured))
-                        .foregroundStyle(Theme.mutedForeground.opacity(0.5))
+                        .foregroundStyle(Theme2.inkSecondary.opacity(0.5))
                         .symbolSize(20)
                     LineMark(x: .value("Day", index), y: .value("Trend", p.trend))
-                        .foregroundStyle(Theme.foreground)
+                        .foregroundStyle(Theme2.ink)
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 2))
                 }
                 if let goal {
                     RuleMark(y: .value("Goal", goal))
-                        .foregroundStyle(Theme.mutedForeground)
+                        .foregroundStyle(Theme2.inkSecondary)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 }
             }
@@ -69,16 +69,16 @@ struct WeightTrendChart: View {
                     AxisValueLabel(anchor: anchor(for: value)) {
                         if let idx = value.as(Int.self), points.indices.contains(idx) {
                             Text(points[idx].label)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Theme.mutedForeground)
+                                .font(Theme2.Text.caption)
+                                .foregroundStyle(Theme2.inkSecondary)
                         }
                     }
                 }
             }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
-                    AxisValueLabel().font(.system(size: 11, weight: .regular)).foregroundStyle(Theme.mutedForeground)
-                    AxisGridLine().foregroundStyle(Theme.mutedForeground.opacity(0.15))
+                    AxisValueLabel().font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
+                    AxisGridLine().foregroundStyle(Theme2.inkSecondary.opacity(0.15))
                 }
             }
             .frame(height: 200)
@@ -88,14 +88,14 @@ struct WeightTrendChart: View {
     /// Mirrors charts.tsx's inline `Measured`/`Trend` swatch row above the
     /// SVG chart.
     private var legend: some View {
-        HStack(spacing: Theme.Spacing.m) {
+        HStack(spacing: Theme2.Space.l) {
             HStack(spacing: 6) {
-                Circle().fill(Theme.mutedForeground.opacity(0.6)).frame(width: 6, height: 6)
-                Text("Measured").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                Circle().fill(Theme2.inkSecondary.opacity(0.6)).frame(width: 6, height: 6)
+                Text("Measured").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
             }
             HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 2).fill(Theme.foreground).frame(width: 12, height: 2.5)
-                Text("Trend").font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
+                RoundedRectangle(cornerRadius: 2).fill(Theme2.ink).frame(width: 12, height: 2.5)
+                Text("Trend").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
             }
         }
     }

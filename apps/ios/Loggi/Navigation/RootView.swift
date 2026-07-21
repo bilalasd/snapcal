@@ -29,6 +29,23 @@ struct RootView: View {
     private var selection: Binding<Tab> {
         Binding(
             get: {
+                #if DEBUG
+                // Screenshot seam: `-preview-tab history|weight|settings` picks
+                // the tab under the seeded today-preview route, since tap
+                // automation isn't available in this environment.
+                if case .todayPreview = route {
+                    let args = ProcessInfo.processInfo.arguments
+                    if let i = args.firstIndex(of: "-preview-tab"), i + 1 < args.count {
+                        switch args[i + 1] {
+                        case "history": return .history
+                        case "weight": return .weight
+                        case "settings": return .settings
+                        default: return .today
+                        }
+                    }
+                    return .today
+                }
+                #endif
                 switch route {
                 case .today: return .today
                 case .history: return .history
@@ -63,7 +80,7 @@ struct RootView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(Tab.settings)
         }
-        .tint(Theme.foreground)
+        .tint(Theme2.ink)
         #if DEBUG
         // Design-system gallery (loggi://gallery). Presented over the tab
         // shell rather than as a tab: it's a review surface, not a feature.

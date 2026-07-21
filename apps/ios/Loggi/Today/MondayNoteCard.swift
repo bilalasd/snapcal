@@ -12,19 +12,19 @@ struct MondayNoteCard: View {
     let verdictStatus: VerdictStatus
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text("Weekly recap").font(.system(size: 20, weight: .black)).foregroundStyle(.black)
-            Text("Week of \(recap.weekStart)").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
-            Text(recap.content).font(.system(size: 14)).foregroundStyle(.black)
-                .padding(.top, Theme.Spacing.xs)
+        VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+            Text("Weekly recap").font(Theme2.Text.title).foregroundStyle(Theme2.blockInk)
+            Text("Week of \(recap.weekStart)").font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
+            Text(recap.content).font(Theme2.Text.body).foregroundStyle(Theme2.blockInk)
+                .padding(.top, Theme2.Space.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Theme.Spacing.m)
+        .padding(Theme2.Space.l)
         // block.lilac per apps/mobile/lib/colors.ts + monday-note-card.tsx's
         // `backgroundColor: block.lilac` — the brief's own prose says "lilac
-        // card" but its sample code said Theme.blockCoral; RN source (the
+        // card" but its sample code said Theme2.Block.coral; RN source (the
         // actual authority here per AGENTS.md) confirms lilac. See task-3-report.md.
-        .background(Theme.blockLilac)
+        .background(Theme2.Block.lilac)
         .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 }

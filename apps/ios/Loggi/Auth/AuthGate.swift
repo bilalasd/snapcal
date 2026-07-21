@@ -28,7 +28,8 @@ struct AuthGate: View {
             // .task, whose load() overwrites the seed with an empty network
             // result — that raced and produced a misleading empty screenshot.
             let _ = TodayPreviewSeed.apply(empty: empty)
-            TodayView()
+            let _ = TodayPreviewSeed.applyRange()
+            RootView(route: $route)
         } else {
             GalleryView()
         }
@@ -47,7 +48,7 @@ struct AuthGate: View {
             if isGalleryRoute {
                 galleryContent
             } else if !clerk.isLoaded {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.background)
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme2.canvas)
             } else if clerk.user == nil {
                 if showingSignUp {
                     SignUpView(onSignInTapped: { showingSignUp = false })

@@ -80,5 +80,52 @@ enum TodayPreviewSeed {
             assertionFailure("TodayPreviewSeed fixture failed to decode: \(error)")
         }
     }
+
+    /// History and Weight read different cache slots than Today, so a preview
+    /// of those screens needs the 30-day range and the trends payload seeded
+    /// too. Same decode-through-the-real-models discipline as `apply`.
+    static func applyRange() {
+        let cal = Calendar.current
+        var rows: [String] = []
+        let cals: [Double] = [1820, 1640, 2240, 1910, 2480, 1750, 1030]
+        for (i, kcal) in cals.enumerated() {
+            guard let day = cal.date(byAdding: .day, value: -(cals.count - 1 - i), to: Date()) else { continue }
+            let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let ts = f.string(from: cal.date(bySettingHour: 12, minute: 30, second: 0, of: day) ?? day)
+            rows.append("""
+            {"id":"r\(i)","mealId":"r\(i)","name":"Day \(i + 1) meals","eatenAt":"\(ts)",
+             "note":null,"isFavorite":false,"source":"photo","planned":false,
+             "createdAt":"\(ts)","photos":[],
+             "items":[{"id":"ri\(i)","mealId":"r\(i)","name":"Meals","portion":"1 day","calories":\(Int(kcal)),
+                       "proteinG":"90.0","carbsG":"180.0","fatG":"60.0",
+                       "satFatG":null,"fiberG":null,"sugarG":null,"sodiumMg":null}]}
+            """)
+        }
+        if let meals = try? JSONDecoder().decode([ApiMeal].self, from: Data("[\(rows.joined(separator: ","))]".utf8)) {
+            _ = MealCache.shared.reconcileRange(meals)
+        }
+
+        // Weight: 5 weigh-ins trending down, plus a balance/verdict so the
+        // stat cards and verdict card have real content.
+        var points: [String] = []
+        let kgs: [Double] = [71.4, 71.1, 70.6, 70.2, 69.5]
+        for (i, kg) in kgs.enumerated() {
+            guard let day = cal.date(byAdding: .day, value: -(kgs.count - 1 - i) * 6, to: Date()) else { continue }
+            points.append("{\"date\":\"\(localDateString(day))\",\"weightKg\":\(kg),\"trendKg\":\(kg + 0.2)}")
+        }
+        let trendsJSON = """
+        {"weights":[\(points.joined(separator: ","))],
+         "rate_kg_per_week":-0.4,
+         "balance":{"avgIntakeKcal":1870,"tdeeKcal":2300,"actualDeficitKcal":430,
+                    "loggedDays":12,"weighIns":5,"windowDays":28},
+         "verdict":{"status":"on_track","adjustKcal":0,"neededDeficitKcal":400,
+                    "actualDeficitKcal":430,"missing":[]},
+         "adaptive_goal_kcal":1950,
+         "target_rate_kg_per_wk":-0.5,"goal_weight_kg":68,"unit_system":"metric","recap":null}
+        """
+        if let t = try? JSONDecoder().decode(TrendsResponse.self, from: Data(trendsJSON.utf8)) {
+            MealCache.shared.setTrends(t)
+        }
+    }
 }
 #endif

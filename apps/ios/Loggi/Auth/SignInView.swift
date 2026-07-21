@@ -12,24 +12,24 @@ struct SignInView: View {
     var onSignUpTapped: () -> Void
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.m) {
-            Text("Loggi").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
+        VStack(spacing: Theme2.Space.l) {
+            Text("Loggi").font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
             TextField("Email", text: $email)
                 .textInputAutocapitalization(.never).keyboardType(.emailAddress)
-                .padding(Theme.Spacing.s).background(Theme.muted)
+                .padding(Theme2.Space.s).background(Theme2.hairline)
             SecureField("Password", text: $password)
-                .padding(Theme.Spacing.s).background(Theme.muted)
-            if let error { Text(error).foregroundStyle(Theme.destructive).font(Theme.Typography.caption11) }
+                .padding(Theme2.Space.s).background(Theme2.hairline)
+            if let error { Text(error).foregroundStyle(Theme2.statusOver).font(Theme2.Text.caption) }
             Button(busy ? "Signing in…" : "Sign in") {
                 Task { await signIn() }
             }
             .disabled(busy || email.isEmpty || password.isEmpty)
             Button("No account? Sign up", action: onSignUpTapped)
-                .foregroundStyle(Theme.mutedForeground)
+                .foregroundStyle(Theme2.inkSecondary)
         }
-        .padding(Theme.Spacing.l)
+        .padding(Theme2.Space.l)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.background)
+        .background(Theme2.canvas)
     }
 
     private func signIn() async {

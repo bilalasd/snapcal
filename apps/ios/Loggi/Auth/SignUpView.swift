@@ -16,29 +16,29 @@ struct SignUpView: View {
     var onSignInTapped: () -> Void
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.m) {
-            Text("Loggi").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
+        VStack(spacing: Theme2.Space.l) {
+            Text("Loggi").font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
 
             if isVerifying {
                 TextField("Verification code", text: $code)
                     .keyboardType(.numberPad)
-                    .padding(Theme.Spacing.s).background(Theme.muted)
-                if let error { Text(error).foregroundStyle(Theme.destructive).font(Theme.Typography.caption11) }
+                    .padding(Theme2.Space.s).background(Theme2.hairline)
+                if let error { Text(error).foregroundStyle(Theme2.statusOver).font(Theme2.Text.caption) }
                 Button(busy ? "Verifying…" : "Verify") {
                     Task { await verify() }
                 }
                 .disabled(busy || code.isEmpty)
             } else {
                 TextField("First name", text: $firstName)
-                    .padding(Theme.Spacing.s).background(Theme.muted)
+                    .padding(Theme2.Space.s).background(Theme2.hairline)
                 TextField("Last name", text: $lastName)
-                    .padding(Theme.Spacing.s).background(Theme.muted)
+                    .padding(Theme2.Space.s).background(Theme2.hairline)
                 TextField("Email", text: $email)
                     .textInputAutocapitalization(.never).keyboardType(.emailAddress)
-                    .padding(Theme.Spacing.s).background(Theme.muted)
+                    .padding(Theme2.Space.s).background(Theme2.hairline)
                 SecureField("Password", text: $password)
-                    .padding(Theme.Spacing.s).background(Theme.muted)
-                if let error { Text(error).foregroundStyle(Theme.destructive).font(Theme.Typography.caption11) }
+                    .padding(Theme2.Space.s).background(Theme2.hairline)
+                if let error { Text(error).foregroundStyle(Theme2.statusOver).font(Theme2.Text.caption) }
                 Button(busy ? "Signing up…" : "Sign up") {
                     Task { await signUp() }
                 }
@@ -46,11 +46,11 @@ struct SignUpView: View {
             }
 
             Button("Already have an account? Sign in", action: onSignInTapped)
-                .foregroundStyle(Theme.mutedForeground)
+                .foregroundStyle(Theme2.inkSecondary)
         }
-        .padding(Theme.Spacing.l)
+        .padding(Theme2.Space.l)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.background)
+        .background(Theme2.canvas)
     }
 
     private func signUp() async {

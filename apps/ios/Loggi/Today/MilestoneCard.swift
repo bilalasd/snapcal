@@ -16,19 +16,19 @@ struct MilestoneCard: View {
     var onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.cluster) {
+        HStack(spacing: Theme2.Space.m) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 18, weight: .black)).foregroundStyle(.black)
-                Text(subtitle).font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.7))
+                Text(title).font(Theme2.Text.title).foregroundStyle(Theme2.blockInk)
+                Text(subtitle).font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
             }
             Spacer()
             Button("Nice", action: onDismiss)
-                .font(.system(size: 13, weight: .bold))
-                .padding(.horizontal, Theme.Spacing.s).padding(.vertical, Theme.Spacing.xs)
+                .font(Theme2.Text.caption)
+                .padding(.horizontal, Theme2.Space.s).padding(.vertical, Theme2.Space.xs)
                 .background(.black).foregroundStyle(.white).clipShape(Capsule())
         }
-        .padding(Theme.Spacing.m)
-        .background(Theme.blockLime)
+        .padding(Theme2.Space.l)
+        .background(Theme2.Block.lime)
         .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 }

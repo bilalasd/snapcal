@@ -97,16 +97,25 @@ struct WeightView: View {
         return abs((diff * 10).rounded() / 10)
     }
 
+    private static let figure: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+    private func fmt(_ value: Double) -> String {
+        Self.figure.string(from: NSNumber(value: Int(value.rounded()))) ?? "\(Int(value))"
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+            VStack(alignment: .leading, spacing: Theme2.Space.l) {
                 header
                 if let days = daysSinceLatest, days >= 4 {
-                    alertCard(icon: "exclamationmark.triangle", title: "Time for a weigh-in",
+                    alertCard(icon: "exclamationmark.triangle.fill", title: "Time for a weigh-in",
                               body: "Your last weigh-in was \(days) days ago. Log one to keep your trend current.")
                 }
                 if let err = vm.errorMessage {
-                    alertCard(icon: "exclamationmark.triangle", title: "Couldn't load trends", body: err, destructive: true)
+                    alertCard(icon: "exclamationmark.triangle.fill", title: "Couldn't load trends", body: err, destructive: true)
                 }
                 if vm.data == nil {
                     skeleton
@@ -123,10 +132,10 @@ struct WeightView: View {
                     }
                 }
             }
-            .padding(Theme.Spacing.l)
+            .padding(Theme2.Space.l)
             .padding(.bottom, 96)
         }
-        .background(Theme.background)
+        .background(Theme2.canvas)
         // DESIGN.md §4.3 Weight: "Pull-to-refresh refetches trends."
         .refreshable { await vm.load() }
         .task { await vm.load() }
@@ -136,82 +145,96 @@ struct WeightView: View {
                 if ok { vm.logSheetOpen = false }
                 return ok
             }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
     }
 
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Trend desk").font(Theme.Typography.kicker12).foregroundStyle(Theme.mutedForeground)
-                Text("Weight").font(Theme.Typography.headline36).foregroundStyle(Theme.foreground)
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text("TREND DESK").font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
+                Text("Weight").font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
             }
-            Spacer()
+            Spacer(minLength: Theme2.Space.m)
             Button {
                 vm.logSheetOpen = true
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus")
-                    Text("Log")
-                }
-                .font(.system(size: 14, weight: .bold))
-                .padding(.horizontal, Theme.Spacing.m)
-                .frame(minHeight: 44)
-                .background(Theme.primaryFill).foregroundStyle(Theme.primaryText).clipShape(Capsule())
+                Label("Log", systemImage: "plus")
+                    .font(Theme2.Text.label)
+                    .padding(.horizontal, Theme2.Space.l)
+                    .frame(minHeight: 44)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme2.ink)
+            .accessibilityLabel("Log a weigh-in")
         }
     }
 
     private var skeleton: some View {
-        VStack(spacing: Theme.Spacing.m) {
-            RoundedRectangle(cornerRadius: 24).fill(Theme.muted).frame(height: 288)
-            HStack(spacing: Theme.Spacing.cluster) {
-                RoundedRectangle(cornerRadius: 24).fill(Theme.muted).frame(height: 80)
-                RoundedRectangle(cornerRadius: 24).fill(Theme.muted).frame(height: 80)
+        VStack(spacing: Theme2.Space.m) {
+            RoundedRectangle(cornerRadius: Theme2.Radius.card, style: .continuous)
+                .fill(Theme2.hairline).frame(height: 288)
+            HStack(spacing: Theme2.Space.m) {
+                RoundedRectangle(cornerRadius: Theme2.Radius.card, style: .continuous)
+                    .fill(Theme2.hairline).frame(height: 80)
+                RoundedRectangle(cornerRadius: Theme2.Radius.card, style: .continuous)
+                    .fill(Theme2.hairline).frame(height: 80)
             }
-            RoundedRectangle(cornerRadius: 16).fill(Theme.muted).frame(height: 64)
         }
+        .accessibilityLabel("Loading trends")
     }
 
     private var emptyState: some View {
-        VStack(spacing: Theme.Spacing.cluster) {
-            Text("No weight data yet").font(.system(size: 18, weight: .black)).foregroundStyle(Theme.foreground)
-            Text("Tap Log above to add a weigh-in.")
-                .font(Theme.Typography.body16).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
+        SurfaceCard {
+            EmptyStateView(
+                title: "No weight data yet",
+                message: "Tap Log above to add a weigh-in and start your trend.",
+                bevi: "bevi-scale")
         }
-        .frame(maxWidth: .infinity).padding(32).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
+    /// Cream headline card carries the figure; the CHART sits on the neutral
+    /// surface below it. Chart marks aren't validated against pastel grounds
+    /// (see PastelCard) — same split History uses.
     private func chartCard(_ data: TrendsResponse) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Latest weigh-in").font(Theme.Typography.kicker12).foregroundStyle(.black.opacity(0.6))
-                    if let latest {
-                        Text("\(String(format: "%.1f", toUnit(latest.weightKg))) \(unit)")
-                            .font(.system(size: 40, weight: .black)).foregroundStyle(.black)
-                        Text("Trend \(String(format: "%.1f", toUnit(latest.trendKg))) \(unit)")
-                            .font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            PastelCard(tone: .cream) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                        Text("LATEST WEIGH-IN")
+                            .font(Theme2.Text.kicker).foregroundStyle(Theme2.blockInkSecondary)
+                        if let latest {
+                            Text("\(String(format: "%.1f", toUnit(latest.weightKg))) \(unit)")
+                                .font(Theme2.Text.display60)
+                                .minimumScaleFactor(0.5)
+                                .lineLimit(1)
+                            Text("Trend \(String(format: "%.1f", toUnit(latest.trendKg))) \(unit)")
+                                .font(Theme2.Text.caption)
+                                .foregroundStyle(Theme2.blockInkSecondary)
+                        }
                     }
+                    Spacer(minLength: Theme2.Space.m)
+                    Picker("Range", selection: $vm.range) {
+                        Text("30d").tag(30)
+                        Text("90d").tag(90)
+                    }
+                    .pickerStyle(.segmented).frame(width: 120)
                 }
-                Spacer()
-                Picker("Range", selection: $vm.range) {
-                    Text("30d").tag(30)
-                    Text("90d").tag(90)
-                }
-                .pickerStyle(.segmented).frame(width: 120)
             }
-            WeightTrendChart(
-                points: chartWeights.map { .init(label: Self.chartLabel($0.date), measured: toUnit($0.weightKg), trend: toUnit($0.trendKg)) },
-                goal: data.goalWeightKg.map(toUnit))
+            SurfaceCard {
+                WeightTrendChart(
+                    points: chartWeights.map { .init(label: Self.chartLabel($0.date), measured: toUnit($0.weightKg), trend: toUnit($0.trendKg)) },
+                    goal: data.goalWeightKg.map(toUnit))
+            }
         }
-        .padding(Theme.Spacing.m).background(Theme.blockCream).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private func statsRow(_ data: TrendsResponse) -> some View {
-        VStack(spacing: Theme.Spacing.cluster) {
-            HStack(spacing: Theme.Spacing.cluster) {
+        VStack(spacing: Theme2.Space.m) {
+            HStack(spacing: Theme2.Space.m) {
                 statCard("Current rate", data.rateKgPerWeek.map { "\($0 > 0 ? "+" : "")\(String(format: "%.2f", toUnit($0))) \(unit)/wk" } ?? "—")
-                statCard("Maintenance", data.balance.map { "\($0.tdeeKcal) cal" } ?? "—")
+                statCard("Maintenance", data.balance.map { "\(fmt(Double($0.tdeeKcal))) cal" } ?? "—")
             }
             if let toGo {
                 statCard("To go", toGo == 0 ? "Reached" : "\(String(format: "%.1f", toGo)) \(unit)")
@@ -220,66 +243,77 @@ struct WeightView: View {
     }
 
     private func statCard(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(Theme.Typography.caption11).foregroundStyle(Theme.mutedForeground)
-            Text(value).font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+        SurfaceCard {
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text(label).font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
+                Text(value).font(Theme2.Text.figure).foregroundStyle(Theme2.ink)
+                    .minimumScaleFactor(0.7).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Theme.Spacing.m).background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private func verdictCard(_ verdict: Verdict) -> some View {
         let (icon, title, body): (String, String, String) = {
             switch verdict.status {
             case .collecting:
-                return ("clock", "Collecting data",
+                return ("clock.fill", "Collecting data",
                         "The deficit verdict needs consistent logging first. Still needed: \(verdict.missing.joined(separator: ", ")).")
             case .onTrack:
-                return ("checkmark.circle", "On track",
-                         "You're averaging a \(abs(verdict.actualDeficitKcal)) cal/day \(verdict.actualDeficitKcal >= 0 ? "deficit" : "surplus"), right around the \(verdict.neededDeficitKcal) cal/day needed for your target rate.")
+                return ("checkmark.circle.fill", "On track",
+                         "You're averaging a \(fmt(Double(abs(verdict.actualDeficitKcal)))) cal/day \(verdict.actualDeficitKcal >= 0 ? "deficit" : "surplus"), right around the \(fmt(Double(verdict.neededDeficitKcal))) cal/day needed for your target rate.")
             case .adjust:
-                return ("exclamationmark.triangle", "Adjust intake",
-                         "Your average \(verdict.actualDeficitKcal >= 0 ? "deficit" : "surplus") is \(abs(verdict.actualDeficitKcal)) cal/day; your target needs \(verdict.neededDeficitKcal) cal/day. Eat about \(abs(verdict.adjustKcal)) cal/day \(verdict.adjustKcal > 0 ? "less" : "more") to hit it.")
+                return ("exclamationmark.triangle.fill", "Adjust intake",
+                         "Your average \(verdict.actualDeficitKcal >= 0 ? "deficit" : "surplus") is \(fmt(Double(abs(verdict.actualDeficitKcal)))) cal/day; your target needs \(fmt(Double(verdict.neededDeficitKcal))) cal/day. Eat about \(fmt(Double(abs(verdict.adjustKcal)))) cal/day \(verdict.adjustKcal > 0 ? "less" : "more") to hit it.")
             }
         }()
-        return alertCard(icon: icon, title: title, body: body)
+        // Status colour is paired with BOTH an icon and the title word —
+        // on-track green and adjust red are ~dE 2 apart under deuteranopia,
+        // so the wording is what actually carries the verdict.
+        let tint: Color? = {
+            switch verdict.status {
+            case .collecting: return nil
+            case .onTrack: return Theme2.statusOnTarget
+            case .adjust: return Theme2.statusOver
+            }
+        }()
+        return alertCard(icon: icon, title: title, body: body, tint: tint)
     }
 
-    /// Weight's own inline "Weekly recap" card (coral, fixed ink) — ports
-    /// weight.tsx's inline recap Card, distinct from Today's imported
-    /// `MondayNoteCard` component (lilac, richer verdict-chip/audit/dismiss
-    /// content, Today-only per its own doc comment). RN confirms these are
-    /// two different renderings of the same `recap` data, not the same
-    /// component reused.
+    /// Weight's own inline "Weekly recap" card (coral) — ports weight.tsx's
+    /// inline recap Card, distinct from Today's imported `MondayNoteCard`
+    /// (lilac, richer content, Today-only). RN confirms these are two
+    /// different renderings of the same `recap` data, not one component.
     private func recapCard(_ recap: WeeklyRecap) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text("Weekly recap").font(.system(size: 24, weight: .black)).foregroundStyle(.black)
-            Text("Week of \(Self.weekOfLabel(recap.weekStart))").font(Theme.Typography.caption11).foregroundStyle(.black.opacity(0.6))
-            Text(recap.content).font(.system(size: 14)).foregroundStyle(.black).padding(.top, Theme.Spacing.xs)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Theme.Spacing.m)
-        .background(Theme.blockCoral)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-    }
-
-    /// Ports ui.tsx's `Alert` component (icon + title + body row, `bg-card`
-    /// + hairline/destructive-tinted border) — DESIGN.md's component
-    /// inventory lists "Alert / notice card" with default/destructive
-    /// states; used here for the stale-weigh-in nudge, the load error, and
-    /// the verdict card, matching RN's three call sites.
-    private func alertCard(icon: String, title: String, body: String, destructive: Bool = false) -> some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.cluster) {
-            Image(systemName: icon).foregroundStyle(destructive ? Theme.destructive : Theme.foreground)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .bold)).foregroundStyle(destructive ? Theme.destructive : Theme.foreground)
-                Text(body).font(.system(size: 14)).foregroundStyle(Theme.mutedForeground)
+        PastelCard(tone: .coral) {
+            VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                Text("Weekly recap").font(Theme2.Text.title)
+                Text("Week of \(Self.weekOfLabel(recap.weekStart))")
+                    .font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
+                Text(recap.content).font(Theme2.Text.body).padding(.top, Theme2.Space.xs)
             }
         }
-        .padding(Theme.Spacing.m)
-        .background(Theme.card)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(destructive ? Theme.destructive.opacity(0.3) : Theme.hairline, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Ports ui.tsx's `Alert` (icon + title + body on a card with a hairline
+    /// or tinted border). Used for the stale-weigh-in nudge, the load error,
+    /// and the verdict card — RN's same three call sites.
+    private func alertCard(icon: String, title: String, body: String,
+                           destructive: Bool = false, tint: Color? = nil) -> some View {
+        let accent = tint ?? (destructive ? Theme2.statusOver : Theme2.ink)
+        return SurfaceCard {
+            HStack(alignment: .top, spacing: Theme2.Space.m) {
+                Image(systemName: icon)
+                    .font(Theme2.Text.label)
+                    .foregroundStyle(accent)
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                    Text(title).font(Theme2.Text.label).foregroundStyle(accent)
+                    Text(body).font(Theme2.Text.body).foregroundStyle(Theme2.inkSecondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
     }
 
     private static func parseCalendarDate(_ date: String) -> Date? {
@@ -334,23 +368,23 @@ private struct LogWeightSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Log your weight").font(.system(size: 20, weight: .black)).foregroundStyle(Theme.foreground)
+            VStack(alignment: .leading, spacing: Theme2.Space.l) {
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                    Text("Log your weight").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
                     Text("Weigh in at the same time each day (first thing in the morning is best) for the smoothest trend.")
-                        .font(.system(size: 14)).foregroundStyle(Theme.mutedForeground)
+                        .font(Theme2.Text.body).foregroundStyle(Theme2.inkSecondary)
                 }
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Weight (\(unit))").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
+                VStack(alignment: .leading, spacing: Theme2.Space.xs) {
+                    Text("Weight (\(unit))").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
                     TextField(imperial ? "e.g. 176.4" : "e.g. 80.1", text: $text)
                         .keyboardType(.decimalPad)
-                        .padding(Theme.Spacing.s)
-                        .background(Theme.muted)
+                        .padding(Theme2.Space.s)
+                        .background(Theme2.hairline)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.hairline, lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme2.hairline, lineWidth: 1))
                 }
                 if let errorMessage {
-                    Text(errorMessage).font(Theme.Typography.caption11).foregroundStyle(Theme.destructive)
+                    Text(errorMessage).font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver)
                 }
                 Button {
                     guard let v = Double(text), v > 0 else {
@@ -367,17 +401,17 @@ private struct LogWeightSheet: View {
                     }
                 } label: {
                     Text(saving ? "Saving…" : "Save")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(Theme2.Text.label)
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .foregroundStyle(Theme.primaryText)
-                        .background(Theme.primaryFill)
+                        .foregroundStyle(Theme2.canvas)
+                        .background(Theme2.ink)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
                 .disabled(saving || Double(text) == nil)
                 Spacer()
             }
-            .padding(Theme.Spacing.l)
-            .background(Theme.background)
+            .padding(Theme2.Space.l)
+            .background(Theme2.canvas)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
     }

@@ -20,6 +20,11 @@ struct CalorieChart: View {
     let days: [Day]
     let goal: Double
 
+    /// At accessibility text sizes the axis labels grow but the plot doesn't,
+    /// so ticks collide into an unreadable smear (seen at AX5). Above the
+    /// accessibility threshold the chart grows AND sheds every other x tick.
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     private func status(_ day: Day) -> GoalStatus {
         goal > 0 && day.calories > goal ? .over : .onTarget
     }
@@ -33,6 +38,14 @@ struct CalorieChart: View {
     ///
     /// A zoomed lower bound is right for the weight TREND LINE (narrow band,
     /// position encodes value) — that logic does not transfer to bars.
+    /// Every day normally; every other day at accessibility sizes, where the
+    /// labels are too wide to all fit. VoiceOver is unaffected — each BarMark
+    /// carries its own full-date label regardless of what the axis shows.
+    private var xTickValues: [String] {
+        guard typeSize.isAccessibilitySize, days.count > 4 else { return days.map(\.label) }
+        return days.enumerated().compactMap { $0.offset % 2 == 0 ? $0.element.label : nil }
+    }
+
     private var yDomain: ClosedRange<Double> {
         let hi = max(days.map(\.calories).max() ?? 0, goal) * 1.15
         return 0...(hi > 0 ? hi : 1)
@@ -93,7 +106,7 @@ struct CalorieChart: View {
             // both bare `AxisMarks` and `.automatic` dropped every label here —
             // a silent Charts failure that BUILD SUCCEEDED never reveals, and
             // that only showed up in a screenshot.
-            AxisMarks(preset: .aligned, values: days.map(\.label)) { value in
+            AxisMarks(preset: .aligned, values: xTickValues) { value in
                 AxisValueLabel {
                     if let label = value.as(String.self) {
                         Text(label)
@@ -103,7 +116,7 @@ struct CalorieChart: View {
                 }
             }
         }
-        .frame(height: 180)
+        .frame(height: typeSize.isAccessibilitySize ? 260 : 180)
         .accessibilityLabel("Daily calories")
     }
 }
