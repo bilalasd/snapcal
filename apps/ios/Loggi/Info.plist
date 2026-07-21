@@ -31,6 +31,18 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Loggi uses the camera to photograph your meals and scan barcodes so it can work out what you ate.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Loggi reads your weight from Apple Health so your trend stays current without manual entry.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Loggi writes the weigh-ins you log to Apple Health.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Loggi can transcribe a spoken description of your meal.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Loggi lets you pick a photo of your meal from your library instead of taking a new one.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Loggi transcribes what you say about a meal so you can log it without typing.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

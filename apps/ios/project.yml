@@ -28,6 +28,12 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.loggi.app
             CFBundleURLSchemes: [loggi]
+        NSCameraUsageDescription: Loggi uses the camera to photograph your meals and scan barcodes so it can work out what you ate.
+        NSPhotoLibraryUsageDescription: Loggi lets you pick a photo of your meal from your library instead of taking a new one.
+        NSMicrophoneUsageDescription: Loggi can transcribe a spoken description of your meal.
+        NSSpeechRecognitionUsageDescription: Loggi transcribes what you say about a meal so you can log it without typing.
+        NSHealthShareUsageDescription: Loggi reads your weight from Apple Health so your trend stays current without manual entry.
+        NSHealthUpdateUsageDescription: Loggi writes the weigh-ins you log to Apple Health.
     entitlements:
       path: Loggi/Loggi.entitlements
       properties:

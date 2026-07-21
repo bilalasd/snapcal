@@ -98,6 +98,15 @@ struct APIClient {
         return data
     }
 
+    /// Raw-bytes POST. `/api/photos` reads `request.arrayBuffer()` with an
+    /// image content-type — NOT multipart, which is the easy wrong assumption.
+    func postBinary<T: Decodable>(_ path: String, body: Data, contentType: String) async throws -> T {
+        var request = try await makeRequest(path, method: "POST", query: [:], body: body)
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        let (data, _) = try await send(request)
+        do { return try JSONDecoder().decode(T.self, from: data) } catch { throw APIError.decoding }
+    }
+
     /// Like post(), but takes pre-encoded JSON body — the save queue re-sends
     /// a body it persisted verbatim rather than re-encoding a live Swift value.
     func postRaw<T: Decodable>(_ path: String, bodyJSON: Data) async throws -> T {

@@ -11,12 +11,13 @@ import SwiftUI
 @Observable
 final class AddMealViewModel {
     enum Mode: String, CaseIterable, Identifiable {
+        case camera = "Camera"
         case describe = "Describe"
         case saved = "Saved"
         var id: String { rawValue }
     }
 
-    var mode: Mode = .describe
+    var mode: Mode = .camera
     var query = ""
     var recents: [ApiMeal] = []
     var favorites: [ApiMeal] = []
@@ -83,6 +84,7 @@ final class AddMealViewModel {
 
 struct AddMealView: View {
     @State private var vm = AddMealViewModel()
+    @State private var cameraOpen = false
     @Environment(\.dismiss) private var dismiss
     /// The day being logged to — Today passes its paged date so a meal added
     /// while viewing yesterday lands on yesterday, matching add.tsx's `date`
@@ -99,6 +101,7 @@ struct AddMealView: View {
                 .padding(Theme2.Space.l)
 
                 switch vm.mode {
+                case .camera: cameraTab
                 case .describe: describeTab
                 case .saved: savedTab
                 }
@@ -128,6 +131,34 @@ struct AddMealView: View {
     private struct DraftBox: Identifiable {
         let id = UUID()
         let draft: MealDraft
+    }
+
+    /// Camera is a full-screen presentation rather than an inline tab: a
+    /// viewfinder inside a segmented-control layout reads as a toy, and the
+    /// capture flow needs the whole screen.
+    private var cameraTab: some View {
+        VStack(spacing: Theme2.Space.l) {
+            Spacer()
+            EmptyStateView(
+                title: "Snap your meal",
+                message: "Point the camera at your plate — or at a barcode — and Loggi works out the rest.",
+                bevi: "bevi-camera")
+            Button {
+                cameraOpen = true
+            } label: {
+                Label("Open camera", systemImage: "camera.fill")
+                    .font(Theme2.Text.label)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme2.accentLog)
+            Spacer()
+        }
+        .padding(Theme2.Space.l)
+        .fullScreenCover(isPresented: $cameraOpen) {
+            CaptureView(targetDate: targetDate)
+                .onDisappear { dismiss() }
+        }
     }
 
     private var describeTab: some View {
