@@ -45,6 +45,8 @@ struct SignUpView: View {
                 .disabled(busy || email.isEmpty || password.isEmpty)
             }
 
+            SsoRow()
+
             Button("Already have an account? Sign in", action: onSignInTapped)
                 .foregroundStyle(Theme2.inkSecondary)
         }

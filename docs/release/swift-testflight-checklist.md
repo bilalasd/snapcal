@@ -52,6 +52,14 @@ Checked by rendering only, not by a live round trip:
 - [ ] **Meal save** — the optimistic path settling against the live API
       (unit-tested at the logic level; the network leg is unexercised).
 - [ ] **Password reset** — the full Clerk email-code flow.
+- [ ] **Sign in with Apple** — native ASAuthorization via Clerk. Renders
+      correctly; the OAuth round trip needs a device (Apple sign-in doesn't
+      work in the simulator without an Apple ID signed in). REQUIRES the
+      HealthKit-style capability: enable "Sign in with Apple" on the
+      com.loggi.app App ID in the developer portal, and configure the Apple
+      OAuth provider in the Clerk dashboard.
+- [ ] **Sign in with Google** — Clerk OAuth browser flow; needs the Google
+      provider configured in the Clerk dashboard.
 
 ## Verified this session (simulator + tests)
 

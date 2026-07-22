@@ -24,6 +24,7 @@ struct SignInView: View {
                 Task { await signIn() }
             }
             .disabled(busy || email.isEmpty || password.isEmpty)
+            SsoRow()
             Button("No account? Sign up", action: onSignUpTapped)
                 .foregroundStyle(Theme2.inkSecondary)
         }
