@@ -1,15 +1,14 @@
 import SwiftUI
 import UIKit
 
-/// The Swift-native visual system's tokens (spec
-/// docs/superpowers/specs/2026-07-20-swift-native-visual-system-design.md).
+/// Design tokens for the app — the **original React Native design language**
+/// (DESIGN.md §2): stark white / near-black editorial, one loud vermilion
+/// accent reserved for logging, heavy black display type, flat white cards with
+/// hairline borders, pastel block tiles with near-black ink.
 ///
-/// Deliberately parallel to the legacy `Theme` rather than replacing it: the
-/// four Phase 2 screens keep compiling against `Theme` until a later phase
-/// rebuilds them. Do not merge the two.
-///
-/// The organizing rule (spec §2): every colour here encodes a meaning.
-/// Nothing in this file exists to decorate.
+/// (A Swift-native "colour-as-data / warm canvas" experiment was tried here and
+/// rejected — these values revert to the RN look. The API surface is unchanged
+/// so screens didn't need editing; only the token values moved.)
 enum Theme2 {
     private static func dynamic(_ light: UInt32, _ dark: UInt32) -> Color {
         Color(UIColor { trait in
@@ -26,41 +25,29 @@ enum Theme2 {
               blue: Double(v & 0xFF) / 255)
     }
 
-    // MARK: - Ground (spec §3.0). Nothing is pure white or pure black.
-    static let canvas  = dynamic(0xFAF6EF, 0x1A1613)
-    static let surface = dynamic(0xFFFCF7, 0x241F1A)
-    static let ink          = dynamic(0x1A1613, 0xFAF6EF)
-    static let inkSecondary = dynamic(0x5C5349, 0xB5AAA0)
-    static let hairline     = dynamic(0xE8E0D4, 0x3A322B)
+    // MARK: - Ground & surfaces (RN: stark white canvas, flat white cards).
+    static let canvas  = dynamic(0xFFFFFF, 0x0C0C0C)
+    /// The flat white card (hairline-bordered) — RN `bg-card`, not a warm tint.
+    static let surface = dynamic(0xFFFFFF, 0x161616)
+    static let ink          = dynamic(0x000000, 0xF5F5F5)
+    static let inkSecondary = dynamic(0x565656, 0xA3A3A3)
+    static let hairline     = dynamic(0xE6E6E6, 0x2A2A2A)
 
-    // MARK: - Reserved (spec §3.4). "Log something", never data, never chrome.
+    // MARK: - Reserved accent. "Log something" only — never chrome/decoration.
     static let accentLog = fixed(0xE64A19)
 
-    // MARK: - Macro ramp (spec §3.1). ONE warm hue family, three lightness
-    // steps. Order is information: protein darkest -> fat lightest. Never
-    // reorder per-screen, and never swap in a different hue per macro — the
-    // three-hue version failed CVD validation (dE 3.5 under tritanopia).
-    static let macroProtein = dynamic(0x4A1D4E, 0xF0C4F4)
-    static let macroCarbs   = dynamic(0x7D3A82, 0xC48ACA)
-    /// GRAPHIC-ONLY (~3.2:1 worst-case). Fills and marks only — never text.
-    static let macroFat     = dynamic(0xB072B5, 0x94599B)
+    // MARK: - Macro bars (RN `MACRO_INK`): foreground / 70% / 50% ink, so they
+    // track the theme (black on white, off-white on dark). Not a colour ramp.
+    static let macroProtein = dynamic(0x000000, 0xF5F5F5)
+    static let macroCarbs   = macroProtein.opacity(0.7)
+    static let macroFat     = macroProtein.opacity(0.5)
 
-    // MARK: - Status (spec §3.3). NOT distinguishable from each other by
-    // colour alone (dE 2.0 dark / 7.3 light under CVD) — always pair with a
-    // symbol or text. `StatusBadge` is the sanctioned way to render these.
-    static let statusOnTarget = dynamic(0x116149, 0x4ECB92)
-    static let statusOver     = dynamic(0xA5003C, 0xF5829B)
+    // MARK: - Status: "on target" is just ink, destructive red for over — the
+    // RN semantic. Always paired with a symbol/label at the use site.
+    static let statusOnTarget = dynamic(0x000000, 0xF5F5F5)
+    static let statusOver     = dynamic(0xD92D20, 0xF97066)
 
-    // MARK: - Pastel block surfaces (spec §3.5). SURFACES, not data — the
-    // same reasoning that warms the canvas: personality lives in the ground,
-    // and the ground carries no meaning. Fixed across themes (they do not
-    // invert), so anything drawn on them uses `blockInk`, never a dynamic
-    // token that would flip to near-white in dark mode.
-    //
-    // Validated: `blockInk` clears 9.3:1 (lilac, the darkest) to 15.3:1
-    // (cream). Macro bars must NOT be placed on these — fat is 1.8-2.9:1 on
-    // four of five, and no fat value exists that clears all five while
-    // remaining a distinct ramp step. Use `PastelCard`, which enforces this.
+    // MARK: - Pastel block tiles (fixed across themes; near-black ink).
     enum Block {
         static let lime  = fixed(0xDCEEB1)
         static let lilac = fixed(0xC5B0F4)
@@ -68,42 +55,40 @@ enum Theme2 {
         static let mint  = fixed(0xC8E6CD)
         static let coral = fixed(0xF3C9B6)
     }
-    /// Fixed ink for pastel surfaces. Never `Theme2.ink` — that inverts.
-    static let blockInk          = fixed(0x1A1613)
-    static let blockInkSecondary = fixed(0x5C5349)
+    /// Fixed black ink for pastel surfaces (RN `text-black`) — pastels don't
+    /// invert with the theme, so their ink can't either.
+    static let blockInk          = fixed(0x000000)
+    static let blockInkSecondary = Color.black.opacity(0.6)
 
-    // MARK: - Type (spec §4). Dynamic Type only — but Dynamic Type means
-    // text SCALES, not that it is small. `.custom(_:relativeTo:)` keeps the
-    // display weight and scales correctly; conflating the two is what made
-    // the first pass read as generic.
+    // MARK: - Type (RN: system font, heavy black weights, tabular figures,
+    // fixed editorial sizes — DESIGN.md §2.3's NativeWind scale).
     enum Text {
-        static let hero    = Font.system(.largeTitle, design: .rounded, weight: .bold).monospacedDigit()
-        static let title   = Font.system(.title2, design: .rounded, weight: .semibold)
-        static let body    = Font.system(.body)
-        static let label   = Font.system(.subheadline, weight: .medium)
-        static let caption = Font.system(.caption, weight: .medium)
-        /// Figures that must align in columns; scales with Dynamic Type.
-        static let figure  = Font.system(.title3, design: .rounded, weight: .semibold).monospacedDigit()
-        /// The hero numeral — DESIGN.md's 60px black display figure, restored.
-        /// `relativeTo:` is what keeps this Dynamic-Type compliant: it scales
-        /// with the user's setting instead of being a frozen 60pt.
-        static let display60 = Font.custom("SF Pro Rounded", size: 60, relativeTo: .largeTitle)
-            .weight(.black).monospacedDigit()
-        /// Screen titles — 36px black (DESIGN.md §2.3 "Headline").
-        static let headline36 = Font.custom("SF Pro Rounded", size: 36, relativeTo: .title)
-            .weight(.black)
-        /// Uppercase eyebrow above a headline.
-        static let kicker = Font.system(.caption, weight: .heavy)
+        /// Big metric — "text-6xl font-black" tabular = 60px.
+        static let display60 = Font.system(size: 60, weight: .black).monospacedDigit()
+        /// Screen title — "text-4xl font-black" = 36px.
+        static let headline36 = Font.system(size: 36, weight: .black)
+        /// Ring-center figure.
+        static let hero    = Font.system(size: 44, weight: .black).monospacedDigit()
+        /// Card title — "text-2xl font-black".
+        static let title   = Font.system(size: 22, weight: .black)
+        /// Desk eyebrow — "text-xs font-extrabold uppercase" (uppercased at use).
+        static let kicker  = Font.system(size: 12, weight: .heavy)
+        static let body    = Font.system(size: 16, weight: .regular)
+        static let label   = Font.system(size: 15, weight: .semibold)
+        static let caption = Font.system(size: 11, weight: .semibold) // 11px HIG floor
+        /// Aligned data figures.
+        static let figure  = Font.system(size: 17, weight: .bold).monospacedDigit()
     }
 
     enum Space {
         static let xs: CGFloat = 4, s: CGFloat = 8, m: CGFloat = 12, l: CGFloat = 16, xl: CGFloat = 24
     }
     enum Radius {
-        static let card: CGFloat = 20, control: CGFloat = 12
+        /// RN cards `rounded-3xl` (24), inputs/rows `rounded-2xl` (16).
+        static let card: CGFloat = 24, control: CGFloat = 16
     }
     enum Motion {
-        /// 130ms ease-out. Settles, never bounces — no springs (spec §2.1 "calm").
+        /// 130ms ease-out, no springs (DESIGN.md §2.8).
         static let standard = Animation.timingCurve(0.0, 0.0, 0.58, 1.0, duration: 0.13)
     }
 }

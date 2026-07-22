@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// A pastel block card — Loggi's expressive surface (DESIGN.md §2.2's block
-/// tokens, restored). This is a SURFACE, not data: the same reasoning that
-/// warms the canvas applies, since a card's colour carries no meaning.
+/// tokens). A pastel tile with fixed near-black ink (RN §2.1) — the one place
+/// colour is playful.
 ///
 /// Enforces the two rules that pastels come with, so they can't be forgotten:
 ///
@@ -10,11 +10,9 @@ import SwiftUI
 ///    them uses `Theme2.blockInk` (9.3:1 on lilac, the worst case) via the
 ///    `.blockInk` environment this sets. A dynamic token would flip to
 ///    near-white in dark mode and vanish.
-/// 2. **No macro bars.** `Theme2.macroFat` is 1.8–2.9:1 on four of the five
-///    pastels, and no fat value clears all five while staying a distinct ramp
-///    step — the constraints are mathematically incompatible. Macro bars
-///    belong on canvas/surface; pastels host ink, numerals, and glyphs.
-///    Matches how the RN app used them: big figure on lime, bars underneath.
+/// Macro bars aren't placed on pastels — they're ink shades and belong on
+/// the neutral white surface. Pastels host ink, numerals, and glyphs (RN:
+/// big figure on lime, bars underneath).
 /// Hoisted out of the generic: the tone has nothing to do with the content
 /// type, and nesting it forced call sites into `PastelCard<AnyView>.Tone`
 /// just to name a colour.

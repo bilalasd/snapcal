@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// One macro. The ramp is a single hue family in three lightness steps
-/// (spec §3.1) — three distinct hues failed CVD validation. Order carries
-/// meaning: protein darkest, fat lightest.
+/// One macro. RN `MACRO_INK`: protein/carbs/fat fill bars in foreground /
+/// 70% / 50% ink (they track the theme). The label identifies which macro,
+/// so the bars don't rely on colour alone.
 enum Macro: CaseIterable {
     case protein, carbs, fat
 
@@ -22,9 +22,8 @@ enum Macro: CaseIterable {
     }
 }
 
-/// A labelled macro bar. The label is not decoration — the ramp reads as
-/// "one colour" at a glance by design, so the text is what identifies which
-/// macro this is. Never render the bar without it.
+/// A labelled macro bar. The bars are ink shades (RN `MACRO_INK`), so the
+/// label is what names the macro — never render the bar without it.
 struct MacroBar: View {
     let macro: Macro
     let grams: Double
