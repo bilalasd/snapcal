@@ -57,13 +57,18 @@ targets:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "17.0"
-    sources: [LoggiTests]
+    sources:
+      - LoggiTests
+      - path: Loggi.storekit
+        buildPhase: resources
     dependencies:
       - target: Loggi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.loggi.app.tests
         GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Loggi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Loggi"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 
   LoggiWidgets:
     type: app-extension
@@ -106,3 +111,24 @@ targets:
         # rejects them. Swift 5 mode restores the checking level the RN/bacons
         # project actually compiled these files under. Ported code unchanged.
         SWIFT_VERSION: "5.0"
+
+schemes:
+  Loggi:
+    build:
+      targets:
+        Loggi: all
+    run:
+      config: Debug
+      # Local StoreKit testing — real products in the simulator, no App Store
+      # Connect. Removed for a real archive, which uses live products.
+      storeKitConfiguration: Loggi.storekit
+    test:
+      config: Debug
+      targets:
+        - LoggiTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

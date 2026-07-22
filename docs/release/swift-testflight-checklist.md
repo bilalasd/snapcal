@@ -27,10 +27,18 @@ real hardware or a real transaction:
 
 - [ ] **Camera capture** — shutter → analyze → review → save, on a device.
 - [ ] **Barcode scan** — a real EAN/UPC in frame → Open Food Facts → draft.
-- [ ] **Photo upload** — `/api/photos` round trip with a real JPEG.
-- [ ] **`/api/analyze` with images** — the photo-first path end to end.
-- [ ] **StoreKit** — purchase, restore, and the `Transaction.updates`
-      listener catching an out-of-band renewal.
+- [x] **Photo upload** — `/api/photos` round trip with a real JPEG. **VERIFIED**
+      2026-07-21 against the live API with a minted Clerk session: HTTP 200,
+      response `{url, pathname}` decodes cleanly to `DraftPhoto`.
+- [x] **`/api/analyze` with images** — **VERIFIED** with a real breakfast
+      photo (omelet/sausage/toast/orange): HTTP 200, 4 items, decodes exactly
+      against `CaptureViewModel.AnalyzeResponse` + `DraftItem`. Only the
+      UIKit downscale and on-device camera hardware remain unproven.
+- [~] **StoreKit** — infrastructure DONE: `Loggi.storekit` config wired into
+      the scheme (Xcode/device runs get local products) and real SKTestSession
+      purchase/restore/expiry tests written. They SKIP on this machine: the
+      iOS 26.5 simulator's StoreKit test daemon fails every op with Code=3.
+      The tests will run on a healthy simulator or in Xcode; verify there.
 - [ ] **Notifications** — Monday note + evening reminder actually delivering.
 - [ ] **HealthKit** — reading a weigh-in from a scale, writing one back.
 
