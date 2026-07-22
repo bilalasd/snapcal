@@ -44,20 +44,28 @@ real hardware or a real transaction:
 
 ## Authenticated-session verification (needs a real login)
 
-Checked by rendering only, not by a live round trip:
+Checked by rendering only, not by a live round trip. NOTE: no Clerk auth can
+COMPLETE in the simulator — `signInWithPassword` reaches the server and returns
+but the SignIn status is `needsClientTrust` (Clerk's App Attest device
+attestation), and App Attest needs a Secure Enclave the simulator lacks. Every
+signed-in flow below therefore needs a real device, not just a login.
 
+- [ ] **Email sign-in / sign-up** — screens + navigation VERIFIED (idb); the
+      `signInWithPassword` call reaches Clerk and returns, but can't activate a
+      session in the sim (needsClientTrust / App Attest). Device-only.
 - [ ] **Onboarding finish** — goals + first weigh-in actually persist.
 - [ ] **Ask Bevi** — a real question → a real reply over logged data.
 - [ ] **Menu Scout** — a menu photo → dish ratings → reserve.
 - [ ] **Meal save** — the optimistic path settling against the live API
       (unit-tested at the logic level; the network leg is unexercised).
 - [ ] **Password reset** — the full Clerk email-code flow.
-- [ ] **Sign in with Apple** — native ASAuthorization via Clerk. Renders
-      correctly; the OAuth round trip needs a device (Apple sign-in doesn't
-      work in the simulator without an Apple ID signed in). REQUIRES the
-      HealthKit-style capability: enable "Sign in with Apple" on the
-      com.loggi.app App ID in the developer portal, and configure the Apple
-      OAuth provider in the Clerk dashboard.
+- [~] **Sign in with Apple** — native ASAuthorization via Clerk. VERIFIED in
+      the simulator (idb-driven, 2026-07-21): tapping the button launches the
+      real native Apple auth flow — the system "Sign in to your Apple Account"
+      alert appears, which proves the entitlement + ASAuthorization wiring are
+      correct. It can't COMPLETE in this sim (no Apple ID signed into it) — a
+      setup step, not code. Before device: enable "Sign in with Apple" on the
+      com.loggi.app App ID and configure the Apple provider in Clerk.
 - [ ] **Sign in with Google** — Clerk OAuth browser flow; needs the Google
       provider configured in the Clerk dashboard.
 
