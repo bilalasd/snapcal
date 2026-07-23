@@ -1,14 +1,13 @@
 # Loggi
 
 Personal calorie tracker: snap photos of food (or describe it), Claude estimates
-calories + macros, and your smart-scale weight trend (via Google Health) tells you whether your deficit is
+calories + macros, and your smart-scale weight trend (via Apple Health) tells you whether your deficit is
 actually working.
 
 Single-user, passcode-protected, built with Next.js + Neon Postgres + the
 Claude API. Designed to run free on Vercel (AI cost ≈ 2–3¢ per analyzed meal).
 
-Docs: [design spec](docs/superpowers/specs/2026-07-07-snapcal-design.md) ·
-[implementation plan](docs/superpowers/plans/2026-07-07-snapcal-implementation.md)
+Docs: [product](PRODUCT.md) · [design](DESIGN.md) · [releasing](RELEASE.md)
 
 ## Setup
 
