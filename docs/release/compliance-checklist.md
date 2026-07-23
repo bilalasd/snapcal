@@ -1,8 +1,9 @@
 # Compliance checklist — WCAG 2.2 AA · Apple HIG · App Store Review
 
 Run the FULL list before every production submit. For betas, run §Visual on
-screens that changed. Mechanical items are covered by
-`apps/mobile/scripts/release-check.sh` and are not repeated here.
+screens that changed. Mechanical build gates (Release config excludes DEBUG
+surfaces, unit tests pass) live in `docs/release/swift-testflight-checklist.md`
+and are not repeated here.
 
 ## §Visual — WCAG + HIG (verify with the screenshot loop, light AND dark)
 
@@ -34,8 +35,8 @@ screens that changed. Mechanical items are covered by
 - [ ] Privacy nutrition labels in App Store Connect match reality: health
       data (weight, meals), identifiers (Clerk user id), diagnostics
       (Sentry). Health data is NEVER used for tracking/ads.
-- [ ] Every `NS*UsageDescription` string in `app.json` accurately describes
-      use (camera, mic, speech, HealthKit).
+- [ ] Every `NS*UsageDescription` string in `apps/ios/Loggi/Info.plist` (set
+      via `project.yml`) accurately describes use (camera, mic, speech, HealthKit).
 - [ ] Sign in with Apple present wherever any third-party sign-in shows,
       listed first.
 - [ ] Account deletion reachable in-app (Settings → Delete account) and
@@ -44,11 +45,11 @@ screens that changed. Mechanical items are covered by
       price + billing period visible before purchase; Restore Purchases
       works on a clean install; paywall links to Privacy Policy AND Terms
       of Use (EULA); free-trial terms accurate.
-- [ ] No test/debug UI reachable; no Metro dependence in the archive
-      (archive.sh verifies embedded bundle).
+- [ ] No test/debug UI reachable — the DEBUG-only component gallery and
+      preview seed are excluded from Release builds.
 - [ ] Export compliance: standard HTTPS only → "uses exempt encryption"
-      (set `ITSAppUsesNonExemptEncryption=false` in app.json infoPlist to
-      skip the per-build question).
+      (set `ITSAppUsesNonExemptEncryption=false` in `apps/ios/Loggi/Info.plist`
+      to skip the per-build question).
 - [ ] Age rating questionnaire answered (health/wellness, no restricted
       content).
 

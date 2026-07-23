@@ -90,7 +90,7 @@ signed-in flow below therefore needs a real device, not just a login.
 - Speak-to-log capture (`speak-capture` — Speech framework).
 - Milestone share card (ImageRenderer; `MilestoneCard` exists unwired).
 
-## Then, per the rewrite spec's Retirement step
+## Retirement — done
 
-After one clean TestFlight cycle on Swift: delete `apps/mobile`, the JS
-toolchain, and the node_modules patches.
+`apps/mobile` and its Expo/JS toolchain were removed 2026-07-23; the RN app is
+retired. The API (`apps/api`) and shared package (`packages/shared`) remain.
