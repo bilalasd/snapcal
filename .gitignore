@@ -4,9 +4,12 @@ node_modules
 *.tsbuildinfo
 .claude
 
-# Personal test photos (kept out of git)
+# Personal test photos / screenshots / recordings (kept out of git)
 /IMG_*.PNG
 /IMG_*.heic
+/Screenshot*.png
+/Screenshot*.jpeg
+/ScreenRecording*.MP4
 
 # Yarn Berry
 .yarn/*

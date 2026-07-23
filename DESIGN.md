@@ -424,9 +424,9 @@ Danger actions visually separated.
 (dictation) · Search · Saved.
 
 - **Camera** — one viewfinder for food photos, nutrition labels, barcodes; no
-  mode picking (expo-camera). Walmart-style reticle (reference recording in
-  repo root), invisible until a code is found: yellow `#facc15` corner
-  brackets (30×30, 5px stroke) appear ~8% outside the barcode and contract
+  mode picking (expo-camera). Walmart-style reticle, invisible until a code
+  is found: yellow `#facc15` corner brackets (30×30, 5px stroke) appear ~8%
+  outside the barcode and contract
   onto it (240ms `Easing.out(cubic)`), the screen dims to `rgba(0,0,0,0.45)`
   outside a rounded clear window (r18, 22px pad), and both glide with the
   code between detections (120ms `Easing.out(quad)` — short so the box never
