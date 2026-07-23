@@ -88,7 +88,19 @@ enum Theme2 {
         static let card: CGFloat = 24, control: CGFloat = 16
     }
     enum Motion {
-        /// 130ms ease-out, no springs (DESIGN.md §2.8).
-        static let standard = Animation.timingCurve(0.0, 0.0, 0.58, 1.0, duration: 0.13)
+        /// The decorative-but-snappy default (DESIGN.md §2.8): a fast spring
+        /// with a light overshoot that settles in ~0.3s — alive, never slow.
+        /// Every component routes its animations through `standard`, so this is
+        /// the one dial that gives the whole app its motion character.
+        static let spring = Animation.spring(response: 0.3, dampingFraction: 0.66)
+        /// Tighter, poppier spring for small interactive elements — the
+        /// speed-dial fan icons, press scale. More overshoot, even quicker.
+        static let pop = Animation.spring(response: 0.24, dampingFraction: 0.6)
+        /// Pure ease-out for cross-fades/scrims where a bounce reads wrong.
+        static let snap = Animation.easeOut(duration: 0.12)
+        /// Default alias — existing call sites (`.standard`) now get the spring.
+        static let standard = spring
+        /// Speed-dial fan / tab transitions — folded into the spring.
+        static let tabBar = spring
     }
 }

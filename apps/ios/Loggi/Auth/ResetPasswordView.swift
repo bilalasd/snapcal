@@ -63,14 +63,14 @@ struct ResetPasswordView: View {
                                 Task { stage == .email ? await sendCode() : await finish() }
                             } label: {
                                 HStack {
-                                    if busy { ProgressView().tint(.white) }
+                                    if busy { ProgressView().tint(Theme2.blockInk) }
                                     Text(stage == .email ? "Send code" : "Reset password")
                                         .font(Theme2.Text.label)
                                 }
+                                .foregroundStyle(Theme2.blockInk)
                                 .frame(maxWidth: .infinity, minHeight: 48)
+                                .background(Theme2.accentLog, in: Capsule())
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Theme2.accentLog)
                             .disabled(busy || (stage == .email
                                                ? email.isEmpty
                                                : (code.isEmpty || newPassword.count < 8)))

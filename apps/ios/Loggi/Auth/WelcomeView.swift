@@ -52,10 +52,10 @@ struct WelcomeView: View {
                     onGetStarted()
                 } label: {
                     Text("Get started").font(Theme2.Text.label)
+                        .foregroundStyle(Theme2.blockInk)
                         .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(Theme2.accentLog, in: Capsule())
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme2.accentLog)
 
                 Button("I already have an account", action: onSignIn)
                     .font(Theme2.Text.body)

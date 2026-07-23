@@ -88,10 +88,10 @@ struct MealReviewView: View {
                     } label: {
                         Label("Add an item", systemImage: "plus")
                             .font(Theme2.Text.label)
+                            .foregroundStyle(Theme2.ink)
                             .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(Theme2.hairline, in: Capsule())
                     }
-                    .buttonStyle(.bordered)
-                    .tint(Theme2.ink)
                 }
                 .padding(Theme2.Space.l)
                 .padding(.bottom, 96)

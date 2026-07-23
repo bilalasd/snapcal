@@ -138,9 +138,7 @@ final class TodayViewModel {
 /// logging mutation, out of scope for a read-surfaces task).
 struct TodayView: View {
     @State private var vm = TodayViewModel()
-    @State private var addOpen = false
     @State private var askOpen = false
-    @State private var menuOpen = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var totals: (calories: Double, protein: Double, carbs: Double, fat: Double) {
@@ -209,27 +207,26 @@ struct TodayView: View {
         }
         .background(Theme2.canvas)
         .overlay(alignment: .bottomTrailing) {
-            // The one place vermilion is allowed: "log something" (§2.1).
+            // Ask Bevi lives here now (moved off the header). The "+" it used to
+            // sit beside is in the tab bar's speed dial. Neutral ink, NOT
+            // vermilion — §2.1 reserves the accent for logging entry points, and
+            // asking Bevi isn't one.
             Button {
-                addOpen = true
+                askOpen = true
             } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 60, height: 60)
-                    .background(Theme2.accentLog, in: Circle())
+                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Theme2.canvas)
+                    .frame(width: 56, height: 56)
+                    .background(Theme2.ink, in: Circle())
             }
             .padding(Theme2.Space.l)
-            .padding(.bottom, Theme2.Space.xl)
-            .accessibilityLabel("Log a meal")
+            .padding(.bottom, Theme2.Space.s) // sit just above the floating tab bar
+            .accessibilityLabel("Ask Bevi")
         }
         .sheet(isPresented: $askOpen) { AskBeviView() }
-        .sheet(isPresented: $menuOpen) {
-            MenuScoutView().onDisappear { Task { await vm.load() } }
-        }
-        .sheet(isPresented: $addOpen) {
-            AddMealView(targetDate: vm.dateAsDate)
-                .onDisappear { Task { await vm.load() } }
+        .onReceive(NotificationCenter.default.publisher(for: .loggiMealsChanged)) { _ in
+            Task { await vm.load() }
         }
         .refreshable {
             // DESIGN.md mandates pull-to-refresh here; the Phase 2 port never
@@ -257,24 +254,17 @@ struct TodayView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
             VStack(alignment: .leading, spacing: Theme2.Space.xs) {
                 Text(vm.isToday ? "TODAY" : vm.date.uppercased())
                     .font(Theme2.Text.kicker).foregroundStyle(Theme2.inkSecondary)
                 Text(vm.isToday ? greeting() : vm.date)
                     .font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
             }
-            Spacer(minLength: Theme2.Space.m)
-            VStack(alignment: .trailing, spacing: Theme2.Space.s) {
-            HStack(spacing: Theme2.Space.s) {
-                Button { menuOpen = true } label: { Image(systemName: "menucard") }
-                    .accessibilityLabel("Menu scout")
-                Button { askOpen = true } label: { Image(systemName: "bubble.left.and.text.bubble.right") }
-                    .accessibilityLabel("Ask Bevi")
-            }
-            .tint(Theme2.inkSecondary)
+            // Streak + on-target sit in a row under the greeting — in the corner
+            // they crowded the headline and didn't fit.
             if vm.isToday, let streak = vm.streak, streak > 0 {
-                VStack(alignment: .trailing, spacing: Theme2.Space.xs) {
+                HStack(spacing: Theme2.Space.s) {
                     // Streak keeps vermilion: logging IS its meaning, so this
                     // is the accent's rule being honoured, not decoration.
                     Label("\(streak)/7", systemImage: "bolt.fill")
@@ -287,10 +277,11 @@ struct TodayView: View {
                     if onTarget > 0 {
                         StatusBadge(status: .onTarget, text: "\(onTarget) on target")
                     }
+                    Spacer(minLength: 0)
                 }
             }
-            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var dayNav: some View {
@@ -370,11 +361,11 @@ struct TodayView: View {
     private var emptyState: some View {
         SurfaceCard {
             EmptyStateView(
-                title: vm.isToday ? "Nothing logged yet" : "No meals this day",
+                title: vm.isToday ? "Welcome back!" : "No meals this day",
                 message: vm.isToday
                     ? "Snap a photo of your next meal and it'll show up here."
                     : "Add a meal to log it for this day.",
-                bevi: vm.isToday ? "bevi-camera" : nil,
+                bevi: vm.isToday ? "bevi-standing" : nil,
                 systemImage: "calendar")
         }
     }

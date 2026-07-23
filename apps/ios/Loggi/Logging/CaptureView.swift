@@ -17,6 +17,11 @@ final class CaptureViewModel {
     var errorMessage: String?
     var draft: MealDraft?
     var pendingPhoto: Data?
+    /// The just-shot frame, held so the view can freeze it on screen while
+    /// analysis runs — confirmation that the picture was actually taken
+    /// (DESIGN.md §Analyzing overlay: "photo … ticking status"). Cleared on
+    /// error so the live camera returns for a retake.
+    var capturedImage: UIImage?
 
     private struct AnalyzeRequest: Encodable {
         let images: [AnalyzeImage]
@@ -32,7 +37,11 @@ final class CaptureViewModel {
     /// keeps its picture — but an upload failure must NOT block logging, so it
     /// degrades to a photo-less draft rather than erroring out.
     func analyze(_ image: UIImage, note: String? = nil) async {
+        // Freeze the shot immediately so the user sees what they captured while
+        // it's being analyzed, not a black scrim.
+        capturedImage = image
         guard let jpeg = PhotoPipeline.prepare(image) else {
+            capturedImage = nil
             errorMessage = "Couldn't read that photo — try again."
             return
         }
@@ -52,6 +61,7 @@ final class CaptureViewModel {
                               photos: photo.map { [$0] } ?? [])
         } catch {
             _ = await uploaded // don't leave the upload task dangling
+            capturedImage = nil // back to the live camera so they can retake
             errorMessage = (error as? LocalizedError)?.errorDescription
                 ?? "Couldn't analyze this photo — try a clearer shot or describe it instead."
         }
@@ -78,13 +88,21 @@ struct CaptureView: View {
     @State private var vm = CaptureViewModel()
     @State private var camera = CameraModel()
     @State private var pickerItem: PhotosPickerItem?
+    @State private var shutterFlash: Double = 0
     @Environment(\.dismiss) private var dismiss
     var targetDate: Date = Date()
 
     var body: some View {
         NavigationStack {
             ZStack {
-                if camera.unavailable {
+                if let shot = vm.capturedImage {
+                    // Freeze-frame of the shot while it's analyzed — the user
+                    // sees exactly what was captured.
+                    Image(uiImage: shot)
+                        .resizable()
+                        .scaledToFill()
+                        .ignoresSafeArea()
+                } else if camera.unavailable {
                     unavailableState
                 } else {
                     CameraPreview(session: camera.session)
@@ -92,6 +110,11 @@ struct CaptureView: View {
                 }
                 controls
                 if vm.analyzing || vm.lookupBusy { analyzingOverlay }
+                // Shutter flash — a quick white blink confirms the capture.
+                Color.white
+                    .ignoresSafeArea()
+                    .opacity(shutterFlash)
+                    .allowsHitTesting(false)
             }
             .background(Color.black)
             .navigationBarTitleDisplayMode(.inline)
@@ -143,6 +166,15 @@ struct CaptureView: View {
         let draft: MealDraft
     }
 
+    /// Shutter shrinks on press for a tactile "click," then springs back.
+    private struct ShutterButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.88 : 1)
+                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
+        }
+    }
+
     private var unavailableState: some View {
         VStack(spacing: Theme2.Space.l) {
             Image(systemName: "camera.fill")
@@ -181,22 +213,40 @@ struct CaptureView: View {
                     .padding(.horizontal, Theme2.Space.l)
             }
             Button {
+                triggerShutter()
                 camera.capture()
             } label: {
-                Circle()
-                    .fill(Theme2.accentLog)
-                    .frame(width: 76, height: 76)
-                    .overlay(Circle().stroke(.white, lineWidth: 4))
+                // Standard iOS still-photo shutter: white ring + white inner
+                // disc. A red fill reads as "record video" (the user's note),
+                // so the accent stays out of this control.
+                ZStack {
+                    Circle().stroke(.white, lineWidth: 4).frame(width: 76, height: 76)
+                    Circle().fill(.white).frame(width: 62, height: 62)
+                }
             }
+            .buttonStyle(ShutterButtonStyle())
             .padding(.bottom, Theme2.Space.xl)
             .disabled(camera.unavailable || vm.analyzing)
             .accessibilityLabel("Take a photo")
         }
     }
 
+    /// White blink + capture haptic — makes it unmistakable the shot fired.
+    private func triggerShutter() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        shutterFlash = 0.85
+        // Commit the white frame, then fade it out next runloop so the blink
+        // is visible (an in-place set-then-animate would render only the end).
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.35)) { shutterFlash = 0 }
+        }
+    }
+
     private var analyzingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.6).ignoresSafeArea()
+            // Lighter than a full scrim so the frozen photo behind it still
+            // reads while the spinner + status sit on top.
+            Color.black.opacity(0.45).ignoresSafeArea()
             VStack(spacing: Theme2.Space.m) {
                 ProgressView().tint(.white).scaleEffect(1.4)
                 Text(vm.lookupBusy ? "Looking that up…" : "Working out what's on the plate…")

@@ -77,7 +77,11 @@ final class SettingsViewModel {
     @discardableResult
     func save(_ next: Goals) async -> Bool {
         do {
-            let saved: Goals = try await APIClient.shared.put("/api/goals", body: next)
+            var saved: Goals = try await APIClient.shared.put("/api/goals", body: next)
+            // The deployed API omits `adaptive_goal` from its response, so it
+            // decodes back as false and snaps the Smart-goal toggle off. Keep
+            // the value we just sent (and cache it, so a relaunch honours it).
+            saved.adaptiveGoal = next.adaptiveGoal
             goals = saved
             MealCache.shared.setGoals(saved)
             return true
@@ -95,6 +99,8 @@ final class SettingsViewModel {
 /// Task 4/5 reports) rather than a new decision made here.
 struct SettingsView: View {
     @State private var vm = SettingsViewModel()
+    @State private var showRedoConfirm = false
+    @State private var showOnboarding = false
     @Environment(Clerk.self) private var clerk
 
     private var imperial: Bool { vm.goals?.unitSystem == .imperial }
@@ -107,11 +113,11 @@ struct SettingsView: View {
                     Text("Settings").font(Theme2.Text.headline36).foregroundStyle(Theme2.ink)
                 }
                 if let goals = vm.goals {
-                    GoalCard(goals: goals, imperial: imperial, currentKg: vm.currentKg, onSave: vm.save)
-                    TargetsCard(goals: goals, adaptiveKcal: vm.adaptiveKcal, onSave: vm.save)
+                    // Goal + targets are set only by the questionnaire now — this
+                    // is a read-only summary with a "redo" entry point.
+                    planCard(goals)
                     smartGoalCard(goals)
                     unitsCard(goals)
-                    profileSection(goals)
                     dataAndAccountCard()
                 } else if vm.loadError {
                     retryState
@@ -128,6 +134,56 @@ struct SettingsView: View {
             async let t: () = vm.loadTrendsContext()
             _ = await (g, t)
         }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(seedGoals: vm.goals, seedWeightKg: vm.currentKg) {
+                showOnboarding = false
+                Task { await vm.load() }
+            }
+        }
+    }
+
+    // MARK: - Plan card (read-only summary + redo entry point)
+
+    private func planCard(_ goals: Goals) -> some View {
+        VStack(alignment: .leading, spacing: Theme2.Space.m) {
+            HStack(spacing: Theme2.Space.s) {
+                Image(systemName: "target").foregroundStyle(Theme2.blockInk)
+                Text("Your plan").font(Theme2.Text.title).foregroundStyle(Theme2.blockInk)
+            }
+            Text("\(goals.dailyCalories.formatted()) cal a day")
+                .font(Theme2.Text.hero).foregroundStyle(Theme2.blockInk)
+                .minimumScaleFactor(0.5).lineLimit(1)
+            Text("P \(goals.dailyProteinG)g · C \(goals.dailyCarbsG)g · F \(goals.dailyFatG)g")
+                .font(Theme2.Text.label).foregroundStyle(Theme2.blockInkSecondary)
+            Text(planGoalSummary(goals))
+                .font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { showRedoConfirm = true } label: {
+                Text("Redo your plan")
+                    .font(Theme2.Text.label).foregroundStyle(Theme2.blockInk)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(Color.white.opacity(0.6), in: Capsule())
+            }
+            .confirmationDialog("Redo your plan?", isPresented: $showRedoConfirm, titleVisibility: .visible) {
+                Button("Redo the questionnaire") { showOnboarding = true }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("You'll answer the questions again and your daily targets will be recalculated from your new answers.")
+            }
+        }
+        .padding(Theme2.Space.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme2.Block.cream)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    private func planGoalSummary(_ goals: Goals) -> String {
+        let rate = goals.targetRateKgPerWk
+        if rate == 0 { return "Maintaining your weight. Change anything by redoing the questionnaire." }
+        let dir = rate < 0 ? "Losing" : "Gaining"
+        let perWeek = imperial ? abs(rate) / 0.453592 : abs(rate)
+        let unit = imperial ? "lb" : "kg"
+        return "\(dir) about \(String(format: "%g", (perWeek * 100).rounded() / 100)) \(unit)/week."
     }
 
     private var skeleton: some View {
@@ -163,8 +219,13 @@ struct SettingsView: View {
                 }
                 Spacer()
                 Toggle("", isOn: Binding(
-                    get: { goals.adaptiveGoal },
-                    set: { v in var next = goals; next.adaptiveGoal = v; Task { await vm.save(next) } }))
+                    get: { vm.goals?.adaptiveGoal ?? false },
+                    set: { v in
+                        guard var next = vm.goals else { return }
+                        next.adaptiveGoal = v
+                        vm.goals = next            // optimistic — the toggle moves now
+                        Task { await vm.save(next) } // persist in the background
+                    }))
                     .labelsHidden()
                     .tint(Theme2.ink)
                     .accessibilityLabel("Smart calorie goal")
@@ -194,13 +255,11 @@ struct SettingsView: View {
                 Image(systemName: "slider.horizontal.3").foregroundStyle(Theme2.ink)
                 Text("Units").font(Theme2.Text.title).foregroundStyle(Theme2.ink)
             }
-            Picker("Units", selection: Binding(
-                get: { goals.unitSystem },
-                set: { v in var next = goals; next.unitSystem = v; Task { await vm.save(next) } })) {
-                Text("Metric — kg, cm").tag(UnitSystem.metric)
-                Text("Imperial — lb, ft/in").tag(UnitSystem.imperial)
-            }
-            .pickerStyle(.segmented)
+            SegmentedToggle(
+                options: [("Metric — kg, cm", UnitSystem.metric), ("Imperial — lb, ft/in", UnitSystem.imperial)],
+                selection: Binding(
+                    get: { goals.unitSystem },
+                    set: { v in var next = goals; next.unitSystem = v; Task { await vm.save(next) } }))
         }
         .padding(Theme2.Space.l).background(Theme2.surface).clipShape(RoundedRectangle(cornerRadius: 24))
     }
@@ -251,10 +310,7 @@ struct SettingsView: View {
 
             VStack(alignment: .leading, spacing: Theme2.Space.xs) {
                 Text("Sex").font(Theme2.Text.caption).foregroundStyle(Theme2.inkSecondary)
-                Picker("Sex", selection: $sex) {
-                    Text("Male").tag(Sex?.some(.male))
-                    Text("Female").tag(Sex?.some(.female))
-                }.pickerStyle(.segmented)
+                SegmentedToggle(options: [("Male", Sex?.some(.male)), ("Female", Sex?.some(.female))], selection: $sex)
             }
 
             HStack(spacing: Theme2.Space.m) {
@@ -328,6 +384,7 @@ struct SettingsView: View {
     @State private var exporting = false
     @State private var deleteConfirmText = ""
     @State private var showDeleteConfirm = false
+    @State private var showLogoutConfirm = false
     @State private var deleteFailed = false
 
     private struct AccountExport: Decodable {
@@ -435,10 +492,10 @@ struct SettingsView: View {
                             Text("Export all (JSON)").font(Theme2.Text.label).lineLimit(1)
                         }
                     }
+                    .foregroundStyle(Theme2.ink)
                     .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Theme2.hairline, in: Capsule())
                 }
-                .buttonStyle(.bordered)
-                .tint(Theme2.ink)
                 .disabled(exporting)
 
                 Button {
@@ -452,10 +509,10 @@ struct SettingsView: View {
                             Text("Meals CSV").font(Theme2.Text.label).lineLimit(1)
                         }
                     }
+                    .foregroundStyle(Theme2.ink)
                     .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Theme2.hairline, in: Capsule())
                 }
-                .buttonStyle(.bordered)
-                .tint(Theme2.ink)
                 .disabled(exporting)
             }
 
@@ -476,16 +533,20 @@ struct SettingsView: View {
             Divider().overlay(Theme2.hairline)
 
             Button {
-                Task { try? await clerk.auth.signOut() }
+                showLogoutConfirm = true
             } label: {
                 HStack(spacing: Theme2.Space.xs) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
                     Text("Log out").font(Theme2.Text.label)
                 }
+                .foregroundStyle(Theme2.ink)
                 .frame(maxWidth: .infinity, minHeight: 44)
+                .background(Theme2.hairline, in: Capsule())
             }
-            .buttonStyle(.bordered)
-            .tint(Theme2.ink)
+            .confirmationDialog("Log out?", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
+                Button("Log out", role: .destructive) { Task { try? await clerk.auth.signOut() } }
+                Button("Cancel", role: .cancel) {}
+            }
 
             Button(role: .destructive) {
                 deleteFailed = false
@@ -584,18 +645,29 @@ private struct SaveButton: View {
 private struct Chip: View {
     let label: String
     let selected: Bool
+    /// On a theme-fixed pastel card, use fixed ink/paper — themed tokens flip
+    /// in dark mode (black chips on cream, §2.2 violation).
+    var onPastel: Bool = false
     let action: () -> Void
+
+    private var fg: Color {
+        onPastel ? (selected ? .white : .black) : (selected ? Theme2.canvas : Theme2.ink)
+    }
+    private var bg: Color {
+        onPastel ? (selected ? .black : .white) : (selected ? Theme2.ink : Theme2.surface)
+    }
+    private var border: Color { onPastel ? Color.black.opacity(0.12) : Theme2.hairline }
 
     var body: some View {
         Button(action: action) {
             Text(label)
                 .font(Theme2.Text.caption)
                 .lineLimit(1)
-                .foregroundStyle(selected ? Theme2.canvas : Theme2.ink)
+                .foregroundStyle(fg)
                 .padding(.horizontal, Theme2.Space.l)
                 .frame(minHeight: 44)
-                .background(selected ? Theme2.ink : Theme2.surface)
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(selected ? Color.clear : Theme2.hairline, lineWidth: 1))
+                .background(bg)
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(selected ? Color.clear : border, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
@@ -672,9 +744,9 @@ private struct GoalCard: View {
             VStack(alignment: .leading, spacing: Theme2.Space.xs) {
                 Text("Direction").font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
                 HStack(spacing: Theme2.Space.s) {
-                    Chip(label: "Lose", selected: direction == "lose") { direction = "lose" }
-                    Chip(label: "Maintain", selected: direction == "maintain") { direction = "maintain" }
-                    Chip(label: "Gain", selected: direction == "gain") { direction = "gain" }
+                    Chip(label: "Lose", selected: direction == "lose", onPastel: true) { direction = "lose" }
+                    Chip(label: "Maintain", selected: direction == "maintain", onPastel: true) { direction = "maintain" }
+                    Chip(label: "Gain", selected: direction == "gain", onPastel: true) { direction = "gain" }
                 }
             }
             if direction != "maintain" {
@@ -682,12 +754,13 @@ private struct GoalCard: View {
                     Text("Rate (\(unit)/week)").font(Theme2.Text.caption).foregroundStyle(Theme2.blockInkSecondary)
                     HStack(spacing: Theme2.Space.s) {
                         ForEach(ratePresets, id: \.self) { p in
-                            Chip(label: p, selected: rateText == p) { rateText = p }
+                            Chip(label: p, selected: rateText == p, onPastel: true) { rateText = p }
                         }
                     }
                     TextField("", text: $rateText)
                         .keyboardType(.decimalPad)
                         .monospacedDigit()
+                        .foregroundStyle(Theme2.blockInk)
                         .padding(Theme2.Space.s)
                         .background(Color.white.opacity(0.6))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -698,6 +771,7 @@ private struct GoalCard: View {
                 TextField("Target to reach", text: $goalWeightText)
                     .keyboardType(.decimalPad)
                     .monospacedDigit()
+                    .foregroundStyle(Theme2.blockInk)
                     .padding(Theme2.Space.s)
                     .background(Color.white.opacity(0.6))
                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -842,11 +916,9 @@ private struct TargetsCard: View {
                 // this exact Picker/Binding(get:set:) combination (Swift 6.3.3, reproduced
                 // and confirmed by isolating this one line; verified by build-log stack
                 // trace pointing at IRGenRequest for this file). Keep this closure form.
-                Picker("Mode", selection: Binding(get: { mode }, set: { switchMode($0) })) {
-                    Text("%").tag("pct")
-                    Text("grams").tag("g")
-                }
-                .pickerStyle(.segmented).frame(width: 140)
+                SegmentedToggle(options: [("%", "pct"), ("grams", "g")],
+                                selection: Binding(get: { mode }, set: { switchMode($0) }))
+                    .frame(width: 150)
             }
             if mode == "pct" {
                 HStack(spacing: Theme2.Space.s) {

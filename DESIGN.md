@@ -179,31 +179,34 @@ class, don't reach for neighbors:
 
 ### 2.8 Motion
 
-Doctrine (PRODUCT.md §4 "snappy but fluid"). Exact tiers — every animation in
-the app belongs to one:
+Doctrine (PRODUCT.md §4 "snappy but fluid"): motion is **snappy _and_
+decorative** — quick to start, quick to settle, but it carries a light
+spring/overshoot so the app feels alive rather than austere. The bar is: it
+must never feel like it's taking too long. Tiers:
 
-| Tier | Duration | Easing | Where |
-|---|---|---|---|
-| **Standard** | 130ms | `Easing.out(Easing.quad)` | Default for everything: entrances/fades, press scale, fill bars, ring arc, layout transitions, stagger beats |
-| **Tab bar** | 130ms | `Easing.out(Easing.cubic)` | Speed-dial fan, tab icon scale, tab cross-fade — the one place cubic is used |
-| **Screen push** | 200ms | native `simple_push` / splash fade | Stack pushes; launch cross-fade. Scene background themed so dark never flashes white |
-| **Functional** | as the mechanic requires | linear / `inOut(ease)` | Barcode hold ring (3000ms linear), analyzing pulse (1200ms loop), camera reticle tracking (240ms grow / 120ms shrink) — motion that *is* the feature, not styling |
+| Tier | Curve | Where |
+|---|---|---|
+| **Spring** (default) | `.spring(response: 0.3, dampingFraction: 0.66)` — snappy, gentle overshoot, settles ~0.3s (`Theme2.Motion.standard`) | Entrances, press scale, fill bars, ring arc, layout & step transitions, Bevi pose appears |
+| **Pop** | `.spring(response: 0.24, dampingFraction: 0.6)` — tighter, poppier | Speed-dial fan icons, small interactive pops |
+| **Snap** | 120ms `easeOut` (`Theme2.Motion.snap`) | Cross-fades / scrims where a bounce reads wrong |
+| **Screen push** | 200ms native | Stack pushes; launch cross-fade. Scene background themed so dark never flashes white |
+| **Functional** | as the mechanic requires | Loading pulses, hold rings — motion that *is* the feature, not styling |
 
-New animation? It's Standard unless it's literally one of the other three rows.
-- **No springs, no bounce, no decorative motion.** Exit ≤ enter.
-- **Launch:** native splash is held until auth state is known, then
-  cross-fades into the first screen (200ms, `expo-splash-screen` native fade;
-  reduced motion hides it instantly). No hard cut, no custom splash overlay.
-- **Reduced motion:** durations drop to 0 via `useReducedMotion()` — required
-  on every animation, not just the tab bar.
-- **Determinate fills animate to data changes:** the progress ring arc and
-  macro fill bars ease to new values (Standard tier) instead of snapping;
-  they initialize at the current value so mounting never plays a decorative
-  sweep. Reduced motion sets them instantly.
+- **Decorative motion is wanted.** Springs, overshoot, playful entrances, and
+  SF Symbols effects (`.bounce`/`.wiggle`) on moments that matter (a logged
+  meal, a tab tap) are encouraged — but kept **fast**: short response, quick
+  settle, never a lingering bounce. (This reverses the earlier "no springs, no
+  bounce" rule.)
+- **Reduced motion:** every animation drops to instant via
+  `accessibilityReduceMotion` — required on all of them.
+- **Determinate fills** (progress ring arc, macro bars) spring to new values
+  instead of snapping; they initialize at the current value so mounting never
+  plays a sweep. Reduced motion sets them instantly.
 - **Entrance staggers:** a screen's first paint may land in 2–4 short beats
-  (40–80ms apart, each a 130ms fade/rise) — orchestration, not decoration.
-  One stagger per screen, on the moment that matters; reduced motion
-  collapses it to instant.
+  (~40–80ms apart, each a quick spring) — orchestration, on the moment that
+  matters; reduced motion collapses it to instant.
+- **Launch:** native splash held until auth state is known, then a 200ms
+  cross-fade into the first screen. No hard cut.
 
 ### 2.9 App icon
 Bevi's face, close-cropped bust (from the `standing` pose: direct gaze,
@@ -437,7 +440,11 @@ Danger actions visually separated.
   the viewfinder stays clean until there's something to lock. Reduced
   motion: eases drop to instant, the 3s hold stays (it's functional). Food and
   labels are snapped to AI analyze, which reads both. Lookup misses surface
-  inline, the camera stays live. Library pick available in-frame. *(Decision 2026-07-17: expo-camera
+  inline, the camera stays live. Library pick available in-frame. Shutter is
+  the standard iOS still-photo control — white ring + white inner disc, NOT a
+  red fill (which reads as "record video"); the accent stays off it. Pressing
+  it fires a white flash + capture haptic and freezes the shot on screen under
+  the analyzing overlay, so the user sees exactly what was captured. *(Decision 2026-07-17: expo-camera
   is the capture layer. vision-camera v5 corrupted the Hermes heap on device
   — four segfaults; a v4 rebuild ran but was judged not reliable. Live
   nutrition-label detection is dropped with that call — the v5-era reticle

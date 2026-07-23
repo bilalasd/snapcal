@@ -96,6 +96,17 @@ struct AuthGate: View {
                         }
                         .sheet(isPresented: $showingReset) { ResetPasswordView() }
                 }
+            } else if !goalsChecked {
+                // Don't route until the account's onboarded-state is known.
+                // Without this the body's default arm renders Today for a beat,
+                // then the goals fetch resolves and bounces a not-onboarded
+                // account to onboarding — which reads as the UI "reverting" to
+                // the old screen (it flashes Today, then jumps away). A loader
+                // until `goalsChecked` removes that flash; a returning onboarded
+                // user clears it in one frame from the warm cache path in .task.
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme2.canvas)
             } else if needsOnboarding {
                 // A signed-in account with no goals has never finished setup.
                 // Sending them to the tabs would show a zero-calorie budget and

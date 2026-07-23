@@ -165,11 +165,11 @@ struct HistoryView: View {
                 } label: {
                     Text("Retry")
                         .font(Theme2.Text.label)
+                        .foregroundStyle(Theme2.canvas)
                         .padding(.horizontal, Theme2.Space.xl)
                         .frame(minHeight: 44)
+                        .background(Theme2.ink, in: Capsule())
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme2.ink)
             }
         }
     }
@@ -201,12 +201,8 @@ struct HistoryView: View {
                         Text("Calories").font(Theme2.Text.title)
                     }
                     Spacer(minLength: Theme2.Space.m)
-                    Picker("Range", selection: $vm.range) {
-                        Text("7d").tag(7)
-                        Text("30d").tag(30)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 120)
+                    SegmentedToggle(options: [("7d", 7), ("30d", 30)], selection: $vm.range)
+                        .frame(width: 130)
                 }
                 if let insight {
                     Text(insightText(insight))

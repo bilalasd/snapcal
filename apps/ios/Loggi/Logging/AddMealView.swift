@@ -13,6 +13,7 @@ final class AddMealViewModel {
     enum Mode: String, CaseIterable, Identifiable {
         case camera = "Camera"
         case describe = "Describe"
+        case speak = "Speak"
         case saved = "Saved"
         var id: String { rawValue }
     }
@@ -83,31 +84,39 @@ final class AddMealViewModel {
 }
 
 struct AddMealView: View {
-    @State private var vm = AddMealViewModel()
+    @State private var vm: AddMealViewModel
+    @State private var dictation = DictationService()
     @State private var cameraOpen = false
     @Environment(\.dismiss) private var dismiss
     /// The day being logged to — Today passes its paged date so a meal added
     /// while viewing yesterday lands on yesterday, matching add.tsx's `date`
     /// search param.
-    var targetDate: Date = Date()
+    let targetDate: Date
+
+    /// `initialMode` lets the speed-dial fan open straight to Camera / Describe
+    /// / Speak / Saved. Seeded into the view model here so there's no flash of
+    /// the default (camera) tab before switching.
+    init(targetDate: Date = Date(), initialMode: AddMealViewModel.Mode? = nil) {
+        self.targetDate = targetDate
+        let model = AddMealViewModel()
+        if let initialMode { model.mode = initialMode }
+        _vm = State(initialValue: model)
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("Mode", selection: $vm.mode) {
-                    ForEach(AddMealViewModel.Mode.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(Theme2.Space.l)
-
+                // No segmented chooser — the speed dial already picked the mode
+                // and takes you straight here (DESIGN §4.4 "no chooser screen").
                 switch vm.mode {
                 case .camera: cameraTab
                 case .describe: describeTab
+                case .speak: speakTab
                 case .saved: savedTab
                 }
             }
             .background(Theme2.canvas)
-            .navigationTitle("Log a meal")
+            .navigationTitle(vm.mode.rawValue)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -148,10 +157,10 @@ struct AddMealView: View {
             } label: {
                 Label("Open camera", systemImage: "camera.fill")
                     .font(Theme2.Text.label)
+                    .foregroundStyle(Theme2.blockInk)
                     .frame(maxWidth: .infinity, minHeight: 52)
+                    .background(Theme2.accentLog, in: Capsule())
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme2.accentLog)
             Spacer()
         }
         .padding(Theme2.Space.l)
@@ -179,14 +188,14 @@ struct AddMealView: View {
                             Task { await vm.describe() }
                         } label: {
                             HStack {
-                                if vm.analyzing { ProgressView().tint(Theme2.canvas) }
+                                if vm.analyzing { ProgressView().tint(Theme2.blockInk) }
                                 Text(vm.analyzing ? "Analyzing…" : "Analyze")
                                     .font(Theme2.Text.label)
                             }
+                            .foregroundStyle(Theme2.blockInk)
                             .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(Theme2.accentLog, in: Capsule())
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Theme2.accentLog)
                         .disabled(vm.query.trimmingCharacters(in: .whitespaces).isEmpty || vm.analyzing)
                         if let err = vm.errorMessage {
                             Text(err).font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver)
@@ -202,6 +211,57 @@ struct AddMealView: View {
             .padding(Theme2.Space.l)
         }
         .onChange(of: vm.query) { _, _ in vm.searchChanged() }
+    }
+
+    /// Speak — live on-device dictation (DictationService) into the same
+    /// analyze pipeline as Describe. Device-only at runtime (the sim has no
+    /// mic feed / speech model); it no-ops gracefully otherwise.
+    private var speakTab: some View {
+        VStack(spacing: Theme2.Space.l) {
+            Spacer()
+            EmptyStateView(
+                title: dictation.isListening ? "Listening…" : "Say what you ate",
+                message: dictation.isListening
+                    ? "Describe your meal out loud, then tap Done."
+                    : "Tap the mic and describe your meal — Loggi transcribes it and works out the rest.",
+                bevi: "bevi-standing")
+            if !dictation.transcript.isEmpty {
+                Text(dictation.transcript)
+                    .font(Theme2.Text.body).foregroundStyle(Theme2.ink)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(Theme2.Space.l)
+                    .background(Theme2.hairline, in: RoundedRectangle(cornerRadius: Theme2.Radius.control))
+            }
+            Button {
+                Task {
+                    if dictation.isListening {
+                        let text = await dictation.stop()
+                        if !text.isEmpty { vm.query = text; await vm.describe() }
+                    } else if await dictation.requestPermission() {
+                        await dictation.start()
+                    }
+                }
+            } label: {
+                HStack {
+                    if vm.analyzing { ProgressView().tint(Theme2.blockInk) }
+                    Label(
+                        vm.analyzing ? "Analyzing…" : (dictation.isListening ? "Done — analyze" : "Start speaking"),
+                        systemImage: dictation.isListening ? "checkmark" : "mic.fill")
+                        .font(Theme2.Text.label)
+                }
+                .foregroundStyle(Theme2.blockInk)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(Theme2.accentLog, in: Capsule())
+            }
+            .disabled(vm.analyzing)
+            if let err = dictation.errorMessage ?? vm.errorMessage {
+                Text(err).font(Theme2.Text.caption).foregroundStyle(Theme2.statusOver)
+            }
+            Spacer()
+        }
+        .padding(Theme2.Space.l)
+        .animation(Theme2.Motion.standard, value: dictation.isListening)
     }
 
     private var savedTab: some View {

@@ -160,13 +160,16 @@ struct WeightView: View {
             Button {
                 vm.logSheetOpen = true
             } label: {
+                // Explicit canvas-on-ink (both flip together per theme). The old
+                // .borderedProminent auto-picked a label color that stayed light
+                // on the near-white dark-mode tint — a white-on-white button.
                 Label("Log", systemImage: "plus")
                     .font(Theme2.Text.label)
+                    .foregroundStyle(Theme2.canvas)
                     .padding(.horizontal, Theme2.Space.l)
                     .frame(minHeight: 44)
+                    .background(Theme2.ink, in: Capsule())
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme2.ink)
             .accessibilityLabel("Log a weigh-in")
         }
     }
@@ -215,11 +218,9 @@ struct WeightView: View {
                         }
                     }
                     Spacer(minLength: Theme2.Space.m)
-                    Picker("Range", selection: $vm.range) {
-                        Text("30d").tag(30)
-                        Text("90d").tag(90)
-                    }
-                    .pickerStyle(.segmented).frame(width: 120)
+                    SegmentedToggle(options: [("30d", 30), ("90d", 90)],
+                                    selection: $vm.range, onPastel: true)
+                        .frame(width: 130)
                 }
             }
             SurfaceCard {
